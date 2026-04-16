@@ -1,0 +1,24 @@
+{
+  "name": "shift-optimizer",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "bootstrap:appwrite": "tsx scripts/bootstrap-appwrite.ts",
+    "seed:shifts": "tsx scripts/seed-shift-catalog.ts",
+    "seed:branch-types": "tsx scripts/seed-branch-type-config.ts",
+    "seed:holidays": "tsx scripts/seed-holidays.ts",
+    "seed:all": "npm run seed:shifts && npm run seed:branch-types && npm run seed:holidays",
+    "create:admin": "tsx scripts/create-first-admin.ts",
+    "dev": "npm run dev --workspace=frontend",
+    "test": "npm run test --workspace=frontend"
+  },
+  "dependencies": {
+    "node-appwrite": "^14.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "dotenv": "^16.4.0",
+    "tsx": "^4.15.0",
+    "typescript": "^5.5.0"
+  }
+}
