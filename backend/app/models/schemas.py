@@ -39,7 +39,9 @@ class ModoProposal(str, Enum):
 
 class EstadoProposal(str, Enum):
     generada = "generada"
+    publicada = "publicada"
     seleccionada = "seleccionada"
+    exportada = "exportada"
     descartada = "descartada"
 
 

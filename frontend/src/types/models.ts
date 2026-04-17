@@ -18,7 +18,7 @@ export type TipoConstraint = "dia_prohibido" | "turno_prohibido" | "vacaciones";
 
 export type ModoProposal = "ilp" | "greedy";
 
-export type EstadoProposal = "generada" | "seleccionada" | "descartada";
+export type EstadoProposal = "generada" | "publicada" | "seleccionada" | "exportada" | "descartada";
 
 export type TipoHoliday = "irrenunciable";
 

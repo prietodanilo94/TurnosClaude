@@ -478,7 +478,7 @@ async function bootstrapProposals(): Promise<void> {
       DB,
       "proposals",
       "estado",
-      ["generada", "seleccionada", "descartada"],
+      ["generada", "publicada", "seleccionada", "exportada", "descartada"],
       true
     )
   );
@@ -487,6 +487,16 @@ async function bootstrapProposals(): Promise<void> {
   );
   await create("seleccionada_por", attrs, () =>
     db.createStringAttribute(DB, "proposals", "seleccionada_por", 36, false)
+  );
+  // Métricas calculadas por el optimizador (JSON serializado) — spec 010
+  await create("metrics", attrs, () =>
+    db.createStringAttribute(DB, "proposals", "metrics", 4096, false)
+  );
+  await create("publicada_por", attrs, () =>
+    db.createStringAttribute(DB, "proposals", "publicada_por", 36, false)
+  );
+  await create("publicada_en", attrs, () =>
+    db.createDatetimeAttribute(DB, "proposals", "publicada_en", false)
   );
 
   await sleep(2000);
