@@ -1,5 +1,6 @@
 "use client";
 
+import { useDroppable } from "@dnd-kit/core";
 import type { DayInGrid } from "@/lib/calendar/month-grid";
 import type { CalendarAssignment, ShiftDef, Violation } from "@/types/optimizer";
 import type { Worker } from "@/types/models";
@@ -29,6 +30,8 @@ export function DayCell({
   overlappingIds,
   onSlotClick,
 }: DayCellProps) {
+  const { setNodeRef, isOver } = useDroppable({ id: day.date });
+
   const shiftMap: Record<string, ShiftDef> = {};
   for (const s of shifts) shiftMap[s.id] = s;
   const workerMap: Record<string, Worker> = {};
@@ -44,11 +47,17 @@ export function DayCell({
     ? "bg-gray-100"
     : "bg-white";
 
+  const dropRing = isOver && day.isCurrentMonth && day.isOpen
+    ? "ring-2 ring-blue-400 ring-inset"
+    : "";
+
   return (
     <div
+      ref={setNodeRef}
       className={[
         "min-h-[80px] border border-gray-200 rounded-md p-1.5 flex flex-col gap-1",
         bgClass,
+        dropRing,
         !day.isCurrentMonth ? "opacity-40" : "",
       ].join(" ")}
     >
