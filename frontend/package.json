@@ -12,6 +12,7 @@
   "dependencies": {
     "appwrite": "^16.0.2",
     "next": "14.2.35",
+    "node-appwrite": "^14.0.0",
     "react": "^18",
     "react-dom": "^18"
   },
