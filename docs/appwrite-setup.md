@@ -1,91 +1,147 @@
 # Appwrite Setup
 
-Esta guía documenta cómo configurar tu instancia de Appwrite para este proyecto. Se ejecuta **una vez** al inicio, y luego se versiona como código (ver spec 001).
+Guía para configurar Appwrite desde cero para este proyecto. El proceso está
+completamente automatizado via scripts — no hace falta crear colecciones ni
+atributos a mano.
 
 ## Pre-requisitos
 
-- Appwrite self-hosted corriendo en tu servidor (lo tienes ✓).
-- Acceso admin a la consola de Appwrite.
-- Instalada la **Appwrite CLI**: https://appwrite.io/docs/tooling/command-line/installation
+- Appwrite self-hosted corriendo (actualmente en `https://appwrite.dpmake.cl`).
+- Node.js 18+ instalado.
+- Dependencias instaladas: `npm install` en la raíz del repo.
 
-```bash
-npm install -g appwrite-cli
-appwrite login
-```
-
-## 1. Crear el proyecto
+## 1. Crear el proyecto en Appwrite
 
 Desde la consola web de Appwrite:
 
 1. **Create Project** → Nombre: `shift-optimizer`.
-2. Copia el **Project ID** a tu `.env.local` como `NEXT_PUBLIC_APPWRITE_PROJECT_ID`.
+2. Copia el **Project ID** a tu `.env`.
 3. En **Settings → Add Platform**, registra:
-   - **Web**: `http://localhost:3000` (dev) + el dominio de producción.
+   - **Web**: `http://localhost:3000` (dev) + dominio de producción cuando corresponda.
 
-## 2. Crear una API Key para el backend
+## 2. Crear una API Key
 
 **Auth → API Keys → Create API Key**:
 
-- Nombre: `backend-optimizer`
-- Scopes: `users.read`, `databases.read`, `sessions.write`
-- Copia el key en tu `.env` del backend como `APPWRITE_API_KEY`.
+- Nombre: `bootstrap`
+- Scopes mínimos necesarios:
 
-## 3. Crear la base de datos
+```
+databases.read    databases.write
+collections.read  collections.write
+attributes.read   attributes.write
+indexes.read      indexes.write
+documents.read    documents.write
+users.read        users.write
+```
 
-**Databases → Create Database**:
+Copia el key generado. Lo necesitás en el paso siguiente.
 
-- Nombre: `shift-optimizer-db`
-- ID: `main`
+## 3. Configurar el `.env`
 
-Las colecciones y atributos los crearemos programáticamente con un script en la Spec 001 para que sean reproducibles.
-
-## 4. Variables de entorno
-
-### Frontend `.env.local`
+Copia `.env.example` a `.env` y completa los valores:
 
 ```env
-NEXT_PUBLIC_APPWRITE_ENDPOINT=https://appwrite.tu-dominio.com/v1
-NEXT_PUBLIC_APPWRITE_PROJECT_ID=xxxxxxxxxx
+APPWRITE_ENDPOINT=https://appwrite.dpmake.cl/v1
+APPWRITE_PROJECT_ID=<tu-project-id>
+APPWRITE_API_KEY=<tu-api-key>
+APPWRITE_DATABASE_ID=main
+
+NEXT_PUBLIC_APPWRITE_ENDPOINT=https://appwrite.dpmake.cl/v1
+NEXT_PUBLIC_APPWRITE_PROJECT_ID=<tu-project-id>
 NEXT_PUBLIC_APPWRITE_DATABASE_ID=main
 NEXT_PUBLIC_OPTIMIZER_URL=http://localhost:8000
+
+FIRST_ADMIN_EMAIL=tu-email@dominio.com
+FIRST_ADMIN_PASSWORD=contraseña-segura
+FIRST_ADMIN_NAME=Tu Nombre
 ```
 
-### Backend `.env`
+> **Nunca** commitees el `.env` con keys reales — está en `.gitignore`.
 
-```env
-APPWRITE_ENDPOINT=https://appwrite.tu-dominio.com/v1
-APPWRITE_PROJECT_ID=xxxxxxxxxx
-APPWRITE_API_KEY=standard_xxxxxxxxx...
-APPWRITE_DATABASE_ID=main
+## 4. Ejecutar el bootstrap
+
+Crea la database `main` y las 11 colecciones con sus atributos, índices y
+permisos por rol. Es **idempotente** — se puede correr múltiples veces sin
+duplicar nada.
+
+```bash
+npm run bootstrap:appwrite
 ```
 
-## 5. Primer usuario admin
+Colecciones creadas:
+`users`, `branches`, `branch_type_config`, `shift_catalog`, `workers`,
+`branch_managers`, `holidays`, `worker_constraints`, `proposals`,
+`assignments`, `audit_log`.
 
-**Auth → Users → Create User**:
+## 5. Cargar los seeds
 
-- Email: tu email
-- Password: (fuerte)
-- Luego, en la consola, ve a **Databases → main → users → Create Document** y crea un documento con tu `$id` (el mismo de Auth) y `rol = "admin"`.
+```bash
+npm run seed:all
+```
 
-Alternativa: el script de bootstrap de la Spec 001 creará el primer admin por CLI.
+Esto carga en orden:
 
-## 6. Labels (para permisos por rol)
+| Comando | Datos |
+|---|---|
+| `npm run seed:shifts` | 10 turnos en `shift_catalog` |
+| `npm run seed:branch-types` | 5 tipos de sucursal en `branch_type_config` |
+| `npm run seed:holidays` | 10 feriados (2026 + 2027) en `holidays` |
 
-Appwrite usa **labels** para permisos basados en rol. En la consola:
+Para agregar feriados de un año futuro:
 
-**Auth → Users → [tu usuario] → Labels → Add**:
-- `admin`
+```bash
+npx tsx scripts/seed-holidays.ts 2028
+```
 
-Luego en cada colección podremos usar `Role.label("admin")` en las reglas de permisos.
+## 6. Crear el primer admin
 
-## 7. Verificación
+```bash
+npm run create:admin
+```
 
-- Puedes loguearte desde el frontend una vez implementada la Spec 005.
-- El backend puede validar tu JWT.
-- Tienes acceso a todas las colecciones como admin.
+Lee `FIRST_ADMIN_EMAIL`, `FIRST_ADMIN_PASSWORD` y `FIRST_ADMIN_NAME` del `.env`.
+También acepta argumentos por CLI:
 
-## Notas
+```bash
+npx tsx scripts/create-first-admin.ts email@ejemplo.com contraseña "Nombre Apellido"
+```
 
-- **No commitees** ningún `.env` con keys reales al repo.
-- Para producción, genera una API Key distinta con scopes más acotados.
-- Si quieres email transaccional (invitación a jefes de sucursal), configura SMTP en **Settings → SMTP**. Para el MVP esto no es necesario (Opción A de creación manual de usuarios).
+Crea:
+- Usuario en Appwrite Auth.
+- Label `admin` en ese usuario.
+- Documento en colección `users` con permisos de lectura propios.
+
+## 7. Verificar
+
+Revisá en la consola Appwrite que:
+
+- La database `main` tiene las 11 colecciones.
+- `shift_catalog` tiene 10 documentos.
+- `branch_type_config` tiene 5 documentos.
+- `holidays` tiene 10 documentos.
+- El usuario admin aparece en **Auth → Users** con label `admin`.
+
+## Notas sobre permisos y labels
+
+Los permisos están configurados con dos labels:
+
+| Label | Valor en Appwrite | Rol en la app |
+|---|---|---|
+| `admin` | `admin` | Acceso total |
+| `jefesucursal` | `jefesucursal` | Vista restringida a sus sucursales |
+
+> Appwrite 1.6 solo permite labels alfanuméricos (sin guión bajo). El campo
+> `rol` en la colección `users` sigue usando `jefe_sucursal` con guión bajo —
+> son dos cosas distintas.
+
+Para asignar el label `jefesucursal` a un nuevo jefe de sucursal, ir a
+**Auth → Users → [usuario] → Labels → Add** y escribir `jefesucursal`.
+
+## Reinstalación desde cero
+
+Si necesitás resetear todo:
+
+1. Eliminar la database `main` desde la consola Appwrite.
+2. Eliminar todos los usuarios en **Auth → Users**.
+3. Correr el flujo completo desde el paso 4.
