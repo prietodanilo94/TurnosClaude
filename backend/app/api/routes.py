@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 
 from app.core.calendar import build_solver_input
+from app.core.validators import validar_solucion
 from app.models.schemas import (
     AssignmentOut,
     Diagnostico,
@@ -10,6 +11,7 @@ from app.models.schemas import (
     OptimizeResponse,
     ProposalOut,
     ValidateRequest,
+    ValidateResponse,
 )
 from app.optimizer.greedy import solve_greedy
 from app.optimizer.lower_bound import calcular_lower_bound
@@ -80,6 +82,7 @@ async def optimize(payload: OptimizeRequest):
     return OptimizeResponse(propuestas=[proposal], diagnostico=diagnostico)
 
 
-@router.post("/validate", tags=["optimizer"])
+@router.post("/validate", response_model=ValidateResponse, tags=["optimizer"])
 async def validate(payload: ValidateRequest):
-    return JSONResponse(status_code=501, content={"detail": "Not implemented yet"})
+    violaciones = validar_solucion(payload.asignaciones, payload)
+    return ValidateResponse(valido=len(violaciones) == 0, violaciones=violaciones)
