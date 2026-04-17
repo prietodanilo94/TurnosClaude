@@ -12,6 +12,7 @@ from app.models.schemas import (
     ValidateRequest,
 )
 from app.optimizer.greedy import solve_greedy
+from app.optimizer.lower_bound import calcular_lower_bound
 
 router = APIRouter()
 
@@ -22,10 +23,33 @@ async def optimize(payload: OptimizeRequest):
         raise HTTPException(status_code=501, detail="ILP solver no implementado todavía")
 
     solver_input = build_solver_input(payload)
+    n_min = calcular_lower_bound(solver_input)
+    n_workers = len(payload.workers)
+
+    # Task 9 — 409 si la dotación es insuficiente
+    if n_workers < n_min:
+        return JSONResponse(
+            status_code=409,
+            content={
+                "detail": (
+                    f"Dotación insuficiente: necesitas al menos {n_min} trabajadores "
+                    f"para cubrir esta sucursal este mes; tienes {n_workers}."
+                ),
+                "diagnostico": {
+                    "dotacion_disponible": n_workers,
+                    "dotacion_minima_requerida": n_min,
+                    "dotacion_suficiente": False,
+                    "mensajes": [
+                        f"Necesitas al menos {n_min} trabajadores para cubrir esta "
+                        f"sucursal este mes; tienes {n_workers}."
+                    ],
+                },
+            },
+        )
+
     output = solve_greedy(solver_input)
 
     rut_to_slot = {w.rut: i + 1 for i, w in enumerate(payload.workers)}
-
     assignments_out = [
         AssignmentOut(
             worker_slot=rut_to_slot[a.worker_rut],
@@ -41,15 +65,16 @@ async def optimize(payload: OptimizeRequest):
         modo=ModoProposal.greedy,
         score=output.score,
         factible=output.factible,
-        dotacion_minima_sugerida=len(payload.workers),  # lower_bound real en Task 7
+        dotacion_minima_sugerida=n_min,
         asignaciones=assignments_out,
     )
 
+    # Task 8 — diagnostico siempre incluye n_min real
     diagnostico = Diagnostico(
-        dotacion_disponible=len(payload.workers),
-        dotacion_minima_requerida=1,  # lower_bound real en Task 7
-        dotacion_suficiente=True,
-        mensajes=output.mensajes,
+        dotacion_disponible=n_workers,
+        dotacion_minima_requerida=n_min,
+        dotacion_suficiente=n_workers >= n_min,
+        mensajes=list(output.mensajes),
     )
 
     return OptimizeResponse(propuestas=[proposal], diagnostico=diagnostico)

@@ -96,3 +96,48 @@ def test_http_optimize_ilp_devuelve_501():
     payload["parametros"]["modo"] = "ilp"
     resp = client.post("/optimize", json=payload)
     assert resp.status_code == 501
+
+
+# ─── Tests Task 8: diagnostico con lower bound real ───────────────────────────
+
+def test_http_diagnostico_incluye_n_min():
+    payload = load_fixture("standalone_basic.json")
+    resp = client.post("/optimize", json=payload)
+    assert resp.status_code == 200
+    diag = resp.json()["diagnostico"]
+    assert diag["dotacion_minima_requerida"] >= 1
+    assert diag["dotacion_disponible"] == 5
+    assert diag["dotacion_suficiente"] is True
+
+
+def test_http_propuesta_dotacion_minima_sugerida():
+    payload = load_fixture("standalone_basic.json")
+    resp = client.post("/optimize", json=payload)
+    prop = resp.json()["propuestas"][0]
+    assert prop["dotacion_minima_sugerida"] >= 1
+
+
+# ─── Tests Task 9: 409 dotación insuficiente ─────────────────────────────────
+
+def test_http_insuficiente_devuelve_409():
+    payload = load_fixture("infeasible_short_staff.json")
+    resp = client.post("/optimize", json=payload)
+    assert resp.status_code == 409
+
+
+def test_http_409_incluye_diagnostico():
+    payload = load_fixture("infeasible_short_staff.json")
+    resp = client.post("/optimize", json=payload)
+    body = resp.json()
+    assert "diagnostico" in body
+    assert body["diagnostico"]["dotacion_suficiente"] is False
+    assert body["diagnostico"]["dotacion_disponible"] == 1
+    assert body["diagnostico"]["dotacion_minima_requerida"] >= 2
+
+
+def test_http_409_mensaje_explicativo():
+    payload = load_fixture("infeasible_short_staff.json")
+    resp = client.post("/optimize", json=payload)
+    body = resp.json()
+    assert len(body["diagnostico"]["mensajes"]) > 0
+    assert "trabajadores" in body["diagnostico"]["mensajes"][0]
