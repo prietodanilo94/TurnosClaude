@@ -93,7 +93,7 @@ function checkDomingosLibres(ctx: ValidateContext): Violation[] {
   const domingosDates = ctx.assignments
     .filter((a) => dayOfWeek(a.date) === "domingo")
     .map((a) => a.date);
-  const allDomingos = [...new Set(domingosDates)].sort();
+  const allDomingos = Array.from(new Set(domingosDates)).sort();
   const openDomingos = allDomingos.length;
   if (openDomingos === 0) return [];
 

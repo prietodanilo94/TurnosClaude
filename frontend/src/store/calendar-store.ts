@@ -31,6 +31,7 @@ export interface CalendarState {
   workers: Worker[];
   shiftCatalog: ShiftDef[];
   holidays: string[];          // ["YYYY-MM-DD"]
+  franjaPorDia: Record<string, { apertura: string; cierre: string } | null>;
   violations: Violation[];
   dirty: boolean;
 
@@ -45,6 +46,7 @@ export interface CalendarState {
     workers: Worker[];
     shiftCatalog: ShiftDef[];
     holidays: string[];
+    franjaPorDia: Record<string, { apertura: string; cierre: string } | null>;
   }) => void;
 
   /** Cambia la propuesta activa y carga sus asignaciones. */
@@ -74,19 +76,6 @@ export interface CalendarState {
 
 // ─── store ────────────────────────────────────────────────────────────────────
 
-const INITIAL: Omit<CalendarState, keyof { [K in keyof CalendarState as CalendarState[K] extends Function ? K : never]: unknown }> = {
-  branchId: "",
-  year: new Date().getFullYear(),
-  month: new Date().getMonth() + 1,
-  availableProposals: [],
-  activeProposalId: null,
-  assignments: [],
-  workers: [],
-  shiftCatalog: [],
-  holidays: [],
-  violations: [],
-  dirty: false,
-};
 
 export const useCalendarStore = create<CalendarState>((set, get) => ({
   branchId: "",
@@ -98,10 +87,11 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
   workers: [],
   shiftCatalog: [],
   holidays: [],
+  franjaPorDia: {},
   violations: [],
   dirty: false,
 
-  init({ branchId, year, month, proposals, workers, shiftCatalog, holidays }) {
+  init({ branchId, year, month, proposals, workers, shiftCatalog, holidays, franjaPorDia }) {
     const first = proposals[0] ?? null;
     set({
       branchId,
@@ -113,6 +103,7 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
       workers,
       shiftCatalog,
       holidays,
+      franjaPorDia,
       violations: [],
       dirty: false,
     });
@@ -189,6 +180,7 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
       workers: [],
       shiftCatalog: [],
       holidays: [],
+      franjaPorDia: {},
       violations: [],
       dirty: false,
     });
