@@ -54,6 +54,7 @@ export function DayCell({
   return (
     <div
       ref={setNodeRef}
+      data-date={day.date}
       className={[
         "min-h-[80px] border border-gray-200 rounded-md p-1.5 flex flex-col gap-1",
         bgClass,
