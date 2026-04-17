@@ -110,7 +110,7 @@ $$
 \sum_{d \in \text{wk}} \sum_{s \in S} \text{dur}(s) \cdot x_{w,d,s} \le 42
 $$
 
-> **Nota**: $\text{dur}(s)$ ya tiene descontada la hora de colación para turnos $\ge 8$ h.
+> **Nota**: $\text{dur}(s)$ ya tiene descontada la hora de colación para turnos $\ge 6$ h. Turnos de 4 o 5 h no descuentan colación.
 
 ### 3.7. Máximo 6 días trabajados por semana
 
