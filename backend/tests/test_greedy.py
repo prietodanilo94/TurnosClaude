@@ -144,3 +144,55 @@ def test_http_409_mensaje_explicativo():
     body = resp.json()
     assert len(body["diagnostico"]["mensajes"]) > 0
     assert "trabajadores" in body["diagnostico"]["mensajes"][0]
+
+
+# ─── Tests Task 16: múltiples propuestas ─────────────────────────────────────
+
+def test_http_greedy_devuelve_n_propuestas():
+    payload = load_fixture("standalone_basic.json")
+    payload["parametros"]["modo"] = "greedy"
+    payload["parametros"]["num_propuestas"] = 3
+    resp = client.post("/optimize", json=payload)
+    assert resp.status_code == 200, resp.text
+    propuestas = resp.json()["propuestas"]
+    assert len(propuestas) == 3
+
+
+def test_http_greedy_propuestas_son_distintas():
+    payload = load_fixture("standalone_basic.json")
+    payload["parametros"]["modo"] = "greedy"
+    payload["parametros"]["num_propuestas"] = 3
+    resp = client.post("/optimize", json=payload)
+    propuestas = resp.json()["propuestas"]
+    fingerprints = [
+        frozenset((a["worker_rut"], a["date"], a["shift_id"]) for a in p["asignaciones"])
+        for p in propuestas
+    ]
+    assert len(set(fingerprints)) == len(fingerprints), "Hay propuestas duplicadas"
+
+
+def test_http_ilp_devuelve_al_menos_una_propuesta():
+    payload = load_fixture("standalone_basic.json")
+    payload["parametros"]["modo"] = "ilp"
+    payload["parametros"]["num_propuestas"] = 2
+    resp = client.post("/optimize", json=payload)
+    assert resp.status_code == 200, resp.text
+    propuestas = resp.json()["propuestas"]
+    assert 1 <= len(propuestas) <= 2, f"Esperaba 1-2 propuestas, got {len(propuestas)}"
+    assert all(p["factible"] for p in propuestas)
+
+
+def test_http_propuestas_tienen_ids_distintos():
+    payload = load_fixture("standalone_basic.json")
+    payload["parametros"]["num_propuestas"] = 3
+    resp = client.post("/optimize", json=payload)
+    ids = [p["id"] for p in resp.json()["propuestas"]]
+    assert len(set(ids)) == len(ids), "IDs de propuestas duplicados"
+
+
+def test_http_num_propuestas_1_devuelve_1():
+    payload = load_fixture("standalone_basic.json")
+    payload["parametros"]["num_propuestas"] = 1
+    resp = client.post("/optimize", json=payload)
+    assert resp.status_code == 200
+    assert len(resp.json()["propuestas"]) == 1
