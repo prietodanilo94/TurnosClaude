@@ -5,8 +5,9 @@ builders de app.optimizer.objective para la funcion objetivo combinada.
 """
 from __future__ import annotations
 
+import datetime
 from decimal import Decimal
-from typing import Dict, Iterable, List, Mapping, Tuple
+from typing import Dict, FrozenSet, Iterable, List, Mapping, Optional, Tuple
 
 from ortools.sat.python import cp_model
 
@@ -189,6 +190,14 @@ def _add_rest_constraints(
     ordered_days = sorted(open_days, key=lambda day: day.day_index)
 
     for previous_day, next_day in zip(ordered_days, ordered_days[1:]):
+        # Solo aplicar entre días calendariamente adyacentes.
+        # Si hay un día cerrado entre medio el descanso real es >= 24h y la
+        # restricción sería falso positivo.
+        prev_date = datetime.date.fromisoformat(previous_day.date)
+        next_date = datetime.date.fromisoformat(next_day.date)
+        if (next_date - prev_date).days != 1:
+            continue
+
         for worker in workers:
             for shift_prev in shifts:
                 key_prev = (worker.rut, previous_day.date, shift_prev.id)
@@ -205,12 +214,25 @@ def _add_rest_constraints(
                         model.Add(x[key_prev] + x[key_next] <= 1)
 
 
-def solve_ilp(inp: SolverInput) -> SolverOutput:
+def solve_ilp(
+    inp: SolverInput,
+    excluded_fingerprints: Optional[List[FrozenSet[Tuple[str, str, str]]]] = None,
+) -> SolverOutput:
     model = cp_model.CpModel()
     open_days = [day for day in inp.days if day.abierto]
 
     x = _build_assignment_vars(model, inp.workers, open_days, inp.shifts)
     worked = _build_day_worked_vars(model, inp.workers, open_days, inp.shifts, x)
+
+    # Diversidad: la nueva solución debe diferir en al menos 1 asignación
+    # de cada solución ya encontrada.
+    for prev_fp in (excluded_fingerprints or []):
+        prev_keys = [key for key in prev_fp if key in x]
+        if prev_keys:
+            model.Add(
+                cp_model.LinearExpr.Sum([x[k] for k in prev_keys]) <= len(prev_keys) - 1
+            )
+
     coverage = _build_coverage_vars(
         model=model,
         workers=inp.workers,

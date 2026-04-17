@@ -171,15 +171,18 @@ def test_http_greedy_propuestas_son_distintas():
     assert len(set(fingerprints)) == len(fingerprints), "Hay propuestas duplicadas"
 
 
-def test_http_ilp_devuelve_al_menos_una_propuesta():
+def test_http_ilp_devuelve_n_propuestas_distintas():
     payload = load_fixture("standalone_basic.json")
     payload["parametros"]["modo"] = "ilp"
     payload["parametros"]["num_propuestas"] = 2
     resp = client.post("/optimize", json=payload)
     assert resp.status_code == 200, resp.text
     propuestas = resp.json()["propuestas"]
-    assert 1 <= len(propuestas) <= 2, f"Esperaba 1-2 propuestas, got {len(propuestas)}"
+    assert len(propuestas) == 2, f"Esperaba 2 propuestas, got {len(propuestas)}"
     assert all(p["factible"] for p in propuestas)
+    fp1 = frozenset((a["worker_rut"], a["date"], a["shift_id"]) for a in propuestas[0]["asignaciones"])
+    fp2 = frozenset((a["worker_rut"], a["date"], a["shift_id"]) for a in propuestas[1]["asignaciones"])
+    assert fp1 != fp2, "Las dos propuestas ILP son idénticas"
 
 
 def test_http_propuestas_tienen_ids_distintos():

@@ -94,8 +94,14 @@ async def optimize(payload: OptimizeRequest):
     last_output: SolverOutput | None = None
 
     for attempt in range(n_target * _MAX_ATTEMPTS_FACTOR):
-        inp = solver_input if attempt == 0 else _perturb_input(solver_input, seed=attempt)
-        output = solve_ilp(inp) if is_ilp else solve_greedy(inp)
+        if is_ilp:
+            # ILP: la diversidad viene de la restricción de exclusión;
+            # perturbar pesos no garantiza una solución distinta.
+            inp = solver_input
+            output = solve_ilp(inp, excluded_fingerprints=list(seen))
+        else:
+            inp = solver_input if attempt == 0 else _perturb_input(solver_input, seed=attempt)
+            output = solve_greedy(inp)
 
         if not output.factible:
             continue
