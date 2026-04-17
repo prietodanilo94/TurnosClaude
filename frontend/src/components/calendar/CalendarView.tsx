@@ -12,6 +12,7 @@ import {
 } from "@dnd-kit/core";
 import { useCalendarStore } from "@/store/calendar-store";
 import { validateLocal } from "@/lib/calendar/local-validator";
+import { ExportButton } from "./ExportButton";
 import { MonthGrid } from "./MonthGrid";
 import { ProposalSelector } from "./ProposalSelector";
 import { SaveButton } from "./SaveButton";
@@ -136,6 +137,7 @@ export function CalendarView() {
             </div>
           )}
           <SaveButton />
+          <ExportButton />
         </div>
       </div>
 
