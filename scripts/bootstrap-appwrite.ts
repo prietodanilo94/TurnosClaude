@@ -249,6 +249,188 @@ async function bootstrapShiftCatalog(): Promise<void> {
   );
 }
 
+// ─── workers ─────────────────────────────────────────────────────────────────
+
+async function bootstrapWorkers(): Promise<void> {
+  console.log("\n[workers]");
+  const perms = [
+    Permission.read(Role.users()),
+    Permission.create(Role.users()),
+    Permission.update(Role.users()),
+    Permission.delete(Role.users()),
+  ];
+  await ensureCollection("workers", "Workers", perms);
+
+  const attrs = await getExistingAttrKeys("workers");
+  await create("rut", attrs, () =>
+    db.createStringAttribute(DB, "workers", "rut", 20, true)
+  );
+  await create("nombre_completo", attrs, () =>
+    db.createStringAttribute(DB, "workers", "nombre_completo", 255, true)
+  );
+  await create("branch_id", attrs, () =>
+    db.createStringAttribute(DB, "workers", "branch_id", 36, true)
+  );
+  await create("supervisor_nombre", attrs, () =>
+    db.createStringAttribute(DB, "workers", "supervisor_nombre", 255, false)
+  );
+  await create("activo", attrs, () =>
+    db.createBooleanAttribute(DB, "workers", "activo", false, true)
+  );
+  await create("ultima_sync_excel", attrs, () =>
+    db.createDatetimeAttribute(DB, "workers", "ultima_sync_excel", false)
+  );
+
+  await sleep(2000);
+
+  const idxs = await getExistingIdxKeys("workers");
+  await create("idx_rut_unique", idxs, () =>
+    db.createIndex(DB, "workers", "idx_rut_unique", IndexType.Unique, ["rut"])
+  );
+  await create("idx_branch_id", idxs, () =>
+    db.createIndex(DB, "workers", "idx_branch_id", IndexType.Key, ["branch_id"])
+  );
+  await create("idx_activo", idxs, () =>
+    db.createIndex(DB, "workers", "idx_activo", IndexType.Key, ["activo"])
+  );
+}
+
+// ─── branch_managers ─────────────────────────────────────────────────────────
+
+async function bootstrapBranchManagers(): Promise<void> {
+  console.log("\n[branch_managers]");
+  const perms = [
+    Permission.read(Role.users()),
+    Permission.create(Role.users()),
+    Permission.update(Role.users()),
+    Permission.delete(Role.users()),
+  ];
+  await ensureCollection("branch_managers", "Branch Managers", perms);
+
+  const attrs = await getExistingAttrKeys("branch_managers");
+  await create("user_id", attrs, () =>
+    db.createStringAttribute(DB, "branch_managers", "user_id", 36, true)
+  );
+  await create("branch_id", attrs, () =>
+    db.createStringAttribute(DB, "branch_managers", "branch_id", 36, true)
+  );
+  await create("asignado_desde", attrs, () =>
+    db.createDatetimeAttribute(DB, "branch_managers", "asignado_desde", true)
+  );
+  await create("asignado_hasta", attrs, () =>
+    db.createDatetimeAttribute(DB, "branch_managers", "asignado_hasta", false)
+  );
+
+  await sleep(2000);
+
+  const idxs = await getExistingIdxKeys("branch_managers");
+  await create("idx_user_id", idxs, () =>
+    db.createIndex(DB, "branch_managers", "idx_user_id", IndexType.Key, ["user_id"])
+  );
+  await create("idx_branch_id", idxs, () =>
+    db.createIndex(DB, "branch_managers", "idx_branch_id", IndexType.Key, ["branch_id"])
+  );
+  // Compound unique — lógica de "solo vigentes" se maneja en app
+  await create("idx_user_branch_unique", idxs, () =>
+    db.createIndex(
+      DB,
+      "branch_managers",
+      "idx_user_branch_unique",
+      IndexType.Unique,
+      ["user_id", "branch_id"]
+    )
+  );
+}
+
+// ─── holidays ─────────────────────────────────────────────────────────────────
+
+async function bootstrapHolidays(): Promise<void> {
+  console.log("\n[holidays]");
+  const perms = [
+    Permission.read(Role.any()),
+    Permission.create(Role.users()),
+    Permission.update(Role.users()),
+    Permission.delete(Role.users()),
+  ];
+  await ensureCollection("holidays", "Holidays", perms);
+
+  const attrs = await getExistingAttrKeys("holidays");
+  await create("fecha", attrs, () =>
+    db.createDatetimeAttribute(DB, "holidays", "fecha", true)
+  );
+  await create("nombre", attrs, () =>
+    db.createStringAttribute(DB, "holidays", "nombre", 255, true)
+  );
+  await create("tipo", attrs, () =>
+    db.createEnumAttribute(DB, "holidays", "tipo", ["irrenunciable"], true)
+  );
+  await create("anio", attrs, () =>
+    db.createIntegerAttribute(DB, "holidays", "anio", true)
+  );
+
+  await sleep(2000);
+
+  const idxs = await getExistingIdxKeys("holidays");
+  await create("idx_fecha_unique", idxs, () =>
+    db.createIndex(DB, "holidays", "idx_fecha_unique", IndexType.Unique, ["fecha"])
+  );
+  await create("idx_anio", idxs, () =>
+    db.createIndex(DB, "holidays", "idx_anio", IndexType.Key, ["anio"])
+  );
+}
+
+// ─── worker_constraints ───────────────────────────────────────────────────────
+
+async function bootstrapWorkerConstraints(): Promise<void> {
+  console.log("\n[worker_constraints]");
+  const perms = [
+    Permission.read(Role.users()),
+    Permission.create(Role.users()),
+    Permission.update(Role.users()),
+    Permission.delete(Role.users()),
+  ];
+  await ensureCollection("worker_constraints", "Worker Constraints", perms);
+
+  const attrs = await getExistingAttrKeys("worker_constraints");
+  await create("worker_id", attrs, () =>
+    db.createStringAttribute(DB, "worker_constraints", "worker_id", 36, true)
+  );
+  await create("tipo", attrs, () =>
+    db.createEnumAttribute(
+      DB,
+      "worker_constraints",
+      "tipo",
+      ["dia_prohibido", "turno_prohibido", "vacaciones"],
+      true
+    )
+  );
+  await create("valor", attrs, () =>
+    db.createStringAttribute(DB, "worker_constraints", "valor", 100, false)
+  );
+  await create("fecha_desde", attrs, () =>
+    db.createDatetimeAttribute(DB, "worker_constraints", "fecha_desde", false)
+  );
+  await create("fecha_hasta", attrs, () =>
+    db.createDatetimeAttribute(DB, "worker_constraints", "fecha_hasta", false)
+  );
+  await create("notas", attrs, () =>
+    db.createStringAttribute(DB, "worker_constraints", "notas", 1000, false)
+  );
+  await create("creado_por", attrs, () =>
+    db.createStringAttribute(DB, "worker_constraints", "creado_por", 36, true)
+  );
+
+  await sleep(2000);
+
+  const idxs = await getExistingIdxKeys("worker_constraints");
+  await create("idx_worker_id", idxs, () =>
+    db.createIndex(DB, "worker_constraints", "idx_worker_id", IndexType.Key, ["worker_id"])
+  );
+  await create("idx_tipo", idxs, () =>
+    db.createIndex(DB, "worker_constraints", "idx_tipo", IndexType.Key, ["tipo"])
+  );
+}
+
 // ─── main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -263,6 +445,10 @@ async function main() {
   await bootstrapBranches();
   await bootstrapBranchTypeConfig();
   await bootstrapShiftCatalog();
+  await bootstrapWorkers();
+  await bootstrapBranchManagers();
+  await bootstrapHolidays();
+  await bootstrapWorkerConstraints();
 
   console.log("\n=== bootstrap completo ===");
 }
