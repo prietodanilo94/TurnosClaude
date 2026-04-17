@@ -431,6 +431,171 @@ async function bootstrapWorkerConstraints(): Promise<void> {
   );
 }
 
+// ─── proposals ───────────────────────────────────────────────────────────────
+
+async function bootstrapProposals(): Promise<void> {
+  console.log("\n[proposals]");
+  const perms = [
+    Permission.read(Role.users()),
+    Permission.create(Role.users()),
+    Permission.update(Role.users()),
+    Permission.delete(Role.users()),
+  ];
+  await ensureCollection("proposals", "Proposals", perms);
+
+  const attrs = await getExistingAttrKeys("proposals");
+  await create("branch_id", attrs, () =>
+    db.createStringAttribute(DB, "proposals", "branch_id", 36, true)
+  );
+  await create("anio", attrs, () =>
+    db.createIntegerAttribute(DB, "proposals", "anio", true)
+  );
+  await create("mes", attrs, () =>
+    db.createIntegerAttribute(DB, "proposals", "mes", true, 1, 12)
+  );
+  await create("modo", attrs, () =>
+    db.createEnumAttribute(DB, "proposals", "modo", ["ilp", "greedy"], true)
+  );
+  await create("score", attrs, () =>
+    db.createFloatAttribute(DB, "proposals", "score", true)
+  );
+  await create("factible", attrs, () =>
+    db.createBooleanAttribute(DB, "proposals", "factible", true)
+  );
+  // Array de asignaciones serializado como JSON string
+  await create("asignaciones", attrs, () =>
+    db.createStringAttribute(DB, "proposals", "asignaciones", 65535, true)
+  );
+  await create("dotacion_sugerida", attrs, () =>
+    db.createIntegerAttribute(DB, "proposals", "dotacion_sugerida", true)
+  );
+  // Parámetros del optimizador serializados como JSON string
+  await create("parametros", attrs, () =>
+    db.createStringAttribute(DB, "proposals", "parametros", 4096, true)
+  );
+  await create("estado", attrs, () =>
+    db.createEnumAttribute(
+      DB,
+      "proposals",
+      "estado",
+      ["generada", "seleccionada", "descartada"],
+      true
+    )
+  );
+  await create("creada_por", attrs, () =>
+    db.createStringAttribute(DB, "proposals", "creada_por", 36, true)
+  );
+  await create("seleccionada_por", attrs, () =>
+    db.createStringAttribute(DB, "proposals", "seleccionada_por", 36, false)
+  );
+
+  await sleep(2000);
+
+  const idxs = await getExistingIdxKeys("proposals");
+  await create("idx_branch_anio_mes", idxs, () =>
+    db.createIndex(
+      DB,
+      "proposals",
+      "idx_branch_anio_mes",
+      IndexType.Key,
+      ["branch_id", "anio", "mes"]
+    )
+  );
+  await create("idx_estado", idxs, () =>
+    db.createIndex(DB, "proposals", "idx_estado", IndexType.Key, ["estado"])
+  );
+}
+
+// ─── assignments ─────────────────────────────────────────────────────────────
+
+async function bootstrapAssignments(): Promise<void> {
+  console.log("\n[assignments]");
+  const perms = [
+    Permission.read(Role.users()),
+    Permission.create(Role.users()),
+    Permission.update(Role.users()),
+    Permission.delete(Role.users()),
+  ];
+  await ensureCollection("assignments", "Assignments", perms);
+
+  const attrs = await getExistingAttrKeys("assignments");
+  await create("proposal_id", attrs, () =>
+    db.createStringAttribute(DB, "assignments", "proposal_id", 36, true)
+  );
+  await create("slot_numero", attrs, () =>
+    db.createIntegerAttribute(DB, "assignments", "slot_numero", true)
+  );
+  await create("worker_id", attrs, () =>
+    db.createStringAttribute(DB, "assignments", "worker_id", 36, false)
+  );
+  await create("asignado_por", attrs, () =>
+    db.createStringAttribute(DB, "assignments", "asignado_por", 36, false)
+  );
+  await create("asignado_en", attrs, () =>
+    db.createDatetimeAttribute(DB, "assignments", "asignado_en", false)
+  );
+
+  await sleep(2000);
+
+  const idxs = await getExistingIdxKeys("assignments");
+  await create("idx_proposal_id", idxs, () =>
+    db.createIndex(DB, "assignments", "idx_proposal_id", IndexType.Key, ["proposal_id"])
+  );
+  await create("idx_proposal_slot_unique", idxs, () =>
+    db.createIndex(
+      DB,
+      "assignments",
+      "idx_proposal_slot_unique",
+      IndexType.Unique,
+      ["proposal_id", "slot_numero"]
+    )
+  );
+}
+
+// ─── audit_log ────────────────────────────────────────────────────────────────
+
+async function bootstrapAuditLog(): Promise<void> {
+  console.log("\n[audit_log]");
+  const perms = [
+    Permission.read(Role.users()),
+    Permission.create(Role.users()),
+    Permission.update(Role.users()),
+    Permission.delete(Role.users()),
+  ];
+  await ensureCollection("audit_log", "Audit Log", perms);
+
+  const attrs = await getExistingAttrKeys("audit_log");
+  await create("user_id", attrs, () =>
+    db.createStringAttribute(DB, "audit_log", "user_id", 36, true)
+  );
+  await create("accion", attrs, () =>
+    db.createStringAttribute(DB, "audit_log", "accion", 100, true)
+  );
+  await create("entidad", attrs, () =>
+    db.createStringAttribute(DB, "audit_log", "entidad", 50, false)
+  );
+  await create("entidad_id", attrs, () =>
+    db.createStringAttribute(DB, "audit_log", "entidad_id", 36, false)
+  );
+  // Contexto adicional serializado como JSON string
+  await create("metadata", attrs, () =>
+    db.createStringAttribute(DB, "audit_log", "metadata", 4096, false)
+  );
+
+  await sleep(2000);
+
+  const idxs = await getExistingIdxKeys("audit_log");
+  await create("idx_user_id", idxs, () =>
+    db.createIndex(DB, "audit_log", "idx_user_id", IndexType.Key, ["user_id"])
+  );
+  await create("idx_accion", idxs, () =>
+    db.createIndex(DB, "audit_log", "idx_accion", IndexType.Key, ["accion"])
+  );
+  await create("idx_created_at", idxs, () =>
+    db.createIndex(DB, "audit_log", "idx_created_at", IndexType.Key, ["$createdAt"])
+  );
+}
+
 // ─── main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -449,6 +614,9 @@ async function main() {
   await bootstrapBranchManagers();
   await bootstrapHolidays();
   await bootstrapWorkerConstraints();
+  await bootstrapProposals();
+  await bootstrapAssignments();
+  await bootstrapAuditLog();
 
   console.log("\n=== bootstrap completo ===");
 }
