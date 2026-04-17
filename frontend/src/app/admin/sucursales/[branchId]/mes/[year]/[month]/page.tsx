@@ -57,6 +57,13 @@ function buildMockData(branchId: string, year: number, month: number) {
     }
   }
 
+  // Segunda propuesta con orden de workers invertido para probar el selector
+  const asignaciones2 = asignaciones.map((a, i) => ({
+    ...a,
+    worker_rut: slotWorkers[(slotWorkers.length - 1 - (i % slotWorkers.length))],
+    worker_slot: slotWorkers.length - (i % slotWorkers.length),
+  }));
+
   const proposals: OptimizerProposal[] = [
     {
       id: "prop_mock_1",
@@ -65,6 +72,14 @@ function buildMockData(branchId: string, year: number, month: number) {
       factible: true,
       dotacion_minima_sugerida: 2,
       asignaciones,
+    },
+    {
+      id: "prop_mock_2",
+      modo: "ilp",
+      score: 92.3,
+      factible: true,
+      dotacion_minima_sugerida: 2,
+      asignaciones: asignaciones2,
     },
   ];
 

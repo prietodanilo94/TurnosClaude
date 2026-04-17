@@ -13,6 +13,7 @@ import {
 import { useCalendarStore } from "@/store/calendar-store";
 import { validateLocal } from "@/lib/calendar/local-validator";
 import { MonthGrid } from "./MonthGrid";
+import { ProposalSelector } from "./ProposalSelector";
 import { WorkerAssignDialog } from "./WorkerAssignDialog";
 import type { CalendarAssignment } from "@/types/optimizer";
 
@@ -24,7 +25,7 @@ const MONTH_NAMES = [
 export function CalendarView() {
   const {
     year, month, assignments, workers, shiftCatalog,
-    holidays, franjaPorDia, violations, availableProposals, activeProposalId,
+    holidays, franjaPorDia, violations,
     moveAssignment, assignWorker, removeAssignment, setViolations,
   } = useCalendarStore();
 
@@ -34,8 +35,6 @@ export function CalendarView() {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
   );
-
-  const activeProposal = availableProposals.find((p) => p.id === activeProposalId);
 
   function handleDragStart(event: DragStartEvent) {
     const data = event.active.data.current as { assignment: CalendarAssignment } | undefined;
@@ -124,11 +123,7 @@ export function CalendarView() {
           <h1 className="text-lg font-semibold text-gray-900">
             {MONTH_NAMES[month]} {year}
           </h1>
-          {activeProposal && (
-            <p className="text-sm text-gray-500">
-              Propuesta: {activeProposal.modo.toUpperCase()} #{activeProposalId?.split("_").pop()} — score {activeProposal.score.toFixed(1)}
-            </p>
-          )}
+          <ProposalSelector />
         </div>
 
         {violations.length > 0 && (
