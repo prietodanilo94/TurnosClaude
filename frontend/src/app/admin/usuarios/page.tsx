@@ -129,10 +129,10 @@ export default function UsuariosPage() {
                   <td className="px-4 py-3 text-sm text-gray-700">{sucursalesActivas}</td>
                   <td className="px-4 py-3 text-right">
                     <Link
-                      href={`/admin/usuarios/${user.$id}/sucursales`}
+                      href={`/admin/usuarios/${user.$id}`}
                       className="text-sm text-blue-600 hover:text-blue-800 font-medium"
                     >
-                      Gestionar
+                      Ver detalle
                     </Link>
                   </td>
                 </tr>
