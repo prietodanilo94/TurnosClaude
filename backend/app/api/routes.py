@@ -129,6 +129,26 @@ async def optimize(payload: OptimizeRequest):
         if len(proposals) >= n_target:
             break
 
+    if not proposals:
+        # El lower bound pasó pero el solver no encontró ninguna solución factible.
+        # Causas típicas: restricciones individuales muy estrictas (vacaciones
+        # simultáneas de varios workers, combinación de turnos prohibidos, etc.)
+        solver_msgs = list(last_output.mensajes) if last_output else [
+            "El solver no encontró ninguna solución factible con las restricciones dadas."
+        ]
+        return JSONResponse(
+            status_code=422,
+            content={
+                "detail": "No se encontró ninguna solución factible con las restricciones dadas.",
+                "diagnostico": {
+                    "dotacion_disponible": n_workers,
+                    "dotacion_minima_requerida": n_min,
+                    "dotacion_suficiente": True,
+                    "mensajes": solver_msgs,
+                },
+            },
+        )
+
     diagnostico = Diagnostico(
         dotacion_disponible=n_workers,
         dotacion_minima_requerida=n_min,

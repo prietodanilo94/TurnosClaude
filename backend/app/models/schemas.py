@@ -218,24 +218,79 @@ class WorkerInput(BaseModel):
 
 
 class Parametros(BaseModel):
-    modo: ModoProposal = ModoProposal.ilp
-    num_propuestas: int = Field(default=3, ge=1, le=10)
-    horas_semanales_max: int = Field(default=42, ge=1, le=60)
-    horas_semanales_obj: int = Field(default=42, ge=1, le=60)
-    dias_maximos_consecutivos: int = Field(default=6, ge=1, le=7)
-    domingos_libres_minimos: int = Field(default=2, ge=0, le=4)
-    peak_desde: str = Field(default="17:00")
-    cobertura_minima: int = Field(default=1, ge=1)
-    cobertura_optima_peak: int = Field(default=2, ge=1)
-    cobertura_optima_off_peak: int = Field(default=1, ge=1)
-    priorizar_fin_de_semana: bool = True
-    time_limit_seconds: int = Field(default=30, ge=5, le=120)
-    descanso_entre_jornadas: bool = False
-    # Pesos de la función objetivo
-    peso_cobertura_peak: float = Field(default=10.0, ge=0)
-    peso_finde: float = Field(default=5.0, ge=0)
-    peso_balance: float = Field(default=3.0, ge=0)
-    peso_ociosidad: float = Field(default=1.0, ge=0)
+    modo: ModoProposal = Field(
+        default=ModoProposal.ilp,
+        description="Solver a usar. 'ilp' es óptimo global; 'greedy' es más rápido.",
+    )
+    num_propuestas: int = Field(
+        default=3, ge=1, le=10,
+        description="Cuántas propuestas distintas generar. El solver hace su mejor esfuerzo; puede devolver menos si el problema es muy restringido.",
+    )
+    horas_semanales_max: int = Field(
+        default=42, ge=1, le=60,
+        description="Máximo de horas trabajadas por semana ISO por trabajador (legislación chilena: 45h, convenio típico retail: 42h).",
+    )
+    horas_semanales_obj: int = Field(
+        default=42, ge=1, le=60,
+        description="Horas objetivo semanales por trabajador (se usa para cálculo de balance; generalmente igual a horas_semanales_max).",
+    )
+    dias_maximos_consecutivos: int = Field(
+        default=6, ge=1, le=7,
+        description="Máximo de días trabajados consecutivos por semana (legislación chilena: 6).",
+    )
+    domingos_libres_minimos: int = Field(
+        default=2, ge=0, le=4,
+        description="Mínimo de domingos libres en el mes. Si el mes tiene menos domingos abiertos que este valor, se relaja proporcionalmente.",
+    )
+    peak_desde: str = Field(
+        default="17:00",
+        description="Hora a partir de la cual se considera 'peak'. Formato HH:MM.",
+    )
+    cobertura_minima: int = Field(
+        default=1, ge=1,
+        description="Mínimo de trabajadores simultáneos en cualquier slot de 30 min durante horario abierto.",
+    )
+    cobertura_optima_peak: int = Field(
+        default=2, ge=1,
+        description="Dotación ideal durante peak (se premia alcanzarla; superarla genera penalización de ociosidad).",
+    )
+    cobertura_optima_off_peak: int = Field(
+        default=1, ge=1,
+        description="Dotación ideal fuera de peak.",
+    )
+    priorizar_fin_de_semana: bool = Field(
+        default=True,
+        description="Si True, el greedy llena primero sábados y domingos (mayor demanda en retail).",
+    )
+    time_limit_seconds: int = Field(
+        default=30, ge=5, le=120,
+        description="Tiempo máximo por ejecución del solver ILP. Para 95% de casos reales con ≤30 trabajadores, 30s es suficiente.",
+    )
+    descanso_entre_jornadas: bool = Field(
+        default=False,
+        description="Si True, impone descanso mínimo de 10h entre jornadas consecutivas. Desactivado por defecto porque los turnos típicos no generan conflicto.",
+    )
+    # ── Pesos de la función objetivo (math-formulation.md §4) ─────────────────
+    # α=10: cobertura peak es la prioridad máxima (impacto directo en ventas).
+    # β=5: fines de semana son alta demanda en retail, necesitan dotación extra.
+    # γ=3: balance es importante para equidad laboral, pero secundario al servicio.
+    # δ=1: penaliza exceso de cobertura levemente; evita saturación sin sacrificar servicio.
+    peso_cobertura_peak: float = Field(
+        default=10.0, ge=0,
+        description="α: peso de la cobertura en horario peak (§4.1). Prioridad máxima.",
+    )
+    peso_finde: float = Field(
+        default=5.0, ge=0,
+        description="β: peso de dotación en fines de semana (§4.2).",
+    )
+    peso_balance: float = Field(
+        default=3.0, ge=0,
+        description="γ: peso del balance de horas entre trabajadores (§4.3). Equidad laboral.",
+    )
+    peso_ociosidad: float = Field(
+        default=1.0, ge=0,
+        description="δ: penalización por cobertura en exceso respecto al óptimo deseado (§4.4).",
+    )
 
 
 class OptimizeRequest(BaseModel):
@@ -246,6 +301,40 @@ class OptimizeRequest(BaseModel):
     shift_catalog: List[ShiftDef] = Field(..., min_length=1)
     franja_por_dia: Dict[str, Optional[FranjaDia]]     # keys: lunes..domingo, valor null = cerrado
     parametros: Parametros = Field(default_factory=Parametros)
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "branch": {"id": "branch_1200", "codigo_area": "1200", "nombre": "NISSAN IRARRÁZAVAL", "tipo_franja": "autopark"},
+                "month": {"year": 2026, "month": 5},
+                "workers": [
+                    {"rut": "17286931-9", "nombre": "ABARZUA VARGAS ANDREA", "constraints": [
+                        {"tipo": "dia_prohibido", "valor": "martes"},
+                        {"tipo": "vacaciones", "desde": "2026-05-10", "hasta": "2026-05-14"},
+                    ]},
+                    {"rut": "12345678-9", "nombre": "GONZALEZ PEREZ CARLOS", "constraints": []},
+                    {"rut": "98765432-1", "nombre": "LOPEZ RAMIREZ MARIA",  "constraints": []},
+                ],
+                "holidays": ["2026-05-01", "2026-05-21"],
+                "shift_catalog": [
+                    {"id": "S_09_19", "inicio": "09:00", "fin": "19:00", "duracion_minutos": 600, "descuenta_colacion": True},
+                ],
+                "franja_por_dia": {
+                    "lunes": {"apertura": "09:00", "cierre": "19:00"},
+                    "martes": {"apertura": "09:00", "cierre": "19:00"},
+                    "miercoles": {"apertura": "09:00", "cierre": "19:00"},
+                    "jueves": {"apertura": "09:00", "cierre": "19:00"},
+                    "viernes": {"apertura": "09:00", "cierre": "19:00"},
+                    "sabado": {"apertura": "09:00", "cierre": "14:00"},
+                    "domingo": None,
+                },
+                "parametros": {
+                    "modo": "ilp", "num_propuestas": 3, "horas_semanales_max": 42,
+                    "cobertura_minima": 1, "peak_desde": "17:00",
+                },
+            }
+        }
+    }
 
 
 # ─── Response sub-schemas ─────────────────────────────────────────────────────
@@ -292,6 +381,27 @@ class Diagnostico(BaseModel):
 class OptimizeResponse(BaseModel):
     propuestas: List[ProposalOut]
     diagnostico: Diagnostico
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "propuestas": [{
+                    "id": "prop_ilp_1", "modo": "ilp", "score": 98.7, "factible": True,
+                    "dotacion_minima_sugerida": 2,
+                    "asignaciones": [
+                        {"worker_slot": 1, "worker_rut": "17286931-9", "date": "2026-05-04", "shift_id": "S_09_19"},
+                        {"worker_slot": 2, "worker_rut": "12345678-9", "date": "2026-05-04", "shift_id": "S_09_19"},
+                    ],
+                    "resumen_horas_por_trabajador": {},
+                    "cobertura_por_dia": {},
+                }],
+                "diagnostico": {
+                    "dotacion_disponible": 3, "dotacion_minima_requerida": 2,
+                    "dotacion_suficiente": True, "mensajes": ["ILP status: OPTIMAL"],
+                },
+            }
+        }
+    }
 
 
 # ─── Validate schemas ─────────────────────────────────────────────────────────

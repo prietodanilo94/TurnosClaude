@@ -199,3 +199,29 @@ def test_http_num_propuestas_1_devuelve_1():
     resp = client.post("/optimize", json=payload)
     assert resp.status_code == 200
     assert len(resp.json()["propuestas"]) == 1
+
+
+# ─── Tests Task 19: 422 solver sin solución factible ─────────────────────────
+
+def test_http_sin_cobertura_devuelve_422():
+    payload = load_fixture("infeasible_no_coverage.json")
+    resp = client.post("/optimize", json=payload)
+    assert resp.status_code == 422, resp.text
+
+
+def test_http_422_incluye_diagnostico():
+    payload = load_fixture("infeasible_no_coverage.json")
+    resp = client.post("/optimize", json=payload)
+    body = resp.json()
+    assert "diagnostico" in body
+    diag = body["diagnostico"]
+    assert diag["dotacion_suficiente"] is True
+    assert diag["dotacion_disponible"] == 3
+    assert len(diag["mensajes"]) > 0
+
+
+def test_http_422_greedy_sin_cobertura():
+    payload = load_fixture("infeasible_no_coverage.json")
+    payload["parametros"]["modo"] = "greedy"
+    resp = client.post("/optimize", json=payload)
+    assert resp.status_code == 422, resp.text

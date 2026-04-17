@@ -23,7 +23,7 @@
 │  │    - Drag & drop                                          │  │
 │  │    - Contador de horas en vivo                            │  │
 │  │    - Validaciones visuales                                │  │
-│  │  • Export Excel (SheetJS)                                 │  │
+│  │  • Export Excel (descarga desde backend)                   │  │
 │  └──────────────────────────────────────────────────────────┘  │
 └──────────┬────────────────────────────────────┬────────────────┘
            │                                    │
@@ -73,11 +73,11 @@ El optimizador no necesita su propia base de datos. El frontend, que ya tiene ac
 3. **Admin selecciona sucursal + mes + tipo de franja**: desde la UI, el admin escoge `branch_id`, `year`, `month`. Si la sucursal no tiene `tipo_franja` seteado, se le pregunta en ese momento y se guarda.
 4. **Frontend construye payload**: arma un JSON con trabajadores activos de esa sucursal, restricciones individuales, feriados que caen en ese mes, catálogo de turnos aplicable al tipo de franja, y parámetros (modo `ilp`/`greedy`, mínimo peak, N propuestas).
 5. **Frontend llama `POST /optimize`**: envía el payload al backend.
-6. **Backend resuelve**: corre ILP o greedy (o ambos) y devuelve una lista de propuestas. Cada propuesta es un array de asignaciones `{worker_slot, date, shift_id}`.
-7. **Frontend guarda propuestas**: crea documentos en la colección `proposals` (asociados a sucursal + mes) con el array de asignaciones.
-8. **Admin o jefe revisa y edita**: abre el calendario mensual con FullCalendar, ve los slots (Trabajador 1, 2, 3...), puede arrastrar turnos. Cada cambio dispara validación local (contador de horas, restricciones).
-9. **Jefe asigna nombres reales**: para cada slot, selecciona un trabajador concreto de su dotación. Se guarda en `assignments`.
-10. **Export**: botón "Exportar Excel" genera el archivo con el formato requerido (RUT sin puntos, DIA1..DIA31, celdas con `"HH:MM a HH:MM"`).
+6. **Backend resuelve**: corre ILP o greedy y devuelve propuestas. Cada propuesta contiene asignaciones `{worker_slot, worker_rut, date, shift_id}`. El backend trabaja con trabajadores **reales** (con sus restricciones individuales); `worker_slot` es solo un índice de presentación (1..N según el orden en que llegaron en el request).
+7. **Frontend guarda propuestas**: crea documentos en la colección `proposals` con las asignaciones (incluyendo `worker_rut`). Los slots sirven para mostrar "Trabajador 1, 2, 3..." en el calendario sin revelar nombres a quien no deba verlos.
+8. **Admin o jefe revisa y edita**: abre el calendario mensual con FullCalendar. Ve los slots numerados (o los nombres reales si tiene permiso). Puede arrastrar turnos; cada cambio llama a `POST /validate` para feedback inmediato.
+9. **Jefe reasigna si necesita**: si quiere intercambiar dos trabajadores dentro de la propuesta lo hace manualmente; el resultado se guarda en `assignments`.
+10. **Export**: el frontend llama a `GET /export/{proposal_id}`. El **backend** genera el Excel con openpyxl y lo devuelve como descarga. Si la propuesta tiene violaciones, el backend retorna el archivo con un tab de advertencias; solo bloquea el export si hay días sin cobertura (violación crítica).
 
 ---
 
@@ -209,14 +209,32 @@ Appwrite ya corre aparte en tu servidor, así que lo referencias por su URL exte
 
 ---
 
+## Aclaración: trabajadores reales vs. slots de presentación
+
+El optimizador **siempre opera con trabajadores reales** (identificados por RUT). Es la única manera de respetar las restricciones individuales: vacaciones, días prohibidos, turnos prohibidos. Sin esta información, el ILP no puede generar un horario legalmente válido.
+
+Los "slots" (`worker_slot: 1..N`) son únicamente un índice de presentación:
+
+- El frontend puede mostrar "Trabajador 1, Trabajador 2..." en vistas donde el jefe de sucursal no debe ver nombres individuales (por ejemplo, antes de confirmar la propuesta).
+- El `worker_rut` siempre se almacena junto al slot en la colección `proposals.asignaciones`.
+- El jefe puede reasignar manualmente dentro del calendario; eso actualiza la colección `assignments`.
+
+**Corolario para Spec 007 (export):** el backend genera el Excel a partir de `worker_rut`, no del slot. El RUT se formatea sin puntos y sin dígito verificador según el formato requerido.
+
+---
+
 ## Decisiones de diseño clave y su justificación
 
-| Decisión                                  | Justificación                                                           |
-|-------------------------------------------|------------------------------------------------------------------------|
-| Backend stateless                         | Simplicidad, escalabilidad, facilidad de testing                         |
-| Optimización en Python, no JS             | OR-Tools es muy superior a cualquier solver JS; Python es el estándar    |
-| Excel parsing en frontend                 | Feedback instantáneo al admin; menos round-trips                         |
-| ILP + Greedy comparables                  | Permite validar que ILP da buenos resultados y tener fallback            |
-| Propuestas guardadas en DB                | Historial auditable; jefe puede elegir sin recalcular                    |
-| Slots genéricos (Trabajador 1..N) primero | Separa optimización (qué turno) de asignación (quién); más flexible      |
-| Spec-Kit                                  | Documentación viva, facilita que Claude Code implemente sin perderse     |
+| Decisión                                   | Justificación                                                                  |
+|--------------------------------------------|--------------------------------------------------------------------------------|
+| Backend stateless                          | Simplicidad, escalabilidad, facilidad de testing                               |
+| Optimización en Python, no JS              | OR-Tools es muy superior a cualquier solver JS; Python es el estándar          |
+| Excel parsing en frontend (SheetJS)        | Solo para el upload de dotación: feedback instantáneo al admin, sin round-trip |
+| Export Excel en backend (openpyxl)         | El formato exacto (RUT sin DV, celdas combinadas, colores) es complejo; el backend es la fuente de verdad y evita divergencia de lógica |
+| Optimizer usa trabajadores reales (con RUT)| Es la única forma de respetar restricciones individuales (vacaciones, días prohibidos, turnos prohibidos); los "slots" son solo un índice de presentación |
+| `worker_slot` en respuesta del optimizer   | Permite mostrar "Trabajador 1..N" en vistas donde el jefe no debe ver nombres; el `worker_rut` siempre viaja junto para persistencia |
+| ILP + Greedy comparables                   | Permite validar que ILP da buenos resultados y tener fallback rápido           |
+| Propuestas guardadas en DB                 | Historial auditable; jefe puede elegir sin recalcular                          |
+| Export: advertir, no bloquear (salvo crítico) | Bloquear por violaciones menores frustra al admin; solo se bloquea si hay días con cobertura = 0 |
+| Validador duplicado (frontend ligero + backend autoritativo) | Frontend da feedback UX instantáneo; `/validate` es la fuente de verdad antes de guardar o exportar |
+| Spec-Kit                                   | Documentación viva, facilita que Claude Code implemente sin perderse           |

@@ -26,13 +26,18 @@ def _minimal_shift_cover(
     covered_until = apertura
 
     while covered_until < cierre:
-        eligible = [s for s in candidates if s.inicio_min <= covered_until]
+        # Solo turnos que realmente avanzan la cobertura (evita bucle infinito
+        # cuando ningún turno llega más lejos que covered_until).
+        eligible = [s for s in candidates if s.inicio_min <= covered_until and s.fin_min > covered_until]
         if not eligible:
-            break  # gap — cobertura incompleta
+            break  # gap insalvable — cobertura incompleta
         best = max(eligible, key=lambda s: s.fin_min)
         cover.append(best)
         covered_until = best.fin_min
 
+    # Cobertura incompleta: hay un gap entre covered_until y cierre.
+    if covered_until < cierre:
+        return []
     return cover
 
 
