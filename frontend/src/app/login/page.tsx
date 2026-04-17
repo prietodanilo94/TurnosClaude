@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppwriteException } from "appwrite";
 import { account } from "@/lib/auth/appwrite-client";
+import { setRoleCookie } from "@/lib/auth/session";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -25,8 +26,10 @@ export default function LoginPage() {
       const labels = authUser.labels ?? [];
 
       if (labels.includes("admin")) {
+        setRoleCookie("admin");
         router.push("/admin");
       } else if (labels.includes("jefesucursal")) {
+        setRoleCookie("jefesucursal");
         router.push("/jefe");
       } else {
         // Usuario sin rol asignado — logout preventivo
