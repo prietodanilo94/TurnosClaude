@@ -2,6 +2,7 @@
   "name": "shift-optimizer",
   "version": "0.1.0",
   "private": true,
+  "workspaces": ["frontend"],
   "scripts": {
     "bootstrap:appwrite": "tsx scripts/bootstrap-appwrite.ts",
     "seed:shifts": "tsx scripts/seed-shift-catalog.ts",
