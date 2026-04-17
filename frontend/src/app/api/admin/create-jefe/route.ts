@@ -1,4 +1,4 @@
-import { Client, Users, Databases, ID } from "node-appwrite";
+import { Client, Users, Databases, ID, Permission, Role } from "node-appwrite";
 import { NextRequest, NextResponse } from "next/server";
 
 const ENDPOINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!;
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
       rut: rut || null,
       rol: "jefe_sucursal",
       activo: true,
-    });
+    }, [Permission.read(Role.user(userId))]);
   } catch (e: any) {
     await usersApi.delete(userId).catch(() => {});
     return NextResponse.json(
