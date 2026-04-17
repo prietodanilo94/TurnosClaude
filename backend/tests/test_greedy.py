@@ -91,11 +91,14 @@ def test_http_optimize_greedy_devuelve_200():
     assert len(body["propuestas"][0]["asignaciones"]) > 0
 
 
-def test_http_optimize_ilp_devuelve_501():
+def test_http_optimize_ilp_devuelve_200():
     payload = load_fixture("standalone_basic.json")
     payload["parametros"]["modo"] = "ilp"
     resp = client.post("/optimize", json=payload)
-    assert resp.status_code == 501
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["propuestas"][0]["modo"] == "ilp"
+    assert body["propuestas"][0]["factible"] is True
 
 
 # ─── Tests Task 8: diagnostico con lower bound real ───────────────────────────

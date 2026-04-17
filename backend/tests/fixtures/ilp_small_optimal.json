@@ -1,0 +1,77 @@
+{
+  "branch": {
+    "id": "branch-ilp-small",
+    "codigo_area": "7777",
+    "nombre": "Sucursal ILP Chica",
+    "tipo_franja": "standalone"
+  },
+  "month": { "year": 2026, "month": 5 },
+  "workers": [
+    { "rut": "10101010-1", "nombre": "Trabajador A", "constraints": [] },
+    { "rut": "20202020-2", "nombre": "Trabajador B", "constraints": [] },
+    { "rut": "30303030-3", "nombre": "Trabajador C", "constraints": [] }
+  ],
+  "holidays": [
+    "2026-05-01",
+    "2026-05-02",
+    "2026-05-03",
+    "2026-05-10",
+    "2026-05-12",
+    "2026-05-13",
+    "2026-05-14",
+    "2026-05-15",
+    "2026-05-16",
+    "2026-05-17",
+    "2026-05-18",
+    "2026-05-19",
+    "2026-05-20",
+    "2026-05-21",
+    "2026-05-22",
+    "2026-05-23",
+    "2026-05-24",
+    "2026-05-25",
+    "2026-05-26",
+    "2026-05-27",
+    "2026-05-28",
+    "2026-05-29",
+    "2026-05-30",
+    "2026-05-31"
+  ],
+  "shift_catalog": [
+    {
+      "id": "S_FULL",
+      "inicio": "09:00",
+      "fin": "14:00",
+      "duracion_minutos": 300,
+      "descuenta_colacion": false
+    }
+  ],
+  "franja_por_dia": {
+    "lunes": { "apertura": "09:00", "cierre": "14:00" },
+    "martes": { "apertura": "09:00", "cierre": "14:00" },
+    "miercoles": { "apertura": "09:00", "cierre": "14:00" },
+    "jueves": { "apertura": "09:00", "cierre": "14:00" },
+    "viernes": { "apertura": "09:00", "cierre": "14:00" },
+    "sabado": { "apertura": "09:00", "cierre": "14:00" },
+    "domingo": null
+  },
+  "parametros": {
+    "modo": "ilp",
+    "num_propuestas": 1,
+    "horas_semanales_max": 42,
+    "horas_semanales_obj": 42,
+    "dias_maximos_consecutivos": 6,
+    "domingos_libres_minimos": 2,
+    "peak_desde": "17:00",
+    "cobertura_minima": 1,
+    "cobertura_optima_peak": 2,
+    "cobertura_optima_off_peak": 1,
+    "priorizar_fin_de_semana": true,
+    "time_limit_seconds": 30,
+    "descanso_entre_jornadas": false,
+    "peso_cobertura_peak": 10.0,
+    "peso_finde": 5.0,
+    "peso_balance": 3.0,
+    "peso_ociosidad": 1.0
+  }
+}
