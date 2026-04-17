@@ -175,3 +175,138 @@ class AuditLog(AppwriteDoc):
     entidad: Optional[str] = None
     entidad_id: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# API schemas — POST /optimize y POST /validate
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ─── Request sub-schemas ──────────────────────────────────────────────────────
+
+class BranchInput(BaseModel):
+    id: str
+    codigo_area: str
+    nombre: str
+    tipo_franja: TipoFranja
+
+
+class MonthInput(BaseModel):
+    year: int = Field(..., ge=2024, le=2100)
+    month: int = Field(..., ge=1, le=12)
+
+
+class ShiftDef(BaseModel):
+    """Definición de un turno del catálogo, ya filtrada para el tipo de franja."""
+    id: str
+    inicio: str                  # "HH:MM"
+    fin: str                     # "HH:MM"
+    duracion_minutos: int        # ya descontada colación si corresponde
+    descuenta_colacion: bool
+
+
+class ConstraintInput(BaseModel):
+    tipo: TipoConstraint
+    valor: Optional[str] = None  # dia_semana para dia_prohibido, shift_id para turno_prohibido
+    desde: Optional[str] = None  # "YYYY-MM-DD" para vacaciones
+    hasta: Optional[str] = None  # "YYYY-MM-DD" para vacaciones
+
+
+class WorkerInput(BaseModel):
+    rut: str
+    nombre: str
+    constraints: List[ConstraintInput] = Field(default_factory=list)
+
+
+class Parametros(BaseModel):
+    modo: ModoProposal = ModoProposal.ilp
+    num_propuestas: int = Field(default=3, ge=1, le=10)
+    horas_semanales_max: int = Field(default=42, ge=1, le=60)
+    horas_semanales_obj: int = Field(default=42, ge=1, le=60)
+    dias_maximos_consecutivos: int = Field(default=6, ge=1, le=7)
+    domingos_libres_minimos: int = Field(default=2, ge=0, le=4)
+    peak_desde: str = Field(default="17:00")
+    cobertura_minima: int = Field(default=1, ge=1)
+    cobertura_optima_peak: int = Field(default=2, ge=1)
+    cobertura_optima_off_peak: int = Field(default=1, ge=1)
+    priorizar_fin_de_semana: bool = True
+    time_limit_seconds: int = Field(default=30, ge=5, le=120)
+    descanso_entre_jornadas: bool = False
+    # Pesos de la función objetivo
+    peso_cobertura_peak: float = Field(default=10.0, ge=0)
+    peso_finde: float = Field(default=5.0, ge=0)
+    peso_balance: float = Field(default=3.0, ge=0)
+    peso_ociosidad: float = Field(default=1.0, ge=0)
+
+
+class OptimizeRequest(BaseModel):
+    branch: BranchInput
+    month: MonthInput
+    workers: List[WorkerInput] = Field(..., min_length=1)
+    holidays: List[str] = Field(default_factory=list)  # ["YYYY-MM-DD"]
+    shift_catalog: List[ShiftDef] = Field(..., min_length=1)
+    franja_por_dia: Dict[str, Optional[FranjaDia]]     # keys: lunes..domingo, valor null = cerrado
+    parametros: Parametros = Field(default_factory=Parametros)
+
+
+# ─── Response sub-schemas ─────────────────────────────────────────────────────
+
+class AssignmentOut(BaseModel):
+    worker_slot: int             # posición 1-N (sin nombre real todavía)
+    worker_rut: str
+    date: str                    # "YYYY-MM-DD"
+    shift_id: str
+
+
+class ResumenSemana(BaseModel):
+    semana_1: float = 0.0
+    semana_2: float = 0.0
+    semana_3: float = 0.0
+    semana_4: float = 0.0
+    semana_5: float = 0.0
+
+
+class CoberturaInfo(BaseModel):
+    horas_cubiertas: float
+    horas_requeridas: float
+    max_simultaneos: int
+
+
+class ProposalOut(BaseModel):
+    id: str
+    modo: ModoProposal
+    score: float
+    factible: bool
+    dotacion_minima_sugerida: int
+    asignaciones: List[AssignmentOut]
+    resumen_horas_por_trabajador: Dict[str, ResumenSemana] = Field(default_factory=dict)
+    cobertura_por_dia: Dict[str, CoberturaInfo] = Field(default_factory=dict)
+
+
+class Diagnostico(BaseModel):
+    dotacion_disponible: int
+    dotacion_minima_requerida: int
+    dotacion_suficiente: bool
+    mensajes: List[str] = Field(default_factory=list)
+
+
+class OptimizeResponse(BaseModel):
+    propuestas: List[ProposalOut]
+    diagnostico: Diagnostico
+
+
+# ─── Validate schemas ─────────────────────────────────────────────────────────
+
+class ValidateRequest(OptimizeRequest):
+    """Igual que OptimizeRequest pero con la solución a validar."""
+    asignaciones: List[AssignmentOut]
+
+
+class Violacion(BaseModel):
+    tipo: str          # "horas_semanales_excedidas", "cobertura_insuficiente", etc.
+    worker_rut: Optional[str] = None
+    detalle: str
+
+
+class ValidateResponse(BaseModel):
+    valido: bool
+    violaciones: List[Violacion] = Field(default_factory=list)
