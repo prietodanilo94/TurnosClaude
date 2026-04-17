@@ -596,6 +596,114 @@ async function bootstrapAuditLog(): Promise<void> {
   );
 }
 
+// ─── permissions ─────────────────────────────────────────────────────────────
+
+const ADMIN = Role.label("admin");
+// Appwrite labels solo admiten alfanumérico — sin underscore
+const JEFE = Role.label("jefesucursal");
+
+async function setCollectionPerms(
+  id: string,
+  name: string,
+  permissions: string[],
+  documentSecurity: boolean
+): Promise<void> {
+  await db.updateCollection(DB, id, name, permissions, documentSecurity);
+  console.log(`  ✓ ${id}`);
+}
+
+async function configurePermissions(): Promise<void> {
+  console.log("\n[permisos por rol]");
+
+  // users — documentSecurity:true para que cada usuario lea su propio doc
+  await setCollectionPerms("users", "Users", [
+    Permission.read(ADMIN),
+    Permission.create(ADMIN),
+    Permission.update(ADMIN),
+    Permission.delete(ADMIN),
+  ], true);
+
+  await setCollectionPerms("branches", "Branches", [
+    Permission.read(Role.users()),
+    Permission.create(ADMIN),
+    Permission.update(ADMIN),
+    Permission.delete(ADMIN),
+  ], false);
+
+  await setCollectionPerms("branch_type_config", "Branch Type Config", [
+    Permission.read(Role.any()),
+    Permission.create(ADMIN),
+    Permission.update(ADMIN),
+    Permission.delete(ADMIN),
+  ], false);
+
+  await setCollectionPerms("shift_catalog", "Shift Catalog", [
+    Permission.read(Role.any()),
+    Permission.create(ADMIN),
+    Permission.update(ADMIN),
+    Permission.delete(ADMIN),
+  ], false);
+
+  await setCollectionPerms("workers", "Workers", [
+    Permission.read(ADMIN),
+    Permission.read(JEFE),
+    Permission.create(ADMIN),
+    Permission.update(ADMIN),
+    Permission.delete(ADMIN),
+  ], false);
+
+  await setCollectionPerms("branch_managers", "Branch Managers", [
+    Permission.read(ADMIN),
+    Permission.read(JEFE),
+    Permission.create(ADMIN),
+    Permission.update(ADMIN),
+    Permission.delete(ADMIN),
+  ], false);
+
+  await setCollectionPerms("holidays", "Holidays", [
+    Permission.read(Role.any()),
+    Permission.create(ADMIN),
+    Permission.update(ADMIN),
+    Permission.delete(ADMIN),
+  ], false);
+
+  await setCollectionPerms("worker_constraints", "Worker Constraints", [
+    Permission.read(ADMIN),
+    Permission.read(JEFE),
+    Permission.create(ADMIN),
+    Permission.update(ADMIN),
+    Permission.delete(ADMIN),
+  ], false);
+
+  // proposals — jefe_sucursal puede actualizar estado (seleccionar propuesta)
+  await setCollectionPerms("proposals", "Proposals", [
+    Permission.read(ADMIN),
+    Permission.read(JEFE),
+    Permission.create(ADMIN),
+    Permission.update(ADMIN),
+    Permission.update(JEFE),
+    Permission.delete(ADMIN),
+  ], false);
+
+  // assignments — jefe_sucursal puede crear y actualizar (asignar nombres a slots)
+  await setCollectionPerms("assignments", "Assignments", [
+    Permission.read(ADMIN),
+    Permission.read(JEFE),
+    Permission.create(ADMIN),
+    Permission.create(JEFE),
+    Permission.update(ADMIN),
+    Permission.update(JEFE),
+    Permission.delete(ADMIN),
+  ], false);
+
+  await setCollectionPerms("audit_log", "Audit Log", [
+    Permission.read(ADMIN),
+    Permission.create(ADMIN),
+    Permission.update(ADMIN),
+    Permission.delete(ADMIN),
+  ], false);
+}
+
 // ─── main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -617,6 +725,7 @@ async function main() {
   await bootstrapProposals();
   await bootstrapAssignments();
   await bootstrapAuditLog();
+  await configurePermissions();
 
   console.log("\n=== bootstrap completo ===");
 }
