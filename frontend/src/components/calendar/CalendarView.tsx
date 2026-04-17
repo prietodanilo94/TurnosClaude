@@ -14,6 +14,7 @@ import { useCalendarStore } from "@/store/calendar-store";
 import { validateLocal } from "@/lib/calendar/local-validator";
 import { MonthGrid } from "./MonthGrid";
 import { ProposalSelector } from "./ProposalSelector";
+import { SaveButton } from "./SaveButton";
 import { WorkerAssignDialog } from "./WorkerAssignDialog";
 import type { CalendarAssignment } from "@/types/optimizer";
 
@@ -126,13 +127,16 @@ export function CalendarView() {
           <ProposalSelector />
         </div>
 
-        {violations.length > 0 && (
-          <div className="flex items-center gap-1.5 bg-red-50 border border-red-200 rounded-md px-3 py-1.5">
-            <span className="text-red-600 font-medium text-sm">
-              {violations.length} violación{violations.length !== 1 ? "es" : ""}
-            </span>
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          {violations.length > 0 && (
+            <div className="flex items-center gap-1.5 bg-red-50 border border-red-200 rounded-md px-3 py-1.5">
+              <span className="text-red-600 font-medium text-sm">
+                {violations.length} violación{violations.length !== 1 ? "es" : ""}
+              </span>
+            </div>
+          )}
+          <SaveButton />
+        </div>
       </div>
 
       {/* Grid del mes con DnD */}
