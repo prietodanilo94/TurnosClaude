@@ -362,6 +362,15 @@ class CoberturaInfo(BaseModel):
     max_simultaneos: int
 
 
+class ProposalMetricsOut(BaseModel):
+    score: float
+    horas_promedio: float
+    desviacion_horas: float
+    cobertura_peak_pct: float
+    turnos_cortos_count: int
+    fin_semana_completo_count: int
+
+
 class ProposalOut(BaseModel):
     id: str
     modo: ModoProposal
@@ -369,6 +378,7 @@ class ProposalOut(BaseModel):
     factible: bool
     dotacion_minima_sugerida: int
     asignaciones: List[AssignmentOut]
+    metrics: Optional[ProposalMetricsOut] = None
     resumen_horas_por_trabajador: Dict[str, ResumenSemana] = Field(default_factory=dict)
     cobertura_por_dia: Dict[str, CoberturaInfo] = Field(default_factory=dict)
 

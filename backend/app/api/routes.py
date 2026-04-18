@@ -14,6 +14,7 @@ from app.models.schemas import (
     ModoProposal,
     OptimizeRequest,
     OptimizeResponse,
+    ProposalMetricsOut,
     ProposalOut,
     ValidateRequest,
     ValidateResponse,
@@ -21,6 +22,7 @@ from app.models.schemas import (
 from app.optimizer.greedy import solve_greedy
 from app.optimizer.ilp import solve_ilp
 from app.optimizer.lower_bound import calcular_lower_bound
+from app.optimizer.scoring import compute_metrics
 
 router = APIRouter()
 
@@ -115,6 +117,9 @@ async def optimize(payload: OptimizeRequest):
         proposal_mode = ModoProposal.ilp if is_ilp else ModoProposal.greedy
         proposal_id = f"prop_{proposal_mode.value}_{len(proposals) + 1}"
 
+        raw_metrics = compute_metrics(output, inp)
+        metrics_out = ProposalMetricsOut(**dataclasses.asdict(raw_metrics))
+
         proposals.append(
             ProposalOut(
                 id=proposal_id,
@@ -123,6 +128,7 @@ async def optimize(payload: OptimizeRequest):
                 factible=True,
                 dotacion_minima_sugerida=n_min,
                 asignaciones=_build_assignments_out(output.asignaciones, rut_to_slot),
+                metrics=metrics_out,
             )
         )
 
