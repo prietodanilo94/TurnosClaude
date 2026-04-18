@@ -2,13 +2,14 @@ import dataclasses
 import random
 from typing import FrozenSet
 
-from fastapi import APIRouter, Depends
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import JSONResponse, Response
 
 from app.api.deps import require_admin, require_auth
 from app.core.calendar import build_solver_input
 from app.core.validators import validar_solucion
 from app.models.domain import AssignmentResult, SolverInput, SolverOutput
+from app.models.export import ExportRequest
 from app.models.schemas import (
     AssignmentOut,
     Diagnostico,
@@ -24,7 +25,12 @@ from app.optimizer.greedy import solve_greedy
 from app.optimizer.ilp import solve_ilp
 from app.optimizer.lower_bound import calcular_lower_bound
 from app.optimizer.scoring import compute_metrics
+from app.services import appwrite_client as ac
 from app.services.appwrite_jwt import AppwriteUser
+from app.services.excel_exporter import build_filename, export_proposal_to_xlsx
+from app.services.proposal_fetcher import ExportError, fetch_export_dataset
+
+_XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 router = APIRouter()
 
@@ -171,3 +177,57 @@ async def optimize(payload: OptimizeRequest, _user: AppwriteUser = Depends(requi
 async def validate(payload: ValidateRequest, _user: AppwriteUser = Depends(require_auth)):
     violaciones = validar_solucion(payload.asignaciones, payload)
     return ValidateResponse(valido=len(violaciones) == 0, violaciones=violaciones)
+
+
+@router.post("/export", tags=["export"])
+async def export_excel(
+    payload: ExportRequest,
+    user: AppwriteUser = Depends(require_auth),
+) -> Response:
+    # Verificar permisos: admin puede exportar cualquier sucursal;
+    # jefe solo puede exportar sus sucursales asignadas.
+    if not user.is_admin:
+        try:
+            proposal = await ac.get_proposal(payload.proposal_id)
+        except KeyError:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Propuesta no encontrada")
+
+        managers = await ac.list_branch_managers_by_user(user.id)
+        authorized_branch_ids = {m.branch_id for m in managers}
+        if proposal.branch_id not in authorized_branch_ids:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No tenés acceso a exportar esta sucursal",
+            )
+
+    # Cargar y validar datos de exportación
+    try:
+        dataset = await fetch_export_dataset(payload.proposal_id)
+    except KeyError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Propuesta no encontrada")
+    except ExportError as e:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
+
+    # Generar xlsx
+    xlsx_bytes = export_proposal_to_xlsx(dataset)
+    filename = build_filename(dataset)
+
+    # Audit log (fail-silent)
+    await ac.create_audit_log(
+        user_id=user.id,
+        accion="export",
+        entidad="proposals",
+        entidad_id=payload.proposal_id,
+        metadata={
+            "filename": filename,
+            "filas_exportadas": len({r.worker_id for r in dataset.resolved_assignments}),
+        },
+    )
+
+    return Response(
+        content=xlsx_bytes,
+        media_type=_XLSX_MIME,
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+        },
+    )
