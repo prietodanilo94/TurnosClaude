@@ -2,9 +2,10 @@ import dataclasses
 import random
 from typing import FrozenSet
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
+from app.api.deps import require_admin, require_auth
 from app.core.calendar import build_solver_input
 from app.core.validators import validar_solucion
 from app.models.domain import AssignmentResult, SolverInput, SolverOutput
@@ -23,6 +24,7 @@ from app.optimizer.greedy import solve_greedy
 from app.optimizer.ilp import solve_ilp
 from app.optimizer.lower_bound import calcular_lower_bound
 from app.optimizer.scoring import compute_metrics
+from app.services.appwrite_jwt import AppwriteUser
 
 router = APIRouter()
 
@@ -62,7 +64,7 @@ def _build_assignments_out(
 
 
 @router.post("/optimize", response_model=OptimizeResponse, tags=["optimizer"])
-async def optimize(payload: OptimizeRequest):
+async def optimize(payload: OptimizeRequest, _user: AppwriteUser = Depends(require_admin)):
     solver_input = build_solver_input(payload)
     n_min = calcular_lower_bound(solver_input)
     n_workers = len(payload.workers)
@@ -166,6 +168,6 @@ async def optimize(payload: OptimizeRequest):
 
 
 @router.post("/validate", response_model=ValidateResponse, tags=["optimizer"])
-async def validate(payload: ValidateRequest):
+async def validate(payload: ValidateRequest, _user: AppwriteUser = Depends(require_auth)):
     violaciones = validar_solucion(payload.asignaciones, payload)
     return ValidateResponse(valido=len(violaciones) == 0, violaciones=violaciones)
