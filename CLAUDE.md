@@ -130,15 +130,17 @@ Si detectas una contradicción entre dos specs o entre una spec y `docs/`, **det
 
 ### ✅ Hecho
 
-#### Task 1 — Spec 001 (data-model): Scaffolding base
-- `package.json` con scripts npm (`bootstrap:appwrite`, `seed:all`, `create:admin`, etc.)
-- `tsconfig.json` configurado para scripts TypeScript con `tsx`
-- `.gitignore` (`.env` excluido, `.env.example` incluido)
-- `.env.example` con todas las variables necesarias documentadas
-- `scripts/hello.ts` — smoke test de entorno (verifica vars de entorno)
-- `npm install` corrido → dependencias instaladas (`node-appwrite`, `tsx`, `dotenv`, `typescript`)
-- `.env` local creado con credenciales reales (no commiteado)
-- Verificado: `npx tsx scripts/hello.ts` imprime correctamente endpoint + project ID
+#### Spec 001 — data-model ✅ COMPLETA (código implementado; pendiente ejecutar contra Appwrite)
+- `package.json` con todos los scripts npm (`bootstrap:appwrite`, `seed:all`, `create:admin`, etc.)
+- `scripts/bootstrap-appwrite.ts` — 11 colecciones, atributos, índices, permisos (idempotente)
+- `scripts/seed-shift-catalog.ts` — 10 turnos
+- `scripts/seed-branch-type-config.ts` — 5 tipos de sucursal
+- `scripts/seed-holidays.ts` — 4 feriados irrenunciables/año (1 ene, 1 may, 18 sep, 25 dic) — 19 sep removido per spec 008
+- `scripts/create-first-admin.ts` — crea usuario admin en Appwrite Auth + colección users
+- `frontend/src/types/models.ts` — todos los tipos TypeScript
+- `backend/app/models/schemas.py` — todos los modelos Pydantic
+- **Pendiente**: ejecutar `npm run bootstrap:appwrite && npm run seed:all && npm run create:admin` contra Appwrite
+- **Pendiente**: actualizar `docs/appwrite-setup.md` (task 12)
 
 #### Spec 007 — export-excel ✅ COMPLETA (tasks 1–10)
 - `backend/app/services/appwrite_client.py` — cliente API Key con todos los métodos necesarios
@@ -153,57 +155,18 @@ Si detectas una contradicción entre dos specs o entre una spec y `docs/`, **det
 
 ---
 
-### 🔧 En curso
-
-#### Spec 009 — recalculate-partial
-
-**Alcance de este ciclo**: solo backend (tasks 1–6 + 12). Las tasks 7–11 (frontend: `PartialRecalculateDialog`, diff visual, Aprobar/Descartar) quedan diferidas hasta que spec 004 (calendar-ui) esté implementada.
-
-**Decisiones técnicas acordadas:**
-
-1. **No se crean variables ILP para días fuera del rango.** El plan.md sugería `x[w,d,s] == 1` para las assignments fijas. En cambio, las horas fijas se descuentan del límite semanal como constantes al construir las restricciones. Menos variables en el modelo, más limpio.
-
-2. **El endpoint devuelve solo las assignments del rango** (no las fijas). El frontend es responsable de fusionar ambas para mostrar el mes completo.
-
-3. **Sin verificación de lower bound previa** para el caso parcial. Las semanas parciales hacen el cálculo impreciso. Si el solver no puede cubrir el rango, retorna 422 directamente con el mensaje del solver.
-
-4. **`workers_excluidos` se remueven de `SolverInput.workers`** antes de pasarlo al solver. Sus horas fijas fuera del rango sí cuentan para las restricciones semanales de los workers restantes (esas horas no se tocan, pero la cobertura fuera del rango ya estaba cubierta por la propuesta original).
-
-**Archivos a crear:**
+#### Spec 009 — recalculate-partial ✅ BACKEND COMPLETO (tasks 1–6)
+- `backend/app/models/schemas.py` — `AssignmentFija`, `PartialRange`, `PartialOptimizeRequest`
 - `backend/app/optimizer/partial.py` — `PartialContext` + `setup_partial_problem`
-- `backend/tests/test_partial_optimizer.py`
-
-**Archivos a modificar:**
-- `backend/app/models/schemas.py` — añadir `AssignmentFija`, `PartialRange`, `PartialOptimizeRequest`
-- `backend/app/optimizer/ilp.py` — `solve_ilp` acepta `partial_context` opcional
-- `backend/app/optimizer/greedy.py` — `solve_greedy` acepta `partial_context` opcional
-- `backend/app/api/routes.py` — nuevo endpoint `POST /optimize/partial`
-
-**Tasks:**
-- [ ] Task 1: schemas — `AssignmentFija`, `PartialRange`, `PartialOptimizeRequest`
-- [ ] Task 2: `optimizer/partial.py` — `PartialContext` + `setup_partial_problem`
-- [ ] Task 3: `ilp.py` — soporte `partial_context`
-- [ ] Task 4: `greedy.py` — soporte `partial_context`
-- [ ] Task 5: endpoint `POST /optimize/partial` + tests
-- [ ] Task 6: test caso infactible por restricción fija
-- [ ] Task 12: test E2E backend
+- `backend/app/optimizer/ilp.py` — `solve_ilp` acepta `partial_context` opcional; sin variables para días fuera del rango
+- `backend/app/optimizer/greedy.py` — `solve_greedy` acepta `partial_context` opcional; filtra open_days al rango
+- `backend/app/api/routes.py` — endpoint `POST /optimize/partial`
+- `backend/tests/test_partial_optimizer.py` — 12 tests (comportamiento básico, horas fijas, error paths)
+- **Frontend diferido** (tasks 7–11): `PartialRecalculateDialog`, diff visual, Aprobar/Descartar — hasta spec 004
 
 ---
 
 ### 🔲 Pendiente (en orden)
-
-#### Spec 001 — data-model (continuación)
-- [ ] Task 2: `scripts/bootstrap-appwrite.ts` — colecciones `users`, `branches`, `branch_type_config`, `shift_catalog`
-- [ ] Task 3: Extender bootstrap con `workers`, `branch_managers`, `holidays`, `worker_constraints`
-- [ ] Task 4: Extender con `proposals`, `assignments`, `audit_log`
-- [ ] Task 5: Permisos por rol (labels) en cada colección
-- [ ] Task 6: `scripts/seed-shift-catalog.ts` (10 turnos)
-- [ ] Task 7: `scripts/seed-branch-type-config.ts` (5 tipos de sucursal)
-- [ ] Task 8: `scripts/seed-holidays.ts` (2026 + 2027) + `lib/holidays/is-holiday.ts`
-- [ ] Task 9: `frontend/src/types/models.ts` — tipos TypeScript
-- [ ] Task 10: `backend/app/models/schemas.py` — modelos Pydantic
-- [ ] Task 11: `scripts/create-first-admin.ts`
-- [ ] Task 12: Actualizar `docs/appwrite-setup.md`
 
 #### Spec 005 — auth-permissions
 - [ ] Login con email/password (Appwrite Auth)

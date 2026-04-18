@@ -16,18 +16,18 @@ interface HolidaySeed {
   anio: number;
 }
 
-// Feriados irrenunciables chilenos aplicables al negocio:
-// 1 ene, 1 may, 18 sep, 19 sep, 25 dic
+// Feriados irrenunciables según Ley 19.973 aplicables al comercio retail:
+// 1 ene, 1 may, 18 sep, 25 dic
+// El 19 sep (Glorias del Ejército) NO es irrenunciable en retail — spec 008.
 function getHolidays(year: number): HolidaySeed[] {
   const d = (month: number, day: number): string =>
     `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}T00:00:00.000+00:00`;
 
   return [
-    { fecha: d(1, 1),  nombre: "Año Nuevo",              tipo: "irrenunciable", anio: year },
-    { fecha: d(5, 1),  nombre: "Día del Trabajador",     tipo: "irrenunciable", anio: year },
-    { fecha: d(9, 18), nombre: "Fiestas Patrias",         tipo: "irrenunciable", anio: year },
-    { fecha: d(9, 19), nombre: "Glorias del Ejército",   tipo: "irrenunciable", anio: year },
-    { fecha: d(12, 25), nombre: "Navidad",               tipo: "irrenunciable", anio: year },
+    { fecha: d(1, 1),   nombre: "Año Nuevo",          tipo: "irrenunciable", anio: year },
+    { fecha: d(5, 1),   nombre: "Día del Trabajador", tipo: "irrenunciable", anio: year },
+    { fecha: d(9, 18),  nombre: "Fiestas Patrias",    tipo: "irrenunciable", anio: year },
+    { fecha: d(12, 25), nombre: "Navidad",            tipo: "irrenunciable", anio: year },
   ];
 }
 
