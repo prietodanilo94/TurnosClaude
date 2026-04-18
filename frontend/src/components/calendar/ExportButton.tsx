@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import { useCalendarStore } from "@/store/calendar-store";
-
-const OPTIMIZER_URL = process.env.NEXT_PUBLIC_OPTIMIZER_URL ?? "http://localhost:8000";
+import { triggerDownload, ExportError } from "@/lib/export/trigger-download";
 
 export function ExportButton() {
   const violations = useCalendarStore((s) => s.violations);
@@ -20,31 +19,13 @@ export function ExportButton() {
     setErrorMsg(null);
 
     try {
-      const res = await fetch(`${OPTIMIZER_URL}/export`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ proposal_id: activeProposalId }),
-      });
-
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`Error ${res.status}: ${text}`);
-      }
-
-      // Disparar descarga del binario .xlsx
-      const blob = await res.blob();
-      const disposition = res.headers.get("Content-Disposition") ?? "";
-      const match = disposition.match(/filename="?([^"]+)"?/);
-      const filename = match?.[1] ?? `turnos_${activeProposalId}.xlsx`;
-
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      a.click();
-      URL.revokeObjectURL(url);
+      await triggerDownload(activeProposalId);
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : "Error al exportar");
+      if (err instanceof ExportError) {
+        setErrorMsg(err.message);
+      } else {
+        setErrorMsg("Error inesperado al exportar");
+      }
     } finally {
       setLoading(false);
     }
