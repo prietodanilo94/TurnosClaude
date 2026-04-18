@@ -130,17 +130,15 @@ Si detectas una contradicción entre dos specs o entre una spec y `docs/`, **det
 
 ### ✅ Hecho
 
-#### Spec 001 — data-model ✅ COMPLETA (código implementado; pendiente ejecutar contra Appwrite)
+#### Spec 001 — data-model ✅ COMPLETA
 - `package.json` con todos los scripts npm (`bootstrap:appwrite`, `seed:all`, `create:admin`, etc.)
 - `scripts/bootstrap-appwrite.ts` — 11 colecciones, atributos, índices, permisos (idempotente)
-- `scripts/seed-shift-catalog.ts` — 10 turnos
-- `scripts/seed-branch-type-config.ts` — 5 tipos de sucursal
-- `scripts/seed-holidays.ts` — 4 feriados irrenunciables/año (1 ene, 1 may, 18 sep, 25 dic) — 19 sep removido per spec 008
-- `scripts/create-first-admin.ts` — crea usuario admin en Appwrite Auth + colección users
+- `scripts/seed-shift-catalog.ts` — 10 turnos ✅ en Appwrite
+- `scripts/seed-branch-type-config.ts` — 5 tipos de sucursal ✅ en Appwrite
+- `scripts/seed-holidays.ts` — 4 feriados irrenunciables/año (1 ene, 1 may, 18 sep, 25 dic) ✅ en Appwrite 2026+2027
+- `scripts/create-first-admin.ts` — admin `prieto.danilo94@gmail.com` creado (id: `69e1d60b002c65becc26`) ✅
 - `frontend/src/types/models.ts` — todos los tipos TypeScript
 - `backend/app/models/schemas.py` — todos los modelos Pydantic
-- **Pendiente**: ejecutar `npm run bootstrap:appwrite && npm run seed:all && npm run create:admin` contra Appwrite
-- **Pendiente**: actualizar `docs/appwrite-setup.md` (task 12)
 
 #### Spec 007 — export-excel ✅ COMPLETA (tasks 1–10)
 - `backend/app/services/appwrite_client.py` — cliente API Key con todos los métodos necesarios
@@ -166,9 +164,9 @@ Si detectas una contradicción entre dos specs o entre una spec y `docs/`, **det
 
 ---
 
-### 🔲 Pendiente (en orden)
+### 🔲 Pendiente (en orden recomendado)
 
-#### Spec 005 — auth-permissions
+#### Spec 005 — auth-permissions ← **PRÓXIMA**
 - [ ] Login con email/password (Appwrite Auth)
 - [ ] Middleware de roles (admin / jefe_sucursal)
 - [ ] Rutas protegidas en Next.js
@@ -198,7 +196,7 @@ Si detectas una contradicción entre dos specs o entre una spec y `docs/`, **det
 #### Spec 006 — exceptions
 - [ ] UI para excepciones individuales (vacaciones, días prohibidos, turnos prohibidos)
 
-#### Spec 009 — recalculate-partial (frontend, diferido)
+#### Spec 009 — recalculate-partial (frontend, diferido hasta spec 004)
 - [ ] Task 7: `PartialRecalculateDialog.tsx` — selector de rango + checkboxes + modo
 - [ ] Task 8: `build-partial-payload.ts` — arma el payload desde la propuesta activa
 - [ ] Task 9: vista "revisar recálculo" con diff visual en el calendario
@@ -210,5 +208,5 @@ Si detectas una contradicción entre dos specs o entre una spec y `docs/`, **det
 ### Infraestructura
 - Appwrite: `https://appwrite.dpmake.cl/v1` — corriendo ✅
 - Project ID: `69e0f594001ed045d0c5`
-- Database ID: `main` (a crear en bootstrap)
+- Database ID: `main` ✅ creado
 - GitHub: conectado ✅ — `github.com/prietodanilo94/TurnosClaude`
