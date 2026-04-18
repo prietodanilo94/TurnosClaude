@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { databases } from "@/lib/auth/appwrite-client";
 import { listExceptionsByWorker } from "@/lib/exceptions/api";
 import { ExceptionsList } from "./components/ExceptionsList";
+import { NewExceptionDialog } from "./components/NewExceptionDialog";
 import type { Worker, Branch, WorkerConstraint } from "@/types/models";
 
 const DB = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!;
@@ -18,6 +19,7 @@ export default function ExcepcionesPage() {
   const [exceptions, setExceptions] = useState<WorkerConstraint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   const loadExceptions = useCallback(async () => {
     const excs = await listExceptionsByWorker(id);
@@ -89,11 +91,9 @@ export default function ExcepcionesPage() {
               <p className="text-xs text-gray-500 mt-0.5">Sucursal: {branch.nombre}</p>
             )}
           </div>
-          {/* NewExceptionDialog se conecta en Task 6 */}
           <button
-            disabled
-            className="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-md opacity-40 cursor-not-allowed"
-            title="Disponible próximamente"
+            onClick={() => setDialogOpen(true)}
+            className="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
           >
             + Nueva excepción
           </button>
@@ -103,6 +103,15 @@ export default function ExcepcionesPage() {
           <ExceptionsList exceptions={exceptions} />
         </div>
       </div>
+
+      {dialogOpen && worker && (
+        <NewExceptionDialog
+          workerId={id}
+          existing={exceptions}
+          onCreated={loadExceptions}
+          onClose={() => setDialogOpen(false)}
+        />
+      )}
     </div>
   );
 }
