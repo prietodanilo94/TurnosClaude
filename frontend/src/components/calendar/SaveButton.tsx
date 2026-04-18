@@ -9,12 +9,13 @@ type SaveState = "idle" | "validating" | "saving" | "success" | "error";
 
 const OPTIMIZER_URL = process.env.NEXT_PUBLIC_OPTIMIZER_URL ?? "http://localhost:8000";
 const DATABASE_ID = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID ?? "main";
+const PROPOSALS_COLLECTION = "proposals";
 const ASSIGNMENTS_COLLECTION = "assignments";
 
 export function SaveButton() {
   const {
     dirty, violations, assignments, workers, shiftCatalog,
-    holidays, franjaPorDia, activeProposalId, branchId, year, month,
+    holidays, franjaPorDia, activeProposalId, availableProposals, branchId, year, month,
     setViolations, markSaved,
   } = useCalendarStore();
 
@@ -95,12 +96,38 @@ export function SaveButton() {
     try {
       if (!activeProposalId) throw new Error("No hay propuesta activa para guardar.");
 
-      // Guardar cada asignación como documento en la colección assignments.
-      // TODO: reemplazar por upsert real cuando bootstrap esté listo.
+      const activeProposal = availableProposals.find((p) => p.id === activeProposalId);
+
+      // 3a. Crear el documento de propuesta (incluye metrics serializado).
+      const proposalDoc = await databases.createDocument(
+        DATABASE_ID,
+        PROPOSALS_COLLECTION,
+        ID.unique(),
+        {
+          branch_id: branchId,
+          anio: year,
+          mes: month,
+          modo: activeProposal?.modo ?? "greedy",
+          score: activeProposal?.score ?? 0,
+          factible: activeProposal?.factible ?? true,
+          dotacion_sugerida: activeProposal?.dotacion_minima_sugerida ?? 0,
+          asignaciones: JSON.stringify(
+            assignments.map((a) => ({ slot: a.worker_slot, date: a.date, shift_id: a.shift_id }))
+          ),
+          parametros: JSON.stringify({}),
+          estado: "generada",
+          creada_por: "system",  // placeholder: reemplazar con user $id cuando auth esté listo
+          ...(activeProposal?.metrics && {
+            metrics: JSON.stringify(activeProposal.metrics),
+          }),
+        }
+      );
+
+      // 3b. Guardar cada asignación referenciando el doc de propuesta real.
       await Promise.all(
         assignments.map((a) =>
           databases.createDocument(DATABASE_ID, ASSIGNMENTS_COLLECTION, ID.unique(), {
-            proposal_id: activeProposalId,
+            proposal_id: proposalDoc.$id,
             slot_numero: a.worker_slot,
             worker_id: a.worker_rut,  // placeholder: debería ser el $id de Appwrite
             asignado_en: new Date().toISOString(),

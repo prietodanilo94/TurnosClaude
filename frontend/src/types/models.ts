@@ -125,6 +125,9 @@ export interface Proposal extends AppwriteDoc {
   estado: EstadoProposal;
   creada_por: string;
   seleccionada_por?: string;
+  metrics?: string;        // JSON serializado de ProposalMetrics (varchar 4096 en Appwrite)
+  publicada_por?: string;
+  publicada_en?: string;
 }
 
 export interface Assignment extends AppwriteDoc {

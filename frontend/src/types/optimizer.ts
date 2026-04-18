@@ -15,6 +15,15 @@ export interface OptimizerAssignment {
   shift_id: string;
 }
 
+export interface ProposalMetrics {
+  score: number;
+  horas_promedio: number;
+  desviacion_horas: number;
+  cobertura_peak_pct: number;
+  turnos_cortos_count: number;
+  fin_semana_completo_count: number;
+}
+
 export interface OptimizerProposal {
   id: string;
   modo: "ilp" | "greedy";
@@ -22,6 +31,7 @@ export interface OptimizerProposal {
   factible: boolean;
   dotacion_minima_sugerida: number;
   asignaciones: OptimizerAssignment[];
+  metrics?: ProposalMetrics;
 }
 
 export interface Diagnostico {
