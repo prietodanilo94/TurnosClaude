@@ -4,9 +4,10 @@ Sigue el pseudocódigo de docs/math-formulation.md §7.
 """
 from __future__ import annotations
 
-from typing import Dict, List, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 from app.models.domain import AssignmentResult, DayInfo, ShiftInfo, SolverInput, SolverOutput
+from app.optimizer.partial import PartialContext
 
 
 # ─── helpers ──────────────────────────────────────────────────────────────────
@@ -55,7 +56,10 @@ def _day_priority(day: DayInfo) -> Tuple[int, int]:
 
 # ─── solver ───────────────────────────────────────────────────────────────────
 
-def solve_greedy(inp: SolverInput) -> SolverOutput:
+def solve_greedy(
+    inp: SolverInput,
+    partial_context: Optional[PartialContext] = None,
+) -> SolverOutput:
     workers = inp.workers
     days = inp.days
     shifts = inp.shifts
@@ -74,8 +78,21 @@ def solve_greedy(inp: SolverInput) -> SolverOutput:
     n_workers = len(workers)
     n_weeks = len(weeks)
 
+    # Pre-inicializar con horas/días ya consumidos fuera del rango (caso parcial)
     horas_semana = [[0.0] * n_weeks for _ in range(n_workers)]
     dias_semana = [[0] * n_weeks for _ in range(n_workers)]
+    if partial_context is not None:
+        for wix, worker in enumerate(workers):
+            for wi in range(n_weeks):
+                horas_semana[wix][wi] = (
+                    partial_context.fixed_hours_by_worker_week
+                    .get(worker.rut, {}).get(wi, 0.0)
+                )
+                dias_semana[wix][wi] = (
+                    partial_context.fixed_days_by_worker_week
+                    .get(worker.rut, {}).get(wi, 0)
+                )
+
     domingos_trabajados = [0] * n_workers
 
     # Domingos máximos por trabajador (§3.8)
@@ -91,10 +108,10 @@ def solve_greedy(inp: SolverInput) -> SolverOutput:
     asignaciones: List[AssignmentResult] = []
     mensajes: List[str] = []
 
-    open_days = sorted(
-        [d for d in days if d.abierto],
-        key=_day_priority,
-    )
+    all_open = [d for d in days if d.abierto]
+    if partial_context is not None:
+        all_open = [d for d in all_open if d.date in partial_context.range_dates]
+    open_days = sorted(all_open, key=_day_priority)
 
     for day in open_days:
         di = day.day_index - 1  # índice 0-based
@@ -146,7 +163,10 @@ def solve_greedy(inp: SolverInput) -> SolverOutput:
 
     factible = len(mensajes) == 0
 
-    dias_abiertos = sum(1 for d in days if d.abierto)
+    if partial_context is not None:
+        dias_abiertos = sum(1 for d in days if d.abierto and d.date in partial_context.range_dates)
+    else:
+        dias_abiertos = sum(1 for d in days if d.abierto)
     dias_cubiertos = len({a.date for a in asignaciones})
     score = round((dias_cubiertos / dias_abiertos * 100) if dias_abiertos else 0.0, 2)
 
