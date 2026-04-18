@@ -13,6 +13,7 @@ import httpx
 from app.core.config import settings
 from app.models.schemas import (
     Assignment,
+    Branch,
     BranchManager,
     Proposal,
     ShiftCatalog,
@@ -40,6 +41,16 @@ def _qlimit(n: int) -> str:
 
 def _collection_url(collection: str) -> str:
     return f"{settings.appwrite_endpoint}/databases/{_DB}/collections/{collection}/documents"
+
+
+async def get_branch(branch_id: str) -> Branch:
+    url = f"{_collection_url('branches')}/{branch_id}"
+    async with httpx.AsyncClient() as client:
+        r = await client.get(url, headers=_headers())
+    if r.status_code == 404:
+        raise KeyError(f"Sucursal {branch_id!r} no encontrada")
+    r.raise_for_status()
+    return Branch.model_validate(r.json())
 
 
 async def get_proposal(proposal_id: str) -> Proposal:
