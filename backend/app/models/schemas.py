@@ -432,3 +432,36 @@ class Violacion(BaseModel):
 class ValidateResponse(BaseModel):
     valido: bool
     violaciones: List[Violacion] = Field(default_factory=list)
+
+
+# ─── Recálculo parcial (Spec 009) ─────────────────────────────────────────────
+
+class AssignmentFija(BaseModel):
+    """Una asignación fuera del rango de recálculo que el solver debe respetar."""
+    worker_rut: str
+    date: str       # "YYYY-MM-DD"
+    shift_id: str
+
+
+class PartialRange(BaseModel):
+    """Rango de fechas sobre el que se ejecuta el recálculo."""
+    desde: str      # "YYYY-MM-DD" inclusive
+    hasta: str      # "YYYY-MM-DD" inclusive
+
+
+class PartialOptimizeRequest(OptimizeRequest):
+    """
+    Igual que OptimizeRequest pero acotado a un rango de fechas.
+    `workers` debe contener solo los disponibles en el rango.
+    """
+    partial_range: PartialRange
+    assignments_fijas: List[AssignmentFija] = Field(
+        default_factory=list,
+        description="Asignaciones fuera del rango que no se tocan. "
+                    "Sus horas se descuentan del presupuesto semanal.",
+    )
+    workers_excluidos: List[str] = Field(
+        default_factory=list,
+        description="RUTs de workers no disponibles en el rango. "
+                    "Sus assignments_fijas se mantienen intactas.",
+    )
