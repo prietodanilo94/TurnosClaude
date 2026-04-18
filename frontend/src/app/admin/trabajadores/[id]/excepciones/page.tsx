@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { databases } from "@/lib/auth/appwrite-client";
-import { listExceptionsByWorker } from "@/lib/exceptions/api";
+import { listExceptionsByWorker, deleteException } from "@/lib/exceptions/api";
 import { ExceptionsList } from "./components/ExceptionsList";
 import { NewExceptionDialog } from "./components/NewExceptionDialog";
 import type { Worker, Branch, WorkerConstraint } from "@/types/models";
@@ -20,6 +20,7 @@ export default function ExcepcionesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingException, setEditingException] = useState<WorkerConstraint | null>(null);
 
   const loadExceptions = useCallback(async () => {
     const excs = await listExceptionsByWorker(id);
@@ -100,16 +101,27 @@ export default function ExcepcionesPage() {
         </div>
 
         <div className="px-5">
-          <ExceptionsList exceptions={exceptions} />
+          <ExceptionsList
+            exceptions={exceptions}
+            onEdit={(exc) => setEditingException(exc)}
+            onDelete={async (exc) => {
+              await deleteException(exc.$id);
+              await loadExceptions();
+            }}
+          />
         </div>
       </div>
 
-      {dialogOpen && worker && (
+      {(dialogOpen || editingException) && worker && (
         <NewExceptionDialog
           workerId={id}
           existing={exceptions}
+          editing={editingException ?? undefined}
           onCreated={loadExceptions}
-          onClose={() => setDialogOpen(false)}
+          onClose={() => {
+            setDialogOpen(false);
+            setEditingException(null);
+          }}
         />
       )}
     </div>

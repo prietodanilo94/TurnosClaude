@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { WorkerConstraint } from "@/types/models";
 
 const TIPO_LABEL: Record<string, string> = {
@@ -53,11 +54,24 @@ function ExceptionValue({ exc }: { exc: WorkerConstraint }) {
 interface Props {
   exceptions: WorkerConstraint[];
   onEdit?: (exc: WorkerConstraint) => void;
-  onDelete?: (exc: WorkerConstraint) => void;
+  onDelete?: (exc: WorkerConstraint) => Promise<void>;
   readOnly?: boolean;
 }
 
 export function ExceptionsList({ exceptions, onEdit, onDelete, readOnly = false }: Props) {
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  async function handleConfirmDelete(exc: WorkerConstraint) {
+    setDeletingId(exc.$id);
+    try {
+      await onDelete?.(exc);
+    } finally {
+      setDeletingId(null);
+      setConfirmingId(null);
+    }
+  }
+
   if (exceptions.length === 0) {
     return (
       <p className="text-sm text-gray-500 py-4">No hay excepciones registradas.</p>
@@ -82,19 +96,41 @@ export function ExceptionsList({ exceptions, onEdit, onDelete, readOnly = false 
           </div>
 
           {!readOnly && (
-            <div className="flex gap-2 shrink-0">
-              <button
-                onClick={() => onEdit?.(exc)}
-                className="text-xs text-blue-600 hover:text-blue-800 font-medium"
-              >
-                Editar
-              </button>
-              <button
-                onClick={() => onDelete?.(exc)}
-                className="text-xs text-red-500 hover:text-red-700 font-medium"
-              >
-                Eliminar
-              </button>
+            <div className="flex gap-2 shrink-0 items-center">
+              {confirmingId === exc.$id ? (
+                <>
+                  <span className="text-xs text-gray-600">¿Eliminar?</span>
+                  <button
+                    onClick={() => handleConfirmDelete(exc)}
+                    disabled={deletingId === exc.$id}
+                    className="text-xs text-red-600 hover:text-red-800 font-medium disabled:opacity-50"
+                  >
+                    {deletingId === exc.$id ? "Eliminando…" : "Sí"}
+                  </button>
+                  <button
+                    onClick={() => setConfirmingId(null)}
+                    disabled={deletingId === exc.$id}
+                    className="text-xs text-gray-500 hover:text-gray-700 disabled:opacity-50"
+                  >
+                    No
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => onEdit?.(exc)}
+                    className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                  >
+                    Editar
+                  </button>
+                  <button
+                    onClick={() => setConfirmingId(exc.$id)}
+                    className="text-xs text-red-500 hover:text-red-700 font-medium"
+                  >
+                    Eliminar
+                  </button>
+                </>
+              )}
             </div>
           )}
         </div>

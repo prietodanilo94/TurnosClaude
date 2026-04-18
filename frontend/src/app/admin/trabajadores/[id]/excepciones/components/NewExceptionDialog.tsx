@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Query } from "appwrite";
 import { databases } from "@/lib/auth/appwrite-client";
-import { createException } from "@/lib/exceptions/api";
+import { createException, updateException } from "@/lib/exceptions/api";
 import {
   exceptionSchema,
   hasDuplicateDia,
@@ -30,18 +30,20 @@ type UITipo = "dia_prohibido" | "turno_prohibido" | "vacaciones" | "dia_obligato
 interface Props {
   workerId: string;
   existing: WorkerConstraint[];
+  editing?: WorkerConstraint;
   onCreated: () => void;
   onClose: () => void;
 }
 
-export function NewExceptionDialog({ workerId, existing, onCreated, onClose }: Props) {
+export function NewExceptionDialog({ workerId, existing, editing, onCreated, onClose }: Props) {
   const { user } = useCurrentUser();
+  const isEdit = !!editing;
 
-  const [tipo, setTipo] = useState<UITipo>("dia_prohibido");
-  const [valor, setValor] = useState("");
-  const [fechaDesde, setFechaDesde] = useState("");
-  const [fechaHasta, setFechaHasta] = useState("");
-  const [notas, setNotas] = useState("");
+  const [tipo, setTipo] = useState<UITipo>(() => (editing?.tipo as UITipo) ?? "dia_prohibido");
+  const [valor, setValor] = useState(editing?.valor ?? "");
+  const [fechaDesde, setFechaDesde] = useState(editing?.fecha_desde ?? "");
+  const [fechaHasta, setFechaHasta] = useState(editing?.fecha_hasta ?? "");
+  const [notas, setNotas] = useState(editing?.notas ?? "");
 
   const [shifts, setShifts] = useState<ShiftCatalog[]>([]);
   const [saving, setSaving] = useState(false);
@@ -72,7 +74,7 @@ export function NewExceptionDialog({ workerId, existing, onCreated, onClose }: P
     e.preventDefault();
     setFieldError(null);
 
-    if (!user?.$id) {
+    if (!isEdit && !user?.$id) {
       setFieldError("No se pudo identificar al usuario. Recargá la página.");
       return;
     }
@@ -86,7 +88,6 @@ export function NewExceptionDialog({ workerId, existing, onCreated, onClose }: P
     } else if (tipo === "vacaciones") {
       raw = { tipo, fecha_desde: fechaDesde, fecha_hasta: fechaHasta, notas: notas || undefined };
     } else {
-      // dia_obligatorio_libre → se valida con su propio schema, luego se guarda como vacaciones
       raw = { tipo, fecha_desde: fechaDesde, notas: notas || undefined };
     }
 
@@ -96,35 +97,44 @@ export function NewExceptionDialog({ workerId, existing, onCreated, onClose }: P
       return;
     }
 
-    // Validaciones de duplicado / solapamiento
-    if (tipo === "dia_prohibido" && hasDuplicateDia(existing, valor)) {
+    // Validaciones de duplicado / solapamiento (excluyendo el item actual en edición)
+    const excludeId = editing?.$id;
+    if (tipo === "dia_prohibido" && hasDuplicateDia(existing, valor, excludeId)) {
       setFieldError(`Ya existe una restricción de día prohibido para "${valor}".`);
       return;
     }
-    if (tipo === "turno_prohibido" && hasDuplicateTurno(existing, valor)) {
+    if (tipo === "turno_prohibido" && hasDuplicateTurno(existing, valor, excludeId)) {
       setFieldError(`Ya existe una restricción de turno prohibido para "${valor}".`);
       return;
     }
     const efectivoDesde = tipo === "dia_obligatorio_libre" ? fechaDesde : fechaDesde;
     const efectivoHasta = tipo === "dia_obligatorio_libre" ? fechaDesde : fechaHasta;
     if ((tipo === "vacaciones" || tipo === "dia_obligatorio_libre") &&
-        hasVacacionesOverlap(existing, efectivoDesde, efectivoHasta)) {
+        hasVacacionesOverlap(existing, efectivoDesde, efectivoHasta, excludeId)) {
       setFieldError("Ese rango se solapa con unas vacaciones ya registradas.");
       return;
     }
 
     setSaving(true);
     try {
-      await createException({
-        worker_id: workerId,
-        // dia_obligatorio_libre se guarda como vacaciones con desde === hasta
-        tipo: tipo === "dia_obligatorio_libre" ? "vacaciones" : tipo,
-        valor: (tipo === "dia_prohibido" || tipo === "turno_prohibido") ? valor : undefined,
-        fecha_desde: (tipo === "vacaciones" || tipo === "dia_obligatorio_libre") ? efectivoDesde : undefined,
-        fecha_hasta: (tipo === "vacaciones" || tipo === "dia_obligatorio_libre") ? efectivoHasta : undefined,
-        notas: notas || undefined,
-        creado_por: user.$id,
-      });
+      if (isEdit && editing) {
+        await updateException(editing.$id, {
+          valor: (tipo === "dia_prohibido" || tipo === "turno_prohibido") ? valor : undefined,
+          fecha_desde: (tipo === "vacaciones") ? efectivoDesde : undefined,
+          fecha_hasta: (tipo === "vacaciones") ? efectivoHasta : undefined,
+          notas: notas || undefined,
+        });
+      } else {
+        await createException({
+          worker_id: workerId,
+          tipo: tipo === "dia_obligatorio_libre" ? "vacaciones" : tipo,
+          valor: (tipo === "dia_prohibido" || tipo === "turno_prohibido") ? valor : undefined,
+          fecha_desde: (tipo === "vacaciones" || tipo === "dia_obligatorio_libre") ? efectivoDesde : undefined,
+          fecha_hasta: (tipo === "vacaciones" || tipo === "dia_obligatorio_libre") ? efectivoHasta : undefined,
+          notas: notas || undefined,
+          creado_por: user!.$id,
+        });
+      }
       onCreated();
       onClose();
     } catch {
@@ -138,17 +148,20 @@ export function NewExceptionDialog({ workerId, existing, onCreated, onClose }: P
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
         <div className="px-5 py-4 border-b border-gray-100">
-          <h2 className="text-base font-semibold text-gray-900">Nueva excepción</h2>
+          <h2 className="text-base font-semibold text-gray-900">
+            {isEdit ? "Editar excepción" : "Nueva excepción"}
+          </h2>
         </div>
 
         <form onSubmit={handleSubmit} className="px-5 py-4 space-y-4">
-          {/* Tipo */}
+          {/* Tipo — bloqueado en edición */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
             <select
               value={tipo}
               onChange={(e) => handleTipoChange(e.target.value as UITipo)}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={isEdit}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
             >
               <option value="dia_prohibido">Día prohibido</option>
               <option value="turno_prohibido">Turno prohibido</option>
@@ -275,7 +288,7 @@ export function NewExceptionDialog({ workerId, existing, onCreated, onClose }: P
               disabled={saving}
               className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
             >
-              {saving ? "Guardando…" : "Crear"}
+              {saving ? "Guardando…" : isEdit ? "Guardar cambios" : "Crear"}
             </button>
           </div>
         </form>
