@@ -13,6 +13,7 @@ from ortools.sat.python import cp_model
 
 from app.core.calendar import parse_time
 from app.models.domain import AssignmentResult, DayInfo, ShiftInfo, SolverInput, SolverOutput, WorkerInfo
+from app.optimizer.partial import PartialContext
 from app.optimizer.objective import (
     CoverageSlotKey,
     WorkerDayKey,
@@ -55,11 +56,14 @@ def _build_assignment_vars(
     workers: List[WorkerInfo],
     open_days: List[DayInfo],
     shifts: List[ShiftInfo],
+    range_dates: Optional[frozenset] = None,
 ) -> Dict[Tuple[str, str, str], cp_model.IntVar]:
     x: Dict[Tuple[str, str, str], cp_model.IntVar] = {}
 
     for worker in workers:
         for day in open_days:
+            if range_dates is not None and day.date not in range_dates:
+                continue  # fuera del rango parcial — no se optimiza
             if day.date in worker.vacaciones or day.weekday in worker.dias_prohibidos:
                 continue
 
@@ -138,6 +142,7 @@ def _add_weekly_constraints(
     inp: SolverInput,
     x: Mapping[Tuple[str, str, str], cp_model.IntVar],
     worked: Mapping[WorkerDayKey, cp_model.IntVar],
+    partial_context: Optional[PartialContext] = None,
 ) -> None:
     day_by_index = {day.day_index - 1: day for day in inp.days}
     shift_by_id = {shift.id: shift for shift in inp.shifts}
@@ -146,6 +151,8 @@ def _add_weekly_constraints(
 
     for worker in inp.workers:
         for week_idx, week in enumerate(inp.weeks, start=1):
+            wi = week_idx - 1  # índice 0-based para lookup en partial_context
+
             weekly_assignments = []
             weekly_days = []
             for day_idx in week:
@@ -159,8 +166,27 @@ def _add_weekly_constraints(
                     if key in x:
                         weekly_assignments.append(_shift_minutes(shift_by_id[shift.id]) * x[key])
 
-            model.Add(cp_model.LinearExpr.Sum(weekly_assignments) <= horas_max_minutos)
-            model.Add(cp_model.LinearExpr.Sum(weekly_days) <= dias_maximos)
+            # Descontar horas/días ya consumidos por assignments fijas fuera del rango
+            if partial_context is not None:
+                fixed_h_min = int(round(
+                    partial_context.fixed_hours_by_worker_week
+                    .get(worker.rut, {}).get(wi, 0.0) * 60
+                ))
+                fixed_d = (
+                    partial_context.fixed_days_by_worker_week
+                    .get(worker.rut, {}).get(wi, 0)
+                )
+            else:
+                fixed_h_min = fixed_d = 0
+
+            model.Add(
+                cp_model.LinearExpr.Sum(weekly_assignments)
+                <= max(0, horas_max_minutos - fixed_h_min)
+            )
+            model.Add(
+                cp_model.LinearExpr.Sum(weekly_days)
+                <= max(0, dias_maximos - fixed_d)
+            )
 
 
 def _add_sunday_constraints(
@@ -217,11 +243,13 @@ def _add_rest_constraints(
 def solve_ilp(
     inp: SolverInput,
     excluded_fingerprints: Optional[List[FrozenSet[Tuple[str, str, str]]]] = None,
+    partial_context: Optional[PartialContext] = None,
 ) -> SolverOutput:
     model = cp_model.CpModel()
     open_days = [day for day in inp.days if day.abierto]
 
-    x = _build_assignment_vars(model, inp.workers, open_days, inp.shifts)
+    range_dates = partial_context.range_dates if partial_context is not None else None
+    x = _build_assignment_vars(model, inp.workers, open_days, inp.shifts, range_dates=range_dates)
     worked = _build_day_worked_vars(model, inp.workers, open_days, inp.shifts, x)
 
     # Diversidad: la nueva solución debe diferir en al menos 1 asignación
@@ -233,16 +261,21 @@ def solve_ilp(
                 cp_model.LinearExpr.Sum([x[k] for k in prev_keys]) <= len(prev_keys) - 1
             )
 
+    # Para cobertura mínima, solo los días del rango (los de afuera ya tienen assignments fijas)
+    coverage_days = (
+        [d for d in open_days if d.date in partial_context.range_dates]
+        if partial_context is not None else open_days
+    )
     coverage = _build_coverage_vars(
         model=model,
         workers=inp.workers,
-        open_days=open_days,
+        open_days=coverage_days,
         shifts=inp.shifts,
         x=x,
         cobertura_minima=int(inp.parametros["cobertura_minima"]),
     )
 
-    _add_weekly_constraints(model, inp, x, worked)
+    _add_weekly_constraints(model, inp, x, worked, partial_context=partial_context)
     _add_sunday_constraints(model, inp, worked)
 
     if inp.parametros.get("descanso_entre_jornadas", False):
