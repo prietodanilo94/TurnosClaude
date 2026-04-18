@@ -16,6 +16,7 @@ from app.models.schemas import (
     ModoProposal,
     OptimizeRequest,
     OptimizeResponse,
+    PartialOptimizeRequest,
     ProposalMetricsOut,
     ProposalOut,
     ValidateRequest,
@@ -24,6 +25,7 @@ from app.models.schemas import (
 from app.optimizer.greedy import solve_greedy
 from app.optimizer.ilp import solve_ilp
 from app.optimizer.lower_bound import calcular_lower_bound
+from app.optimizer.partial import setup_partial_problem
 from app.optimizer.scoring import compute_metrics
 from app.services import appwrite_client as ac
 from app.services.appwrite_jwt import AppwriteUser
@@ -170,6 +172,115 @@ async def optimize(payload: OptimizeRequest, _user: AppwriteUser = Depends(requi
         mensajes=list(last_output.mensajes) if last_output else [],
     )
 
+    return OptimizeResponse(propuestas=proposals, diagnostico=diagnostico)
+
+
+@router.post("/optimize/partial", response_model=OptimizeResponse, tags=["optimizer"])
+async def optimize_partial(
+    payload: PartialOptimizeRequest,
+    _user: AppwriteUser = Depends(require_admin),
+):
+    full_input = build_solver_input(payload)
+    partial_ctx = setup_partial_problem(payload, full_input)
+
+    excluidos = set(payload.workers_excluidos)
+    filtered_input = dataclasses.replace(
+        full_input,
+        workers=[w for w in full_input.workers if w.rut not in excluidos],
+    )
+
+    n_workers = len(filtered_input.workers)
+    if n_workers == 0:
+        return JSONResponse(
+            status_code=422,
+            content={
+                "detail": "No hay trabajadores disponibles en el rango parcial.",
+                "diagnostico": {
+                    "dotacion_disponible": 0,
+                    "dotacion_minima_requerida": 0,
+                    "dotacion_suficiente": False,
+                    "mensajes": ["Todos los workers fueron excluidos."],
+                },
+            },
+        )
+
+    is_ilp = payload.parametros.modo == ModoProposal.ilp
+    n_target = payload.parametros.num_propuestas
+    rut_to_slot = {w.rut: i + 1 for i, w in enumerate(filtered_input.workers)}
+
+    proposals: list[ProposalOut] = []
+    seen: set[FrozenSet[tuple]] = set()
+    last_output: SolverOutput | None = None
+
+    for attempt in range(n_target * _MAX_ATTEMPTS_FACTOR):
+        if is_ilp:
+            output = solve_ilp(
+                filtered_input,
+                excluded_fingerprints=list(seen),
+                partial_context=partial_ctx,
+            )
+        else:
+            inp = (
+                filtered_input if attempt == 0
+                else _perturb_input(filtered_input, seed=attempt)
+            )
+            output = solve_greedy(inp, partial_context=partial_ctx)
+
+        if not output.factible:
+            last_output = output
+            continue
+
+        fp = _fingerprint(output.asignaciones)
+        if fp in seen:
+            continue
+
+        seen.add(fp)
+        last_output = output
+        proposal_mode = ModoProposal.ilp if is_ilp else ModoProposal.greedy
+        proposal_id = f"prop_partial_{proposal_mode.value}_{len(proposals) + 1}"
+
+        raw_metrics = compute_metrics(output, filtered_input)
+        metrics_out = ProposalMetricsOut(**dataclasses.asdict(raw_metrics))
+
+        proposals.append(
+            ProposalOut(
+                id=proposal_id,
+                modo=proposal_mode,
+                score=output.score,
+                factible=True,
+                dotacion_minima_sugerida=n_workers,
+                asignaciones=_build_assignments_out(output.asignaciones, rut_to_slot),
+                metrics=metrics_out,
+            )
+        )
+
+        if len(proposals) >= n_target:
+            break
+
+    if not proposals:
+        solver_msgs = (
+            list(last_output.mensajes) if last_output
+            else ["El solver no encontró ninguna solución factible para el rango parcial."]
+        )
+        return JSONResponse(
+            status_code=422,
+            content={
+                "detail": "No se encontró ninguna solución factible para el rango parcial.",
+                "diagnostico": {
+                    "dotacion_disponible": n_workers,
+                    "dotacion_minima_requerida": 0,
+                    "dotacion_suficiente": False,
+                    "mensajes": solver_msgs,
+                },
+            },
+        )
+
+    diagnostico = Diagnostico(
+        dotacion_disponible=n_workers,
+        dotacion_minima_requerida=0,
+        dotacion_suficiente=True,
+        mensajes=list(last_output.mensajes) if last_output else [],
+    )
     return OptimizeResponse(propuestas=proposals, diagnostico=diagnostico)
 
 
