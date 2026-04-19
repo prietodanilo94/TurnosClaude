@@ -76,7 +76,7 @@ export default function SucursalesPage() {
           />
 
           {filtered.length === 0 ? (
-            <p className="text-sm text-gray-400">Sin resultados para "{search}".</p>
+            <p className="text-sm text-gray-400">Sin resultados para &quot;{search}&quot;.</p>
           ) : (
             <ul className="divide-y divide-gray-200 rounded-lg border border-gray-200 bg-white">
               {filtered.map((b) => (
