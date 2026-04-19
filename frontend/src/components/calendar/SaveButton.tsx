@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { Query } from "appwrite";
 import { useCalendarStore } from "@/store/calendar-store";
+import { useCurrentUser } from "@/lib/auth/use-current-user";
 import { databases } from "@/lib/auth/appwrite-client";
 import { ID } from "appwrite";
 
@@ -19,6 +21,7 @@ export function SaveButton() {
     setViolations, markSaved,
   } = useCalendarStore();
 
+  const { user } = useCurrentUser();
   const [state, setState] = useState<SaveState>("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -96,48 +99,58 @@ export function SaveButton() {
     try {
       if (!activeProposalId) throw new Error("No hay propuesta activa para guardar.");
 
-      const activeProposal = availableProposals.find((p) => p.id === activeProposalId);
+      const rutToId = new Map(workers.map((w) => [w.rut, w.$id]));
 
-      // 3a. Crear el documento de propuesta (incluye metrics serializado).
-      const proposalDoc = await databases.createDocument(
-        DATABASE_ID,
-        PROPOSALS_COLLECTION,
-        ID.unique(),
-        {
-          branch_id: branchId,
-          anio: year,
-          mes: month,
-          modo: activeProposal?.modo ?? "greedy",
-          score: activeProposal?.score ?? 0,
-          factible: activeProposal?.factible ?? true,
-          dotacion_sugerida: activeProposal?.dotacion_minima_sugerida ?? 0,
-          asignaciones: JSON.stringify(
-            assignments.map((a) => ({ slot: a.worker_slot, date: a.date, shift_id: a.shift_id }))
-          ),
-          parametros: JSON.stringify({}),
-          estado: "generada",
-          creada_por: "system",  // placeholder: reemplazar con user $id cuando auth esté listo
-          ...(activeProposal?.metrics && {
-            metrics: JSON.stringify(activeProposal.metrics),
-          }),
-        }
+      // 3a. Actualizar asignaciones en la propuesta existente (incluye worker_rut).
+      await databases.updateDocument(DATABASE_ID, PROPOSALS_COLLECTION, activeProposalId, {
+        asignaciones: JSON.stringify(
+          assignments.map((a) => ({
+            slot: a.worker_slot,
+            date: a.date,
+            shift_id: a.shift_id,
+            worker_rut: a.worker_rut,
+          }))
+        ),
+        creada_por: user?.$id ?? "",
+      });
+
+      // 3b. Un assignment por slot único (índice único proposal_id+slot_numero).
+      const slotMap = new Map<number, string>(); // slot → rut
+      for (const a of assignments) {
+        if (!slotMap.has(a.worker_slot)) slotMap.set(a.worker_slot, a.worker_rut);
+      }
+
+      const existing = await databases.listDocuments(DATABASE_ID, ASSIGNMENTS_COLLECTION, [
+        Query.equal("proposal_id", activeProposalId),
+        Query.limit(200),
+      ]);
+      const slotToDocId = new Map(
+        existing.documents.map((d) => [d.slot_numero as number, d.$id])
       );
 
-      // 3b. Guardar cada asignación referenciando el doc de propuesta real.
       await Promise.all(
-        assignments.map((a) =>
-          databases.createDocument(DATABASE_ID, ASSIGNMENTS_COLLECTION, ID.unique(), {
-            proposal_id: proposalDoc.$id,
-            slot_numero: a.worker_slot,
-            worker_id: a.worker_rut,  // placeholder: debería ser el $id de Appwrite
+        Array.from(slotMap.entries()).map(([slot, rut]) => {
+          const workerId = rutToId.get(rut) ?? rut;
+          const docId = slotToDocId.get(slot);
+          if (docId) {
+            return databases.updateDocument(DATABASE_ID, ASSIGNMENTS_COLLECTION, docId, {
+              worker_id: workerId,
+              asignado_en: new Date().toISOString(),
+            });
+          }
+          return databases.createDocument(DATABASE_ID, ASSIGNMENTS_COLLECTION, ID.unique(), {
+            proposal_id: activeProposalId,
+            slot_numero: slot,
+            worker_id: workerId,
             asignado_en: new Date().toISOString(),
-          })
-        )
+          });
+        })
       );
     } catch (err) {
-      // Las colecciones aún no existen (bootstrap pendiente). Igualmente
-      // marcamos guardado localmente para no bloquear el flujo de desarrollo.
-      console.warn("Appwrite save fallido (esperado sin bootstrap):", err);
+      console.error("Appwrite save fallido:", err);
+      setState("error");
+      setErrorMsg("Error al guardar en Appwrite.");
+      return;
     }
 
     markSaved();
