@@ -9,9 +9,14 @@ app = FastAPI(
     description="Backend de optimización de turnos con OR-Tools CP-SAT.",
 )
 
+_CORS_ORIGINS = [
+    "http://localhost:3000",
+    "https://turnos.dpmake.cl",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=_CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
