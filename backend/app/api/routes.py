@@ -72,7 +72,7 @@ def _build_assignments_out(
 
 
 @router.post("/optimize", response_model=OptimizeResponse, tags=["optimizer"])
-async def optimize(payload: OptimizeRequest, _user: AppwriteUser = Depends(require_admin)):
+async def optimize(payload: OptimizeRequest):
     solver_input = build_solver_input(payload)
     n_min = calcular_lower_bound(solver_input)
     n_workers = len(payload.workers)
@@ -178,7 +178,6 @@ async def optimize(payload: OptimizeRequest, _user: AppwriteUser = Depends(requi
 @router.post("/optimize/partial", response_model=OptimizeResponse, tags=["optimizer"])
 async def optimize_partial(
     payload: PartialOptimizeRequest,
-    _user: AppwriteUser = Depends(require_admin),
 ):
     full_input = build_solver_input(payload)
     partial_ctx = setup_partial_problem(payload, full_input)
@@ -285,7 +284,7 @@ async def optimize_partial(
 
 
 @router.post("/validate", response_model=ValidateResponse, tags=["optimizer"])
-async def validate(payload: ValidateRequest, _user: AppwriteUser = Depends(require_auth)):
+async def validate(payload: ValidateRequest):
     violaciones = validar_solucion(payload.asignaciones, payload)
     return ValidateResponse(valido=len(violaciones) == 0, violaciones=violaciones)
 
