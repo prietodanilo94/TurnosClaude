@@ -113,6 +113,10 @@ export async function buildOptimizePayload(
     workers: buildWorkersForPayload(workers, allConstraints),
     holidays,
     shift_catalog: shiftCatalog,
-    franja_por_dia: (config?.franja_por_dia ?? {}) as OptimizePayload["franja_por_dia"],
+    franja_por_dia: (() => {
+      const raw = config?.franja_por_dia;
+      if (!raw) return {};
+      return typeof raw === "string" ? JSON.parse(raw) : raw;
+    })() as OptimizePayload["franja_por_dia"],
   };
 }
