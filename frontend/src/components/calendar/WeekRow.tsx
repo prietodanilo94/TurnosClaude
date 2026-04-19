@@ -16,6 +16,7 @@ interface WeekRowProps {
   overlappingIds: Set<string>;
   slotByRut: Record<string, number>;
   maxHours: number;
+  partialRange?: { desde: string; hasta: string };
   onSlotClick?: (assignment: CalendarAssignment) => void;
 }
 
@@ -28,6 +29,7 @@ export function WeekRow({
   overlappingIds,
   slotByRut,
   maxHours,
+  partialRange,
   onSlotClick,
 }: WeekRowProps) {
   const weekAssignments = assignments.filter((a) => {
@@ -58,6 +60,7 @@ export function WeekRow({
             shifts={shifts}
             violationsByAssignment={violationsByAssignment}
             overlappingIds={overlappingIds}
+            partialRange={partialRange}
             onSlotClick={onSlotClick}
           />
         ))}

@@ -17,6 +17,7 @@ interface MonthGridProps {
   shifts: ShiftDef[];
   violations: Violation[];
   maxHours: number;
+  partialRange?: { desde: string; hasta: string };
   onSlotClick?: (assignment: CalendarAssignment) => void;
 }
 
@@ -32,6 +33,7 @@ export function MonthGrid({
   shifts,
   violations,
   maxHours,
+  partialRange,
   onSlotClick,
 }: MonthGridProps) {
   const weeks = useMemo(
@@ -89,6 +91,7 @@ export function MonthGrid({
           overlappingIds={overlapping}
           slotByRut={slotByRut}
           maxHours={maxHours}
+          partialRange={partialRange}
           onSlotClick={onSlotClick}
         />
       ))}

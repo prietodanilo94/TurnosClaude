@@ -21,6 +21,12 @@ function toCalendarAssignment(
 
 // ─── state shape ──────────────────────────────────────────────────────────────
 
+export interface PartialReviewState {
+  originalAssignments: CalendarAssignment[];
+  pendingAssignments: CalendarAssignment[];  // nuevas asignaciones del rango (del backend)
+  range: { desde: string; hasta: string };
+}
+
 export interface CalendarState {
   branchId: string;
   year: number;
@@ -34,6 +40,7 @@ export interface CalendarState {
   franjaPorDia: Record<string, { apertura: string; cierre: string } | null>;
   violations: Violation[];
   dirty: boolean;
+  partialReview: PartialReviewState | null;
 
   // ── actions ─────────────────────────────────────────────────────────────────
 
@@ -70,6 +77,15 @@ export interface CalendarState {
   /** Marca el estado como guardado (sin cambios pendientes). */
   markSaved: () => void;
 
+  /** Entra en modo revisión de recálculo parcial. */
+  enterPartialReview: (pendingAssignments: CalendarAssignment[], range: { desde: string; hasta: string }) => void;
+
+  /** Sale del modo revisión sin aplicar cambios (Descartar). */
+  exitPartialReview: () => void;
+
+  /** Aplica las asignaciones pendientes y sale del modo revisión (Aprobar). */
+  applyPartialReview: () => void;
+
   /** Resetea el store al estado inicial. */
   reset: () => void;
 }
@@ -90,6 +106,7 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
   franjaPorDia: {},
   violations: [],
   dirty: false,
+  partialReview: null,
 
   init({ branchId, year, month, proposals, workers, shiftCatalog, holidays, franjaPorDia }) {
     const first = proposals[0] ?? null;
@@ -169,6 +186,35 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
     set({ dirty: false });
   },
 
+  enterPartialReview(pendingAssignments, range) {
+    set((state) => ({
+      partialReview: {
+        originalAssignments: state.assignments,
+        pendingAssignments,
+        range,
+      },
+    }));
+  },
+
+  exitPartialReview() {
+    set({ partialReview: null });
+  },
+
+  applyPartialReview() {
+    const { partialReview } = get();
+    if (!partialReview) return;
+    const { desde, hasta } = partialReview.range;
+    const outside = partialReview.originalAssignments.filter(
+      (a) => a.date < desde || a.date > hasta
+    );
+    set({
+      assignments: [...outside, ...partialReview.pendingAssignments],
+      partialReview: null,
+      violations: [],
+      dirty: true,
+    });
+  },
+
   reset() {
     set({
       branchId: "",
@@ -183,6 +229,7 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
       franjaPorDia: {},
       violations: [],
       dirty: false,
+      partialReview: null,
     });
   },
 }));

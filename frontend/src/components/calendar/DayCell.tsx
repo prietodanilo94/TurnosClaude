@@ -13,6 +13,7 @@ interface DayCellProps {
   shifts: ShiftDef[];
   violationsByAssignment: Record<string, Violation[]>;
   overlappingIds: Set<string>;
+  partialRange?: { desde: string; hasta: string };
   onSlotClick?: (assignment: CalendarAssignment) => void;
 }
 
@@ -28,6 +29,7 @@ export function DayCell({
   shifts,
   violationsByAssignment,
   overlappingIds,
+  partialRange,
   onSlotClick,
 }: DayCellProps) {
   const { setNodeRef, isOver } = useDroppable({ id: day.date });
@@ -38,6 +40,13 @@ export function DayCell({
   for (const w of workers) workerMap[w.rut] = w;
 
   const dayAssignments = assignments.filter((a) => a.date === day.date);
+
+  // Modo revisión parcial: determinar si el día está dentro o fuera del rango
+  const partialStatus = partialRange && day.isCurrentMonth
+    ? day.date >= partialRange.desde && day.date <= partialRange.hasta
+      ? "in-range"
+      : "out-of-range"
+    : null;
 
   const bgClass = !day.isCurrentMonth
     ? "bg-gray-50"
@@ -51,6 +60,12 @@ export function DayCell({
     ? "ring-2 ring-blue-400 ring-inset"
     : "";
 
+  const partialClass = partialStatus === "in-range"
+    ? "ring-2 ring-emerald-400 ring-inset"
+    : partialStatus === "out-of-range"
+    ? "opacity-40 pointer-events-none"
+    : "";
+
   return (
     <div
       ref={setNodeRef}
@@ -58,7 +73,8 @@ export function DayCell({
       className={[
         "min-h-[80px] border border-gray-200 rounded-md p-1.5 flex flex-col gap-1",
         bgClass,
-        dropRing,
+        partialStatus === "in-range" ? dropRing || partialClass : dropRing,
+        partialStatus !== "in-range" ? partialClass : "",
         !day.isCurrentMonth ? "opacity-40" : "",
       ].join(" ")}
     >
@@ -70,7 +86,12 @@ export function DayCell({
         ].join(" ")}>
           {WEEKDAY_LABELS[day.weekday]} {day.dayNumber}
         </span>
-        <div className="flex gap-0.5 text-[10px]">
+        <div className="flex gap-0.5 text-[10px] items-center">
+          {partialStatus === "in-range" && (
+            <span className="text-[9px] font-semibold text-emerald-600 bg-emerald-50 px-1 rounded">
+              mod
+            </span>
+          )}
           {day.isHoliday && <span title="Feriado">🔒</span>}
           {(day.weekday === "sabado" || day.weekday === "domingo") && day.isOpen && (
             <span title="Fin de semana">✳️</span>

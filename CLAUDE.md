@@ -116,6 +116,16 @@ npm run test:e2e                       # Playwright
 docker compose build
 ```
 
+## Después de cada commit + push
+
+**REGLA OBLIGATORIA**: Después de hacer commit y push, actualizar la sección "Estado actual del proyecto" en este archivo (`CLAUDE.md`) para reflejar exactamente qué tasks quedaron completas. Esto aplica siempre, sin excepción.
+
+## Estilo de respuestas
+
+- Respuestas cortas y densas. Sin intro ni resumen final.
+- Omitir explicaciones obvias; solo info relevante que no está en el código.
+- Usar tablas/bullets solo cuando aporten claridad real.
+
 ## Cuando tengas dudas
 
 Si una tarea no está clara, **pregunta al usuario** antes de asumir. Mejor una pregunta extra que una implementación incorrecta.
@@ -131,72 +141,78 @@ Si detectas una contradicción entre dos specs o entre una spec y `docs/`, **det
 ### ✅ Hecho
 
 #### Spec 001 — data-model ✅ COMPLETA
-- `package.json` con todos los scripts npm (`bootstrap:appwrite`, `seed:all`, `create:admin`, etc.)
 - `scripts/bootstrap-appwrite.ts` — 11 colecciones, atributos, índices, permisos (idempotente)
-- `scripts/seed-shift-catalog.ts` — 10 turnos ✅ en Appwrite
-- `scripts/seed-branch-type-config.ts` — 5 tipos de sucursal ✅ en Appwrite
-- `scripts/seed-holidays.ts` — 4 feriados irrenunciables/año (1 ene, 1 may, 18 sep, 25 dic) ✅ en Appwrite 2026+2027
-- `scripts/create-first-admin.ts` — admin `prieto.danilo94@gmail.com` creado (id: `69e1d60b002c65becc26`) ✅
-- `frontend/src/types/models.ts` — todos los tipos TypeScript
-- `backend/app/models/schemas.py` — todos los modelos Pydantic
+- `scripts/seed-*.ts` — turnos, tipos de sucursal, feriados irrenunciables 2026+2027
+- `scripts/create-first-admin.ts` — admin `prieto.danilo94@gmail.com` (id: `69e1d60b002c65becc26`)
+- `frontend/src/types/models.ts` + `backend/app/models/schemas.py`
+
+#### Spec 005 — auth-permissions ✅ COMPLETA (tasks 1–15)
+- `lib/auth/appwrite-client.ts` — singleton SDK web
+- `app/login/page.tsx` — form email/password → sesión → cookie rol → redirect
+- `lib/auth/use-current-user.ts` — hook: user, isAdmin, isJefe, authorizedBranchIds
+- `src/middleware.ts` — guard `/admin/*` y `/jefe/*`
+- `admin/layout.tsx` + `jefe/layout.tsx` — nav lateral + logout + guard de branch
+- `backend/app/services/appwrite_jwt.py` + `api/deps.py` — require_auth / require_admin
+- `admin/usuarios/` — lista, crear, ver/desactivar jefes
+- `admin/usuarios/[id]/sucursales/` — agregar/quitar con historial
+- `app/api/admin/create-jefe/route.ts` + `deactivate-jefe/route.ts` — Server Actions con API key
+- `scripts/audit-roles.ts` — verifica consistencia labels↔docs↔branch_managers
+- `tests/e2e/auth.spec.ts` — 3 tests Playwright (crear jefe, ver sucursales, 403)
+
+#### Spec 002 — excel-ingestion ✅ COMPLETA (tasks 1–8)
+- `lib/excel-parser.ts` — SheetJS + validación de encabezados por nombre, normalización Área
+- `lib/rut-utils.ts` + `rut-utils.test.ts` — validar/normalizar RUT (módulo 11, DV K)
+- `lib/compute-diff.ts` — diff contra branches/workers existentes (nuevo/actualizado/sin_cambios/desactivar)
+- `lib/sync-dotacion.ts` — upsert branches → upsert workers → soft-delete → audit_log
+- `app/admin/dotacion/page.tsx` + `ExcelDropZone`, `PreviewTable`, `NewBranchesPanel`, `SyncConfirmDialog`
+- `lib/dotacion-integration.test.ts` — 8 tests (4 casos: primer upload, no-op, branch nueva, soft-delete)
+
+#### Spec 003 — optimizer ✅ COMPLETA (tasks 1–16; benchmarks docs pendiente)
+- `backend/app/main.py` — FastAPI + `/health` + CORS
+- `backend/app/optimizer/greedy.py` + `ilp.py` + `lower_bound.py` + `objective.py` + `scoring.py`
+- `backend/app/core/calendar.py` + `validators.py`
+- `backend/app/api/routes.py` — `/optimize`, `/validate` (greedy + ILP, múltiples propuestas)
+- `docker-compose.yml` + Dockerfile
+- Tests: `test_greedy`, `test_ilp`, `test_calendar`, `test_validators`, `test_lower_bound`, `test_objective`, `test_scoring`, `test_deps`
+
+#### Spec 004 — calendar-ui ✅ COMPLETA (tasks 1–16)
+- `store/calendar-store.ts` — Zustand (branchId, month, proposal, assignments, violations, dirty)
+- `lib/calendar/hours-calculator.ts` + `local-validator.ts` + `overlap-detector.ts` (con tests)
+- `components/calendar/` — CalendarView, MonthGrid, WeekRow, DayCell, ShiftSlot, WeekHoursSummary, worker-colors
+- `components/calendar/WorkerAssignDialog`, ProposalSelector, SaveButton, ExportButton
+- `app/admin/sucursales/[branchId]/mes/[year]/[month]/page.tsx` + CalendarClientWrapper
+- `tests/e2e/calendar.spec.ts`
+
+#### Spec 006 — exceptions ✅ COMPLETA (tasks 1–11)
+- `lib/exceptions/api.ts` + `validation.ts` + `to-optimizer-constraint.ts` (con tests)
+- `app/admin/trabajadores/` — listado, ficha, excepciones (ExceptionsList, NewExceptionDialog)
+- `app/jefe/trabajadores/[id]/excepciones/page.tsx` — vista read-only
+- `lib/optimizer/build-payload.ts` — integra excepciones al payload del optimizer
 
 #### Spec 007 — export-excel ✅ COMPLETA (tasks 1–10)
-- `backend/app/services/appwrite_client.py` — cliente API Key con todos los métodos necesarios
-- `backend/app/services/proposal_fetcher.py` — `ExportDataset` + `fetch_export_dataset`
-- `backend/app/services/excel_exporter.py` — `export_proposal_to_xlsx` + `build_filename`
-- `backend/app/models/export.py` — `ExportRequest`
-- `backend/app/api/routes.py` — endpoint `POST /export` con permisos, audit log, 422/404
-- `frontend/src/lib/export/trigger-download.ts` — fetch con JWT + download via blob
-- `backend/tests/test_excel_exporter.py` — 15 tests unitarios del exporter
-- `backend/tests/test_export_e2e.py` — 16 tests E2E (POST /optimize → POST /export → valida xlsx)
-- `docs/export-format.md` — formato documentado con ejemplo real
+- `backend/app/services/excel_exporter.py` + `proposal_fetcher.py` + `appwrite_client.py`
+- `backend/app/api/routes.py` — endpoint `POST /export`
+- `frontend/src/lib/export/trigger-download.ts`
+- `backend/tests/test_excel_exporter.py` (15) + `test_export_e2e.py` (16)
 
----
+#### Spec 010 — multiple-proposals ✅ COMPLETA (tasks 1–13)
+- `backend/app/optimizer/scoring.py` — `compute_metrics` (6 métricas)
+- `lib/proposals/state-machine.ts` + `api.ts` (con tests: estado, concurrencia, audit)
+- `features/proposals/ProposalCard.tsx` + `ProposalMetrics.tsx`
+- `app/admin/sucursales/.../propuestas/page.tsx` + `comparar/page.tsx`
+- `app/jefe/sucursales/.../seleccionar/page.tsx`
 
 #### Spec 009 — recalculate-partial ✅ BACKEND COMPLETO (tasks 1–6)
-- `backend/app/models/schemas.py` — `AssignmentFija`, `PartialRange`, `PartialOptimizeRequest`
 - `backend/app/optimizer/partial.py` — `PartialContext` + `setup_partial_problem`
-- `backend/app/optimizer/ilp.py` — `solve_ilp` acepta `partial_context` opcional; sin variables para días fuera del rango
-- `backend/app/optimizer/greedy.py` — `solve_greedy` acepta `partial_context` opcional; filtra open_days al rango
+- `backend/app/optimizer/ilp.py` + `greedy.py` — aceptan `partial_context`
 - `backend/app/api/routes.py` — endpoint `POST /optimize/partial`
-- `backend/tests/test_partial_optimizer.py` — 12 tests (comportamiento básico, horas fijas, error paths)
-- **Frontend diferido** (tasks 7–11): `PartialRecalculateDialog`, diff visual, Aprobar/Descartar — hasta spec 004
+- `backend/tests/test_partial_optimizer.py` — 12 tests
 
 ---
 
-### 🔲 Pendiente (en orden recomendado)
+### 🔲 Pendiente
 
-#### Spec 005 — auth-permissions ← **PRÓXIMA**
-- [ ] Login con email/password (Appwrite Auth)
-- [ ] Middleware de roles (admin / jefe_sucursal)
-- [ ] Rutas protegidas en Next.js
-
-#### Spec 002 — excel-ingestion
-- [ ] Upload Excel de dotación (SheetJS)
-- [ ] Preview y validación antes de sync
-- [ ] Sincronización contra colección `workers`
-
-#### Spec 003 — optimizer (backend)
-- [ ] FastAPI app con `/health`, `/optimize`, `/validate`
-- [ ] Solver Greedy (heurística)
-- [ ] Solver ILP con OR-Tools CP-SAT
-- [ ] Múltiples propuestas, validación post-solución
-- [ ] Dockerfile + docker-compose.yml
-
-#### Spec 004 — calendar-ui
-- [ ] Calendario mensual con FullCalendar
-- [ ] Drag & drop de turnos
-- [ ] Contador de horas en vivo por semana
-- [ ] Validaciones visuales (rojo = violación)
-
-#### Spec 010 — multiple-proposals
-- [ ] Guardar N propuestas en `proposals`
-- [ ] Selector de propuesta para jefe de sucursal
-
-#### Spec 006 — exceptions
-- [ ] UI para excepciones individuales (vacaciones, días prohibidos, turnos prohibidos)
-
-#### Spec 009 — recalculate-partial (frontend, diferido hasta spec 004)
+#### Spec 009 — recalculate-partial frontend ← **ÚNICO PENDIENTE**
 - [ ] Task 7: `PartialRecalculateDialog.tsx` — selector de rango + checkboxes + modo
 - [ ] Task 8: `build-partial-payload.ts` — arma el payload desde la propuesta activa
 - [ ] Task 9: vista "revisar recálculo" con diff visual en el calendario

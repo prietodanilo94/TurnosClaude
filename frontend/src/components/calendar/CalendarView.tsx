@@ -17,6 +17,8 @@ import { MonthGrid } from "./MonthGrid";
 import { ProposalSelector } from "./ProposalSelector";
 import { SaveButton } from "./SaveButton";
 import { WorkerAssignDialog } from "./WorkerAssignDialog";
+import { PartialRecalculateDialog, type PartialRecalculateParams } from "@/features/calendar/PartialRecalculateDialog";
+import { callPartialOptimize, PartialOptimizeError } from "@/lib/optimizer/build-partial-payload";
 import type { CalendarAssignment } from "@/types/optimizer";
 
 const MONTH_NAMES = [
@@ -26,13 +28,27 @@ const MONTH_NAMES = [
 
 export function CalendarView() {
   const {
-    year, month, assignments, workers, shiftCatalog,
-    holidays, franjaPorDia, violations,
+    branchId, year, month, assignments, workers, shiftCatalog,
+    holidays, franjaPorDia, violations, partialReview,
     moveAssignment, assignWorker, removeAssignment, setViolations,
+    enterPartialReview,
   } = useCalendarStore();
+
+  // En modo revisión: mostrar asignaciones originales fuera del rango + pendientes dentro
+  const displayAssignments = partialReview
+    ? [
+        ...partialReview.originalAssignments.filter(
+          (a) => a.date < partialReview.range.desde || a.date > partialReview.range.hasta
+        ),
+        ...partialReview.pendingAssignments,
+      ]
+    : assignments;
 
   const [draggingAssignment, setDraggingAssignment] = useState<CalendarAssignment | null>(null);
   const [dialogAssignment, setDialogAssignment] = useState<CalendarAssignment | null>(null);
+  const [showPartialDialog, setShowPartialDialog] = useState(false);
+  const [partialLoading, setPartialLoading] = useState(false);
+  const [partialError, setPartialError] = useState<string | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
@@ -97,6 +113,27 @@ export function CalendarView() {
     runValidation(newAssignments);
   }
 
+  async function handlePartialConfirm(params: PartialRecalculateParams) {
+    setPartialLoading(true);
+    setPartialError(null);
+    setShowPartialDialog(false);
+    try {
+      const response = await callPartialOptimize(branchId, year, month, assignments, params);
+      const proposal = response.propuestas[0];
+      if (!proposal) throw new Error("El solver no devolvió ninguna propuesta.");
+      const pending = proposal.asignaciones.map((a) => ({
+        ...a,
+        id: `${a.worker_rut}_${a.date}_${a.shift_id}`,
+      }));
+      enterPartialReview(pending, { desde: params.desde, hasta: params.hasta });
+    } catch (e) {
+      const msg = e instanceof PartialOptimizeError ? e.message : "Error al recalcular parcial.";
+      setPartialError(msg);
+    } finally {
+      setPartialLoading(false);
+    }
+  }
+
   function handleRemoveAssignment() {
     if (!dialogAssignment) return;
     const newAssignments = assignments.filter((a) => a.id !== dialogAssignment.id);
@@ -119,6 +156,36 @@ export function CalendarView() {
 
   return (
     <div className="p-4 space-y-4">
+      {/* Banner de revisión parcial */}
+      {partialReview && (
+        <div className="flex items-center justify-between px-4 py-2.5 bg-emerald-50 border border-emerald-300 rounded-lg">
+          <div>
+            <p className="text-sm font-semibold text-emerald-800">
+              Revisando recálculo parcial
+            </p>
+            <p className="text-xs text-emerald-600 mt-0.5">
+              Rango modificado: {partialReview.range.desde} → {partialReview.range.hasta}.
+              Los días en verde son los recalculados; el resto está atenuado.
+            </p>
+          </div>
+          {/* Botones Aprobar / Descartar — Task 10 los conecta */}
+          <div className="flex items-center gap-2 ml-4 shrink-0">
+            <button
+              id="partial-discard-btn"
+              className="px-3 py-1.5 text-sm text-gray-600 border border-gray-300 bg-white rounded-md hover:bg-gray-50 transition-colors"
+            >
+              Descartar
+            </button>
+            <button
+              id="partial-approve-btn"
+              className="px-3 py-1.5 text-sm font-medium text-white bg-emerald-600 rounded-md hover:bg-emerald-700 transition-colors"
+            >
+              Aprobar
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Encabezado */}
       <div className="flex items-center justify-between">
         <div>
@@ -136,6 +203,13 @@ export function CalendarView() {
               </span>
             </div>
           )}
+          <button
+            onClick={() => { setPartialError(null); setShowPartialDialog(true); }}
+            disabled={partialLoading}
+            className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 transition-colors"
+          >
+            {partialLoading ? "Calculando…" : "Recalcular parcial"}
+          </button>
           <SaveButton />
           <ExportButton />
         </div>
@@ -148,12 +222,13 @@ export function CalendarView() {
           month={month}
           franjaPorDia={franjaPorDia}
           holidays={holidays}
-          assignments={assignments}
+          assignments={displayAssignments}
           workers={workers}
           shifts={shiftCatalog}
-          violations={violations}
+          violations={partialReview ? [] : violations}
           maxHours={42}
-          onSlotClick={handleSlotClick}
+          partialRange={partialReview?.range}
+          onSlotClick={partialReview ? undefined : handleSlotClick}
         />
 
         <DragOverlay dropAnimation={null}>
@@ -168,7 +243,19 @@ export function CalendarView() {
         </DragOverlay>
       </DndContext>
 
-      {/* Dialog de asignación — Task 11 */}
+      {partialError && (
+        <div className="mx-4 mt-2 p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-700">
+          {partialError}
+        </div>
+      )}
+
+      {showPartialDialog && (
+        <PartialRecalculateDialog
+          onConfirm={handlePartialConfirm}
+          onClose={() => setShowPartialDialog(false)}
+        />
+      )}
+
       {dialogAssignment && (
         <WorkerAssignDialog
           assignment={dialogAssignment}
