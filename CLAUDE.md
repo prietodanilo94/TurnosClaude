@@ -136,7 +136,7 @@ Si detectas una contradicción entre dos specs o entre una spec y `docs/`, **det
 
 ## Estado actual del proyecto
 
-> Última actualización: 2026-04-19 — commit 4126278
+> Última actualización: 2026-04-19 — commit c7464c1
 
 ### ✅ Hecho
 
@@ -241,8 +241,12 @@ Si detectas una contradicción entre dos specs o entre una spec y `docs/`, **det
 - `backend/tests/test_holidays_integration.py` — 3 tests (todos pasan)
 - Tasks 5 y 7 ya estaban implementados (`build-payload.ts` y `calendar.py`)
 
-#### Pendiente: Spec 009 task 10 — persistencia real en Appwrite
-- `applyPartialReview` solo actualiza Zustand; cambios se pierden al recargar
+#### Spec 009 task 10 — persistencia recálculo parcial ✅
+- `handleApprove` en `CalendarView.tsx` ahora persiste en Appwrite:
+  - `updateDocument` en `proposals.asignaciones` con el merge final
+  - Upsert de `assignments` docs (slot → `worker_id` real)
+  - `markSaved()` limpia dirty flag automáticamente
+  - Si Appwrite falla, `dirty=true` queda activo para reintento vía Guardar
 
 ---
 
