@@ -25,6 +25,7 @@ export interface PartialReviewState {
   originalAssignments: CalendarAssignment[];
   pendingAssignments: CalendarAssignment[];  // nuevas asignaciones del rango (del backend)
   range: { desde: string; hasta: string };
+  workersExcluidos: string[];               // RUTs excluidos en el recálculo
 }
 
 export interface CalendarState {
@@ -78,7 +79,7 @@ export interface CalendarState {
   markSaved: () => void;
 
   /** Entra en modo revisión de recálculo parcial. */
-  enterPartialReview: (pendingAssignments: CalendarAssignment[], range: { desde: string; hasta: string }) => void;
+  enterPartialReview: (pendingAssignments: CalendarAssignment[], range: { desde: string; hasta: string }, workersExcluidos: string[]) => void;
 
   /** Sale del modo revisión sin aplicar cambios (Descartar). */
   exitPartialReview: () => void;
@@ -186,12 +187,13 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
     set({ dirty: false });
   },
 
-  enterPartialReview(pendingAssignments, range) {
+  enterPartialReview(pendingAssignments, range, workersExcluidos) {
     set((state) => ({
       partialReview: {
         originalAssignments: state.assignments,
         pendingAssignments,
         range,
+        workersExcluidos,
       },
     }));
   },

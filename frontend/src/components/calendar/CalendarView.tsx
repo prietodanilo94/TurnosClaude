@@ -20,6 +20,8 @@ import { WorkerAssignDialog } from "./WorkerAssignDialog";
 import { PartialRecalculateDialog, type PartialRecalculateParams } from "@/features/calendar/PartialRecalculateDialog";
 import { callPartialOptimize, PartialOptimizeError } from "@/lib/optimizer/build-partial-payload";
 import type { CalendarAssignment } from "@/types/optimizer";
+import { ID } from "appwrite";
+import { account, databases } from "@/lib/auth/appwrite-client";
 
 const MONTH_NAMES = [
   "", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -30,8 +32,9 @@ export function CalendarView() {
   const {
     branchId, year, month, assignments, workers, shiftCatalog,
     holidays, franjaPorDia, violations, partialReview,
+    activeProposalId,
     moveAssignment, assignWorker, removeAssignment, setViolations,
-    enterPartialReview,
+    enterPartialReview, exitPartialReview, applyPartialReview,
   } = useCalendarStore();
 
   // En modo revisión: mostrar asignaciones originales fuera del rango + pendientes dentro
@@ -125,13 +128,46 @@ export function CalendarView() {
         ...a,
         id: `${a.worker_rut}_${a.date}_${a.shift_id}`,
       }));
-      enterPartialReview(pending, { desde: params.desde, hasta: params.hasta });
+      enterPartialReview(pending, { desde: params.desde, hasta: params.hasta }, params.excludedRuts);
     } catch (e) {
       const msg = e instanceof PartialOptimizeError ? e.message : "Error al recalcular parcial.";
       setPartialError(msg);
     } finally {
       setPartialLoading(false);
     }
+  }
+
+  async function handleApprove() {
+    if (!partialReview) return;
+    const { range, workersExcluidos, originalAssignments, pendingAssignments } = partialReview;
+    const origInRange = new Set(
+      originalAssignments
+        .filter((a) => a.date >= range.desde && a.date <= range.hasta)
+        .map((a) => a.id)
+    );
+    const pendingIds = new Set(pendingAssignments.map((a) => a.id));
+    const n_changes =
+      Array.from(origInRange).filter((id) => !pendingIds.has(id)).length +
+      Array.from(pendingIds).filter((id) => !origInRange.has(id)).length;
+
+    applyPartialReview();
+
+    // Audit log — best-effort, no bloquea
+    try {
+      const authUser = await account.get();
+      await databases.createDocument(
+        process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID ?? "main",
+        "audit_log",
+        ID.unique(),
+        {
+          user_id: authUser.$id,
+          accion: "partial_recalculate.aprobar",
+          entidad: "proposals",
+          entidad_id: activeProposalId ?? "",
+          metadata: JSON.stringify({ rango: range, workers_excluidos: workersExcluidos, n_changes }),
+        }
+      );
+    } catch { /* best-effort */ }
   }
 
   function handleRemoveAssignment() {
@@ -168,16 +204,15 @@ export function CalendarView() {
               Los días en verde son los recalculados; el resto está atenuado.
             </p>
           </div>
-          {/* Botones Aprobar / Descartar — Task 10 los conecta */}
           <div className="flex items-center gap-2 ml-4 shrink-0">
             <button
-              id="partial-discard-btn"
+              onClick={exitPartialReview}
               className="px-3 py-1.5 text-sm text-gray-600 border border-gray-300 bg-white rounded-md hover:bg-gray-50 transition-colors"
             >
               Descartar
             </button>
             <button
-              id="partial-approve-btn"
+              onClick={handleApprove}
               className="px-3 py-1.5 text-sm font-medium text-white bg-emerald-600 rounded-md hover:bg-emerald-700 transition-colors"
             >
               Aprobar
