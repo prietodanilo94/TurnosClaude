@@ -64,6 +64,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <nav className="flex-1 px-2 py-4 space-y-1">
           <NavLink href="/admin">Dashboard</NavLink>
           <NavLink href="/admin/sucursales">Sucursales</NavLink>
+          <NavLink href="/admin/feriados">Feriados</NavLink>
           <NavLink href="/admin/usuarios">Usuarios</NavLink>
           <NavLink href="/admin/dotacion">Dotación</NavLink>
           <NavLink href="/admin/trabajadores">Trabajadores</NavLink>

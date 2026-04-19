@@ -80,7 +80,8 @@ export function buildMonthGrid(
       const isCurrentMonth = cursor.getUTCMonth() + 1 === month;
       const weekday = WEEKDAY_NAMES[i];
       const franja = franjaPorDia[weekday] ?? null;
-      const isOpen = isCurrentMonth && franja !== null;
+      const holiday = isCurrentMonth && holidaySet.has(dateStr);
+      const isOpen = isCurrentMonth && franja !== null && !holiday;
 
       weekDays.push({
         date: dateStr,
@@ -88,7 +89,7 @@ export function buildMonthGrid(
         weekday,
         isCurrentMonth,
         isOpen,
-        isHoliday: isCurrentMonth && holidaySet.has(dateStr),
+        isHoliday: holiday,
         apertura: franja?.apertura ?? null,
         cierre: franja?.cierre ?? null,
       });
