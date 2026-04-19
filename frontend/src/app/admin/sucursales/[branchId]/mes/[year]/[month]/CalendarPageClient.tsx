@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { Query } from "appwrite";
-import { databases } from "@/lib/auth/appwrite-client";
+import { databases, account } from "@/lib/auth/appwrite-client";
 import { useCurrentUser } from "@/lib/auth/use-current-user";
 import { useCalendarStore } from "@/store/calendar-store";
 import { buildOptimizePayload } from "@/lib/optimizer/build-payload";
@@ -97,11 +97,17 @@ export function CalendarPageClient({ branchId, year, month }: Props) {
     setErrorMsg(null);
 
     try {
-      const payload = await buildOptimizePayload(branchId, year, month);
+      const [payload, { jwt }] = await Promise.all([
+        buildOptimizePayload(branchId, year, month),
+        account.createJWT(),
+      ]);
 
       const res = await fetch(`${OPTIMIZER_URL}/optimize`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${jwt}`,
+        },
         body: JSON.stringify(payload),
       });
 
