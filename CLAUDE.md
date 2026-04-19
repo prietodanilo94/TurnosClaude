@@ -136,7 +136,7 @@ Si detectas una contradicción entre dos specs o entre una spec y `docs/`, **det
 
 ## Estado actual del proyecto
 
-> Última actualización: 2026-04-18 — commit c16554e
+> Última actualización: 2026-04-19 — commit dd845f2
 
 ### ✅ Hecho
 
@@ -214,13 +214,27 @@ Si detectas una contradicción entre dos specs o entre una spec y `docs/`, **det
 - `frontend/src/components/calendar/DayCell.tsx` — diff visual: in-range (borde verde + badge "mod") / out-of-range (opacity-40)
 - `frontend/src/components/calendar/CalendarView.tsx` — banner revisión, `displayAssignments` merged, botones Aprobar (merge+audit log) / Descartar (restore)
 
+#### Flujo real del calendario ✅
+- `frontend/src/app/admin/sucursales/page.tsx` — listado de sucursales activas
+- `frontend/src/lib/proposals/fetch-proposals.ts` — lee proposals de Appwrite → `OptimizerProposal[]`
+- `frontend/src/lib/proposals/persist-proposals.ts` — guarda resultado del optimizer en `proposals` + `assignments`
+- `frontend/src/app/admin/sucursales/[branchId]/mes/[year]/[month]/CalendarPageClient.tsx` — carga datos reales, botón "Generar turnos" si no hay propuestas
+- Nav lateral de admin: link Sucursales agregado
+
 ---
 
 ### 🔲 Pendiente
 
-#### Spec 009 — recalculate-partial frontend ← **PRÓXIMO**
-- [ ] Task 10: botones Aprobar / Descartar → `applyPartialReview` + persistencia en Appwrite + `exitPartialReview`
-- [ ] Task 11: audit log con metadata `{rango, workers_excluidos, n_changes}`
+#### Próximo: Fix SaveButton
+- `worker_id` usa RUT en lugar del `$id` de Appwrite (rompe exportación)
+- `creada_por: "system"` placeholder (debería ser user.$id)
+
+#### Pendiente: Spec 008 — holidays frontend (8 tasks)
+- No existe `frontend/src/lib/holidays/` ni `/admin/feriados/`
+- Feriados hardcodeados en el payload
+
+#### Pendiente: Spec 009 task 10 — persistencia real en Appwrite
+- `applyPartialReview` solo actualiza Zustand; cambios se pierden al recargar
 
 ---
 
