@@ -20,7 +20,7 @@ import { WorkerAssignDialog } from "./WorkerAssignDialog";
 import { PartialRecalculateDialog, type PartialRecalculateParams } from "@/features/calendar/PartialRecalculateDialog";
 import { callPartialOptimize, PartialOptimizeError } from "@/lib/optimizer/build-partial-payload";
 import type { CalendarAssignment } from "@/types/optimizer";
-import { ID } from "appwrite";
+import { ID, Query } from "appwrite";
 import { account, databases } from "@/lib/auth/appwrite-client";
 
 const MONTH_NAMES = [
@@ -34,7 +34,7 @@ export function CalendarView() {
     holidays, franjaPorDia, violations, partialReview,
     activeProposalId,
     moveAssignment, assignWorker, removeAssignment, setViolations,
-    enterPartialReview, exitPartialReview, applyPartialReview,
+    enterPartialReview, exitPartialReview, applyPartialReview, markSaved,
   } = useCalendarStore();
 
   // En modo revisión: mostrar asignaciones originales fuera del rango + pendientes dentro
@@ -140,6 +140,7 @@ export function CalendarView() {
   async function handleApprove() {
     if (!partialReview) return;
     const { range, workersExcluidos, originalAssignments, pendingAssignments } = partialReview;
+
     const origInRange = new Set(
       originalAssignments
         .filter((a) => a.date >= range.desde && a.date <= range.hasta)
@@ -150,9 +151,73 @@ export function CalendarView() {
       Array.from(origInRange).filter((id) => !pendingIds.has(id)).length +
       Array.from(pendingIds).filter((id) => !origInRange.has(id)).length;
 
+    // Merge final de asignaciones (igual que applyPartialReview, pero lo necesitamos antes)
+    const outside = originalAssignments.filter(
+      (a) => a.date < range.desde || a.date > range.hasta
+    );
+    const merged = [...outside, ...pendingAssignments];
+
+    // Actualizar store
     applyPartialReview();
 
-    // Audit log — best-effort, no bloquea
+    // Persistir en Appwrite
+    if (activeProposalId) {
+      const DB = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID ?? "main";
+      const rutToId = new Map(workers.map((w) => [w.rut, w.$id]));
+
+      try {
+        await databases.updateDocument(DB, "proposals", activeProposalId, {
+          asignaciones: JSON.stringify(
+            merged.map((a) => ({
+              slot: a.worker_slot,
+              date: a.date,
+              shift_id: a.shift_id,
+              worker_rut: a.worker_rut,
+            }))
+          ),
+        });
+
+        // Upsert un assignment doc por slot único
+        const slotMap = new Map<number, string>();
+        for (const a of merged) {
+          if (!slotMap.has(a.worker_slot)) slotMap.set(a.worker_slot, a.worker_rut);
+        }
+
+        const existing = await databases.listDocuments(DB, "assignments", [
+          Query.equal("proposal_id", activeProposalId),
+          Query.limit(200),
+        ]);
+        const slotToDocId = new Map(
+          existing.documents.map((d) => [d.slot_numero as number, d.$id])
+        );
+
+        await Promise.all(
+          Array.from(slotMap.entries()).map(([slot, rut]) => {
+            const workerId = rutToId.get(rut) ?? rut;
+            const docId = slotToDocId.get(slot);
+            if (docId) {
+              return databases.updateDocument(DB, "assignments", docId, {
+                worker_id: workerId,
+                asignado_en: new Date().toISOString(),
+              });
+            }
+            return databases.createDocument(DB, "assignments", ID.unique(), {
+              proposal_id: activeProposalId,
+              slot_numero: slot,
+              worker_id: workerId,
+              asignado_en: new Date().toISOString(),
+            });
+          })
+        );
+
+        markSaved();
+      } catch (e) {
+        console.error("Error al persistir recálculo parcial:", e);
+        // No revertimos el store: dirty=true queda activo para que el usuario pueda reintentar con Guardar
+      }
+    }
+
+    // Audit log — best-effort
     try {
       const authUser = await account.get();
       await databases.createDocument(
