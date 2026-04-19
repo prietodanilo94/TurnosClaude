@@ -136,7 +136,7 @@ Si detectas una contradicción entre dos specs o entre una spec y `docs/`, **det
 
 ## Estado actual del proyecto
 
-> Última actualización: 2026-04-19 — commit dd845f2
+> Última actualización: 2026-04-19 — commit 500c38b
 
 ### ✅ Hecho
 
@@ -225,9 +225,11 @@ Si detectas una contradicción entre dos specs o entre una spec y `docs/`, **det
 
 ### 🔲 Pendiente
 
-#### Próximo: Fix SaveButton
-- `worker_id` usa RUT en lugar del `$id` de Appwrite (rompe exportación)
-- `creada_por: "system"` placeholder (debería ser user.$id)
+#### Fix SaveButton ✅
+- `worker_id` usa `$id` real de Appwrite (vía `rutToId` map)
+- `creada_por` usa `user.$id` real
+- Un `assignment` doc por slot único (respeta unique index)
+- `asignaciones` JSON incluye `worker_rut` (consistente con `persist-proposals`)
 
 #### Pendiente: Spec 008 — holidays frontend (8 tasks)
 - No existe `frontend/src/lib/holidays/` ni `/admin/feriados/`
