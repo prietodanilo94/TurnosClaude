@@ -136,7 +136,7 @@ Si detectas una contradicción entre dos specs o entre una spec y `docs/`, **det
 
 ## Estado actual del proyecto
 
-> Última actualización: 2026-04-18 — commit 715768a
+> Última actualización: 2026-04-18 — commit c16554e
 
 ### ✅ Hecho
 
@@ -202,7 +202,7 @@ Si detectas una contradicción entre dos specs o entre una spec y `docs/`, **det
 - `app/admin/sucursales/.../propuestas/page.tsx` + `comparar/page.tsx`
 - `app/jefe/sucursales/.../seleccionar/page.tsx`
 
-#### Spec 009 — recalculate-partial ✅ BACKEND COMPLETO + FRONTEND PARCIAL (tasks 1–9)
+#### Spec 009 — recalculate-partial ✅ COMPLETA (tasks 1–11)
 - `backend/app/optimizer/partial.py` — `PartialContext` + `setup_partial_problem`
 - `backend/app/optimizer/ilp.py` + `greedy.py` — aceptan `partial_context`
 - `backend/app/api/routes.py` — endpoint `POST /optimize/partial`
@@ -210,9 +210,9 @@ Si detectas una contradicción entre dos specs o entre una spec y `docs/`, **det
 - `frontend/src/features/calendar/PartialRecalculateDialog.tsx` — rango, workers checkboxes, modo ILP/Greedy
 - `frontend/src/lib/optimizer/build-partial-payload.ts` — `buildPartialPayload` (pura) + `callPartialOptimize`
 - `frontend/src/lib/optimizer/build-partial-payload.test.ts` — 7 tests
-- `frontend/src/store/calendar-store.ts` — `partialReview` state + `enterPartialReview` / `exitPartialReview` / `applyPartialReview`
+- `frontend/src/store/calendar-store.ts` — `partialReview` state + `enterPartialReview(workersExcluidos)` / `exitPartialReview` / `applyPartialReview`
 - `frontend/src/components/calendar/DayCell.tsx` — diff visual: in-range (borde verde + badge "mod") / out-of-range (opacity-40)
-- `frontend/src/components/calendar/CalendarView.tsx` — banner revisión, `displayAssignments` merged, botones stub
+- `frontend/src/components/calendar/CalendarView.tsx` — banner revisión, `displayAssignments` merged, botones Aprobar (merge+audit log) / Descartar (restore)
 
 ---
 
