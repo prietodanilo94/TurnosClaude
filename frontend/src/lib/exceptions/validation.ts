@@ -5,7 +5,7 @@ const DIAS = ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado", "do
 
 export const diaProhibidoSchema = z.object({
   tipo: z.literal("dia_prohibido"),
-  valor: z.enum(DIAS, { required_error: "Seleccioná un día" }),
+  valor: z.enum(DIAS),
   notas: z.string().optional(),
 });
 
