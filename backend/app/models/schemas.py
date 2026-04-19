@@ -3,7 +3,9 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
+import json as _json
+
+from pydantic import BaseModel, Field, field_validator
 
 
 # ─── Enums ────────────────────────────────────────────────────────────────────
@@ -303,6 +305,11 @@ class OptimizeRequest(BaseModel):
     shift_catalog: List[ShiftDef] = Field(..., min_length=1)
     franja_por_dia: Dict[str, Optional[FranjaDia]]     # keys: lunes..domingo, valor null = cerrado
     parametros: Parametros = Field(default_factory=Parametros)
+
+    @field_validator("franja_por_dia", mode="before")
+    @classmethod
+    def parse_franja_string(cls, v: Any) -> Any:
+        return _json.loads(v) if isinstance(v, str) else v
 
     model_config = {
         "json_schema_extra": {
