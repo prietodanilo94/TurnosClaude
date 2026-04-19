@@ -21,7 +21,10 @@ export function NewBranchesPanel({ branches, onTipoChange }: Props) {
     <div className="border border-amber-200 rounded-lg overflow-hidden">
       <div className="bg-amber-50 px-4 py-3 border-b border-amber-200">
         <p className="text-sm font-medium text-amber-800">
-          {branches.length} sucursal(es) nueva(s) — asigná el tipo antes de continuar
+          {branches.length} sucursal(es) nueva(s)
+        </p>
+        <p className="text-xs text-amber-600 mt-0.5">
+          Asigná tipo solo a las que querés activar ahora. Las demás quedan disponibles para el próximo upload.
         </p>
       </div>
       <ul className="divide-y divide-amber-100">
@@ -42,7 +45,7 @@ export function NewBranchesPanel({ branches, onTipoChange }: Props) {
               ))}
             </select>
             {!b.tipoFranja && (
-              <span className="text-xs text-red-500 shrink-0">Requerido</span>
+              <span className="text-xs text-gray-400 shrink-0">Sin activar</span>
             )}
           </li>
         ))}

@@ -21,6 +21,7 @@ export async function syncDotacion(
   );
 
   for (const branch of diff.branches.filter((b) => b.isNew)) {
+    if (!branch.tipoFranja) continue; // sin tipo → se omite hasta el próximo upload
     onProgress?.(`Creando sucursal ${branch.codigoArea}…`);
     try {
       const doc = await databases.createDocument(DB, "branches", ID.unique(), {

@@ -72,8 +72,8 @@ export default function DotacionPage() {
     });
   }
 
-  const newBranchesReady =
-    diff?.branches.filter((b) => b.isNew).every((b) => b.tipoFranja) ?? true;
+  const activatedCount = diff?.branches.filter((b) => b.isNew && b.tipoFranja).length ?? 0;
+  const skippedCount = diff?.branches.filter((b) => b.isNew && !b.tipoFranja).length ?? 0;
 
   return (
     <div className="p-6 max-w-5xl">
@@ -120,17 +120,19 @@ export default function DotacionPage() {
             />
           )}
 
-          <div className="flex items-center gap-4 pt-2">
+          <div className="flex items-center gap-4 pt-2 flex-wrap">
             <div className="text-sm text-gray-600 space-x-4">
               <span className="text-green-700 font-medium">+{diff.workers.filter((w) => w.status === "nuevo").length} nuevos</span>
               <span className="text-blue-700 font-medium">↺ {diff.workers.filter((w) => w.status === "actualizado").length} actualizados</span>
               <span className="text-gray-400">{diff.workers.filter((w) => w.status === "sin_cambios").length} sin cambios</span>
               <span className="text-red-600 font-medium">✕ {diff.toDeactivate.length} a desactivar</span>
+              {skippedCount > 0 && (
+                <span className="text-gray-400">{skippedCount} sucursal(es) sin tipo se omitirán</span>
+              )}
             </div>
             <button
               onClick={() => setShowDialog(true)}
-              disabled={!newBranchesReady}
-              className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 disabled:opacity-40 transition-colors"
+              className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition-colors"
             >
               Confirmar sincronización
             </button>
