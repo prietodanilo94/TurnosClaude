@@ -136,7 +136,7 @@ Si detectas una contradicción entre dos specs o entre una spec y `docs/`, **det
 
 ## Estado actual del proyecto
 
-> Última actualización: 2026-04-18
+> Última actualización: 2026-04-18 — commit 715768a
 
 ### ✅ Hecho
 
@@ -202,21 +202,24 @@ Si detectas una contradicción entre dos specs o entre una spec y `docs/`, **det
 - `app/admin/sucursales/.../propuestas/page.tsx` + `comparar/page.tsx`
 - `app/jefe/sucursales/.../seleccionar/page.tsx`
 
-#### Spec 009 — recalculate-partial ✅ BACKEND COMPLETO (tasks 1–6)
+#### Spec 009 — recalculate-partial ✅ BACKEND COMPLETO + FRONTEND PARCIAL (tasks 1–9)
 - `backend/app/optimizer/partial.py` — `PartialContext` + `setup_partial_problem`
 - `backend/app/optimizer/ilp.py` + `greedy.py` — aceptan `partial_context`
 - `backend/app/api/routes.py` — endpoint `POST /optimize/partial`
 - `backend/tests/test_partial_optimizer.py` — 12 tests
+- `frontend/src/features/calendar/PartialRecalculateDialog.tsx` — rango, workers checkboxes, modo ILP/Greedy
+- `frontend/src/lib/optimizer/build-partial-payload.ts` — `buildPartialPayload` (pura) + `callPartialOptimize`
+- `frontend/src/lib/optimizer/build-partial-payload.test.ts` — 7 tests
+- `frontend/src/store/calendar-store.ts` — `partialReview` state + `enterPartialReview` / `exitPartialReview` / `applyPartialReview`
+- `frontend/src/components/calendar/DayCell.tsx` — diff visual: in-range (borde verde + badge "mod") / out-of-range (opacity-40)
+- `frontend/src/components/calendar/CalendarView.tsx` — banner revisión, `displayAssignments` merged, botones stub
 
 ---
 
 ### 🔲 Pendiente
 
-#### Spec 009 — recalculate-partial frontend ← **ÚNICO PENDIENTE**
-- [ ] Task 7: `PartialRecalculateDialog.tsx` — selector de rango + checkboxes + modo
-- [ ] Task 8: `build-partial-payload.ts` — arma el payload desde la propuesta activa
-- [ ] Task 9: vista "revisar recálculo" con diff visual en el calendario
-- [ ] Task 10: botones Aprobar / Descartar + persistencia
+#### Spec 009 — recalculate-partial frontend ← **PRÓXIMO**
+- [ ] Task 10: botones Aprobar / Descartar → `applyPartialReview` + persistencia en Appwrite + `exitPartialReview`
 - [ ] Task 11: audit log con metadata `{rango, workers_excluidos, n_changes}`
 
 ---
