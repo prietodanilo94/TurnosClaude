@@ -136,7 +136,7 @@ Si detectas una contradicción entre dos specs o entre una spec y `docs/`, **det
 
 ## Estado actual del proyecto
 
-> Última actualización: 2026-04-19 — commit 500c38b
+> Última actualización: 2026-04-19 — commit 4126278
 
 ### ✅ Hecho
 
@@ -231,9 +231,15 @@ Si detectas una contradicción entre dos specs o entre una spec y `docs/`, **det
 - Un `assignment` doc por slot único (respeta unique index)
 - `asignaciones` JSON incluye `worker_rut` (consistente con `persist-proposals`)
 
-#### Pendiente: Spec 008 — holidays frontend (8 tasks)
-- No existe `frontend/src/lib/holidays/` ni `/admin/feriados/`
-- Feriados hardcodeados en el payload
+#### Spec 008 — holidays ✅ COMPLETA (tasks 1–8)
+- `frontend/src/lib/holidays/api.ts` — `listHolidays` / `createHoliday` / `deleteHoliday`
+- `frontend/src/lib/holidays/is-holiday.ts` + `is-holiday.test.ts` (3 tests)
+- `frontend/src/app/admin/feriados/page.tsx` — listado agrupado por año
+- `frontend/src/app/admin/feriados/components/NewHolidayDialog.tsx` — fecha + nombre, valida duplicados
+- `frontend/src/lib/calendar/month-grid.ts` — `isOpen=false` en días feriados (drop bloqueado)
+- Nav lateral: link Feriados agregado
+- `backend/tests/test_holidays_integration.py` — 3 tests (todos pasan)
+- Tasks 5 y 7 ya estaban implementados (`build-payload.ts` y `calendar.py`)
 
 #### Pendiente: Spec 009 task 10 — persistencia real en Appwrite
 - `applyPartialReview` solo actualiza Zustand; cambios se pierden al recargar
