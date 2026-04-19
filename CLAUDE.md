@@ -136,7 +136,7 @@ Si detectas una contradicción entre dos specs o entre una spec y `docs/`, **det
 
 ## Estado actual del proyecto
 
-> Última actualización: 2026-04-19 — commit c7464c1
+> Última actualización: 2026-04-19 — commit c342558
 
 ### ✅ Hecho
 
@@ -255,3 +255,8 @@ Si detectas una contradicción entre dos specs o entre una spec y `docs/`, **det
 - Project ID: `69e0f594001ed045d0c5`
 - Database ID: `main` ✅ creado
 - GitHub: conectado ✅ — `github.com/prietodanilo94/TurnosClaude`
+- Producción: `https://turnos.dpmake.cl` ✅ desplegado en servidor
+  - Frontend (Next.js): puerto 3010 → nginx → turnos.dpmake.cl
+  - Optimizer (FastAPI): puerto 8020 → nginx /optimizer/
+  - Repo en servidor: `/opt/shift-optimizer`
+  - Deploy: `cd /opt/shift-optimizer && git pull && docker compose up -d --build`
