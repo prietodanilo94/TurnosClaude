@@ -14,6 +14,10 @@ export async function syncDotacion(
   const report: SyncReport = { creados: 0, actualizados: 0, desactivados: 0, sinCambios: 0, errores: [] };
 
   // ── 1. Crear sucursales nuevas ────────────────────────────────────────────
+  const skippedBranchCodes = new Set(
+    diff.branches.filter((b) => b.isNew && !b.tipoFranja).map((b) => b.codigoArea)
+  );
+
   const branchIdByCode = new Map<string, string>(
     diff.branches
       .filter((b) => !b.isNew && b.branchId)
@@ -45,7 +49,9 @@ export async function syncDotacion(
     const branchId = branchIdByCode.get(row.codigoArea);
 
     if (!branchId) {
-      report.errores.push(`Worker ${row.rut}: no se encontró sucursal ${row.codigoArea}`);
+      if (!skippedBranchCodes.has(row.codigoArea)) {
+        report.errores.push(`Worker ${row.rut}: no se encontró sucursal ${row.codigoArea}`);
+      }
       continue;
     }
 
