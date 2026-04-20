@@ -48,7 +48,9 @@ def _slot_range(day: DayInfo) -> range:
 
 
 def _is_shift_assignable(day: DayInfo, shift: ShiftInfo) -> bool:
-    return shift.inicio_min >= day.apertura_min and shift.fin_min <= day.cierre_min
+    # El turno debe comenzar cuando la sucursal ya está abierta,
+    # pero puede terminar después del cierre (tareas de cierre).
+    return shift.inicio_min >= day.apertura_min and shift.fin_min > day.apertura_min
 
 
 def _build_assignment_vars(
