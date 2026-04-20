@@ -1,6 +1,5 @@
 import { ID } from "appwrite";
 import { databases } from "@/lib/auth/appwrite-client";
-import type { Worker } from "@/types/models";
 import type { OptimizerProposal } from "@/types/optimizer";
 
 const DB = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID ?? "main";
@@ -10,14 +9,12 @@ export async function persistProposals(
   branchId: string,
   year: number,
   month: number,
-  workers: Worker[],
   userId: string
 ): Promise<void> {
-  const rutToId = new Map(workers.map((w) => [w.rut, w.$id]));
-
   await Promise.all(
     proposals.map(async (p) => {
       // Almacenamos slot+date+shift_id+worker_rut para poder reconstruir sin joins.
+      // worker_rut = "worker_N" (anónimo) hasta que el admin aplique el mapeo y guarde.
       const asignacionesJson = JSON.stringify(
         p.asignaciones.map((a) => ({
           slot: a.worker_slot,
@@ -27,7 +24,7 @@ export async function persistProposals(
         }))
       );
 
-      const proposalDoc = await databases.createDocument(
+      await databases.createDocument(
         DB,
         "proposals",
         ID.unique(),
@@ -46,25 +43,8 @@ export async function persistProposals(
           ...(p.metrics && { metrics: JSON.stringify(p.metrics) }),
         }
       );
-
-      // Una asignación por slot único: mapea slot_numero → worker_id (Appwrite $id).
-      const slotMap = new Map<number, string>();
-      for (const a of p.asignaciones) {
-        if (!slotMap.has(a.worker_slot)) {
-          slotMap.set(a.worker_slot, a.worker_rut);
-        }
-      }
-
-      await Promise.all(
-        Array.from(slotMap.entries()).map(([slot, rut]) =>
-          databases.createDocument(DB, "assignments", ID.unique(), {
-            proposal_id: proposalDoc.$id,
-            slot_numero: slot,
-            worker_id: rutToId.get(rut) ?? rut,
-            asignado_en: new Date().toISOString(),
-          })
-        )
-      );
+      // Los docs de assignments (slot → worker real) se crean en SaveButton
+      // después de que el admin aplique el mapeo de trabajadores.
     })
   );
 }

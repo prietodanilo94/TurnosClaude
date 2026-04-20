@@ -123,7 +123,6 @@ export function CalendarPageClient({ branchId, year, month }: Props) {
         branchId,
         year,
         month,
-        workers,
         user.$id
       );
 

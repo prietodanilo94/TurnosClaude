@@ -66,6 +66,9 @@ export interface CalendarState {
   /** Asigna un trabajador real a un slot (cambia worker_rut). */
   assignWorker: (assignmentId: string, workerRut: string, workerSlot: number) => void;
 
+  /** Reasigna un trabajador real a TODOS los slots de un número dado (panel de mapeo). */
+  setSlotWorker: (slot: number, workerRut: string) => void;
+
   /** Elimina una asignación. */
   removeAssignment: (assignmentId: string) => void;
 
@@ -158,6 +161,17 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
         return { ...updated, id: makeId(updated) };
       }),
       violations: [],
+      dirty: true,
+    }));
+  },
+
+  setSlotWorker(slot, workerRut) {
+    set((state) => ({
+      assignments: state.assignments.map((a) => {
+        if (a.worker_slot !== slot) return a;
+        const updated = { ...a, worker_rut: workerRut };
+        return { ...updated, id: makeId(updated) };
+      }),
       dirty: true,
     }));
   },

@@ -18,6 +18,7 @@ import { ProposalSelector } from "./ProposalSelector";
 import { SaveButton } from "./SaveButton";
 import { WorkerAssignDialog } from "./WorkerAssignDialog";
 import { PartialRecalculateDialog, type PartialRecalculateParams } from "@/features/calendar/PartialRecalculateDialog";
+import { WorkerMappingPanel } from "./WorkerMappingPanel";
 import { callPartialOptimize, PartialOptimizeError } from "@/lib/optimizer/build-partial-payload";
 import type { CalendarAssignment } from "@/types/optimizer";
 import { ID, Query } from "appwrite";
@@ -34,7 +35,7 @@ export function CalendarView() {
     holidays, franjaPorDia, violations, partialReview,
     activeProposalId,
     moveAssignment, assignWorker, removeAssignment, setViolations,
-    enterPartialReview, exitPartialReview, applyPartialReview, markSaved,
+    enterPartialReview, exitPartialReview, applyPartialReview, markSaved, setSlotWorker,
   } = useCalendarStore();
 
   // En modo revisión: mostrar asignaciones originales fuera del rango + pendientes dentro
@@ -52,6 +53,7 @@ export function CalendarView() {
   const [showPartialDialog, setShowPartialDialog] = useState(false);
   const [partialLoading, setPartialLoading] = useState(false);
   const [partialError, setPartialError] = useState<string | null>(null);
+  const [showMappingPanel, setShowMappingPanel] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
@@ -235,6 +237,12 @@ export function CalendarView() {
     } catch { /* best-effort */ }
   }
 
+  function handleApplyMapping(mapping: Record<number, string>) {
+    for (const [slotStr, workerRut] of Object.entries(mapping)) {
+      if (workerRut) setSlotWorker(Number(slotStr), workerRut);
+    }
+  }
+
   function handleRemoveAssignment() {
     if (!dialogAssignment) return;
     const newAssignments = assignments.filter((a) => a.id !== dialogAssignment.id);
@@ -304,6 +312,12 @@ export function CalendarView() {
             </div>
           )}
           <button
+            onClick={() => setShowMappingPanel(true)}
+            className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+          >
+            Asignar trabajadores
+          </button>
+          <button
             onClick={() => { setPartialError(null); setShowPartialDialog(true); }}
             disabled={partialLoading}
             className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 transition-colors"
@@ -364,6 +378,15 @@ export function CalendarView() {
           onAssign={handleAssignWorker}
           onRemove={handleRemoveAssignment}
           onClose={() => setDialogAssignment(null)}
+        />
+      )}
+
+      {showMappingPanel && (
+        <WorkerMappingPanel
+          assignments={displayAssignments}
+          workers={workers}
+          onApply={handleApplyMapping}
+          onClose={() => setShowMappingPanel(false)}
         />
       )}
     </div>
