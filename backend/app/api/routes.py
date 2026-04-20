@@ -56,6 +56,13 @@ def _fingerprint(asignaciones: list[AssignmentResult]) -> FrozenSet[tuple]:
     return frozenset((a.worker_rut, a.date, a.shift_id) for a in asignaciones)
 
 
+def _filter_month_assignments(
+    asignaciones: list[AssignmentResult], year: int, month: int
+) -> list[AssignmentResult]:
+    prefix = f"{year:04d}-{month:02d}-"
+    return [a for a in asignaciones if a.date.startswith(prefix)]
+
+
 def _build_assignments_out(
     asignaciones: list[AssignmentResult],
     rut_to_slot: dict[str, int],
@@ -118,26 +125,32 @@ async def optimize(payload: OptimizeRequest):
         if not output.factible:
             continue
 
-        fp = _fingerprint(output.asignaciones)
+        # Descartar asignaciones de días adyacentes al mes (semanas ISO completas)
+        month_asignaciones = _filter_month_assignments(
+            output.asignaciones, payload.month.year, payload.month.month
+        )
+        output_month = dataclasses.replace(output, asignaciones=month_asignaciones)
+
+        fp = _fingerprint(output_month.asignaciones)
         if fp in seen:
             continue
 
         seen.add(fp)
-        last_output = output
+        last_output = output_month
         proposal_mode = ModoProposal.ilp if is_ilp else ModoProposal.greedy
         proposal_id = f"prop_{proposal_mode.value}_{len(proposals) + 1}"
 
-        raw_metrics = compute_metrics(output, inp)
+        raw_metrics = compute_metrics(output_month, inp)
         metrics_out = ProposalMetricsOut(**dataclasses.asdict(raw_metrics))
 
         proposals.append(
             ProposalOut(
                 id=proposal_id,
                 modo=proposal_mode,
-                score=output.score,
+                score=output_month.score,
                 factible=True,
                 dotacion_minima_sugerida=n_min,
-                asignaciones=_build_assignments_out(output.asignaciones, rut_to_slot),
+                asignaciones=_build_assignments_out(output_month.asignaciones, rut_to_slot),
                 metrics=metrics_out,
             )
         )

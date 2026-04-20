@@ -1,8 +1,7 @@
 import { Query } from "appwrite";
 import { databases } from "@/lib/auth/appwrite-client";
-import { fetchProposals } from "@/lib/proposals/fetch-proposals";
 import type { OptimizerConstraint } from "@/lib/exceptions/to-optimizer-constraint";
-import type { Worker, Branch, BranchTypeConfig, ShiftCatalog, Holiday } from "@/types/models";
+import type { Worker, Branch, BranchTypeConfig, Holiday } from "@/types/models";
 
 const DB = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID ?? "main";
 
@@ -44,49 +43,47 @@ export function buildWorkersForPayload(workers: Worker[]): WorkerInputPayload[] 
   }));
 }
 
-function toDateStr(d: Date): string {
-  const y = d.getUTCFullYear();
-  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(d.getUTCDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
+// Genera todos los turnos posibles con inicio/fin alineados a 30 min dentro
+// del rango global de apertura–cierre de la sucursal. El ILP solo asignará
+// los que comiencen ≥ apertura del día específico (_is_shift_assignable).
+function generateFreeShifts(
+  franjaPorDia: Record<string, { apertura: string | null; cierre: string | null } | null>
+): OptimizePayload["shift_catalog"] {
+  const MIN_DURATION = 240;  // 4 horas en minutos
+  const MAX_DURATION = 600;  // 10 horas en minutos
 
-// Calcula las horas que cada worker ya trabajó en el mes anterior dentro
-// de la primera semana ISO del mes actual (días lun..dom-1 antes del día 1).
-async function calcCarryover(
-  branchId: string,
-  year: number,
-  month: number,
-  shiftMinutes: Record<string, number>
-): Promise<Record<string, number>> {
-  const firstDay = new Date(Date.UTC(year, month - 1, 1));
-  const isoDow = (firstDay.getUTCDay() + 6) % 7; // 0=Lun, 6=Dom
-  if (isoDow === 0) return {}; // el mes empieza el lunes — sin semana parcial inicial
+  let minApertura = Infinity;
+  let maxCierre = 0;
 
-  // Días del mes anterior que caen en la primera semana ISO del mes actual
-  const mondayOfFirstWeek = new Date(firstDay);
-  mondayOfFirstWeek.setUTCDate(firstDay.getUTCDate() - isoDow);
-  const mondayStr = toDateStr(mondayOfFirstWeek);
-  const prevLastStr = toDateStr(new Date(Date.UTC(year, month - 1, 0))); // último día del mes anterior
-
-  const prevYear = month === 1 ? year - 1 : year;
-  const prevMonth = month === 1 ? 12 : month - 1;
-
-  try {
-    const prevProposals = await fetchProposals(branchId, prevYear, prevMonth);
-    if (prevProposals.length === 0) return {};
-
-    const carry: Record<string, number> = {};
-    for (const a of prevProposals[0].asignaciones) {
-      if (a.date >= mondayStr && a.date <= prevLastStr) {
-        const hours = (shiftMinutes[a.shift_id] ?? 0) / 60;
-        carry[a.worker_rut] = (carry[a.worker_rut] ?? 0) + hours;
-      }
-    }
-    return carry;
-  } catch {
-    return {};
+  for (const franja of Object.values(franjaPorDia)) {
+    if (!franja?.apertura || !franja?.cierre) continue;
+    const [ah, am] = franja.apertura.split(":").map(Number);
+    const [ch, cm] = franja.cierre.split(":").map(Number);
+    minApertura = Math.min(minApertura, ah * 60 + am);
+    maxCierre = Math.max(maxCierre, ch * 60 + cm);
   }
+
+  if (!isFinite(minApertura) || maxCierre === 0) return [];
+
+  const toTime = (min: number) =>
+    `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
+
+  const shifts: OptimizePayload["shift_catalog"] = [];
+  for (let start = minApertura; start + MIN_DURATION <= maxCierre; start += 30) {
+    const endLimit = Math.min(maxCierre, start + MAX_DURATION);
+    for (let end = start + MIN_DURATION; end <= endLimit; end += 30) {
+      const id = `T${toTime(start).replace(":", "")}_${toTime(end).replace(":", "")}`;
+      shifts.push({
+        id,
+        inicio: toTime(start),
+        fin: toTime(end),
+        duracion_minutos: end - start,
+        descuenta_colacion: false,
+      });
+    }
+  }
+
+  return shifts;
 }
 
 // Async: fetch todo desde Appwrite y arma el payload completo para POST /optimize.
@@ -111,30 +108,17 @@ export async function buildOptimizePayload(
   ]);
   const workers = workersResult.documents as unknown as Worker[];
 
-  const shiftsResult = await databases.listDocuments(DB, "shift_catalog", [Query.limit(50)]);
-  const allShifts = shiftsResult.documents as unknown as ShiftCatalog[];
-  const aplicables = new Set(config?.shifts_aplicables ?? []);
-  const shiftCatalog = (aplicables.size > 0
-    ? allShifts.filter((s) => aplicables.has(s.$id))
-    : allShifts
-  ).map((s) => ({
-    id: s.$id,
-    inicio: s.hora_inicio,
-    fin: s.hora_fin,
-    duracion_minutos: s.duracion_minutos,
-    descuenta_colacion: s.descuenta_colacion,
-  }));
-
   const holidaysResult = await databases.listDocuments(DB, "holidays", [
     Query.equal("anio", year),
     Query.limit(50),
   ]);
   const holidays = (holidaysResult.documents as unknown as Holiday[]).map((h) => h.fecha);
 
-  const shiftMinutes: Record<string, number> = {};
-  for (const s of shiftCatalog) shiftMinutes[s.id] = s.duracion_minutos;
-
-  const carryover_horas = await calcCarryover(branchId, year, month, shiftMinutes);
+  const franja_por_dia = (() => {
+    const raw = config?.franja_por_dia;
+    if (!raw) return {} as OptimizePayload["franja_por_dia"];
+    return (typeof raw === "string" ? JSON.parse(raw) : raw) as OptimizePayload["franja_por_dia"];
+  })();
 
   return {
     branch: {
@@ -146,12 +130,8 @@ export async function buildOptimizePayload(
     month: { year, month },
     workers: buildWorkersForPayload(workers),
     holidays,
-    shift_catalog: shiftCatalog,
-    franja_por_dia: (() => {
-      const raw = config?.franja_por_dia;
-      if (!raw) return {};
-      return typeof raw === "string" ? JSON.parse(raw) : raw;
-    })() as OptimizePayload["franja_por_dia"],
-    carryover_horas,
+    shift_catalog: generateFreeShifts(franja_por_dia),
+    franja_por_dia,
+    carryover_horas: {},
   };
 }

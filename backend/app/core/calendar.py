@@ -26,6 +26,20 @@ def dias_del_mes(year: int, month: int) -> List[date]:
     return [date(year, month, day) for day in range(1, num_days + 1)]
 
 
+def dias_iso_del_mes(year: int, month: int) -> List[date]:
+    """Todos los días de las semanas ISO (lun–dom) que intersectan el mes dado."""
+    first = date(year, month, 1)
+    last = date(year, month, _cal.monthrange(year, month)[1])
+    start = first - timedelta(days=first.weekday())
+    end = last + timedelta(days=6 - last.weekday())
+    days: List[date] = []
+    d = start
+    while d <= end:
+        days.append(d)
+        d += timedelta(days=1)
+    return days
+
+
 def iso_weeks_of_days(days: List[date]) -> List[List[int]]:
     """
     Agrupa los índices 0-based de `days` por semana ISO (lunes-domingo).
@@ -44,7 +58,7 @@ def build_solver_input(request: OptimizeRequest) -> SolverInput:
     holidays_set = set(request.holidays)
     franja = request.franja_por_dia
 
-    all_dates = dias_del_mes(year, month)
+    all_dates = dias_iso_del_mes(year, month)
 
     days: List[DayInfo] = []
     for i, d in enumerate(all_dates):
@@ -117,5 +131,5 @@ def build_solver_input(request: OptimizeRequest) -> SolverInput:
         open_sundays=open_sundays,
         parametros=request.parametros.model_dump(),
         complete_week_flags=[len(w) == 7 for w in weeks],
-        first_week_carryover=dict(request.carryover_horas),
+        first_week_carryover={},
     )
