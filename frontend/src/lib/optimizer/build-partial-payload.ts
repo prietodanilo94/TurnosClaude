@@ -28,12 +28,72 @@ export interface PartialOptimizePayload extends OptimizePayload {
  * assignments_fijas = asignaciones fuera del rango (el solver las respeta como constantes).
  * workers del payload = todos menos los excluidos.
  */
+
+// ─── ISO week boundary helpers ─────────────────────────────────────────────────
+
+function isoWeekMonday(dateStr: string): string {
+  const d = new Date(dateStr + "T12:00:00Z");
+  const dow = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() - (dow - 1));
+  return d.toISOString().slice(0, 10);
+}
+
+function isoWeekSunday(dateStr: string): string {
+  const d = new Date(dateStr + "T12:00:00Z");
+  const dow = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + (7 - dow));
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Extiende desde/hasta para incluir días adyacentes del mes anterior/siguiente
+ * que pertenecen a la misma semana ISO (regla: semana pertenece al mes con más días en ella).
+ * Ej: si la semana de abril tiene lun-mar en marzo y mié-dom en abril → incluye lun-mar.
+ */
+export function extendToFullIsoWeeks(
+  desde: string,
+  hasta: string,
+  existingDates?: Set<string>
+): { desde: string; hasta: string } {
+  const monday = isoWeekMonday(desde);
+  const sunday = isoWeekSunday(hasta);
+
+  let newDesde = desde;
+  let newHasta = hasta;
+
+  if (monday < desde) {
+    const daysFromPrevMonth = Math.round(
+      (new Date(desde + "T12:00:00Z").getTime() - new Date(monday + "T12:00:00Z").getTime()) / 86_400_000
+    );
+    // Solo extender si hay datos del mes anterior (evita incluir días sin asignaciones)
+    const hasData = !existingDates || hasDateInRange(existingDates, monday, desde);
+    if (daysFromPrevMonth < 4 && hasData) newDesde = monday;
+  }
+
+  if (sunday > hasta) {
+    const daysFromNextMonth = Math.round(
+      (new Date(sunday + "T12:00:00Z").getTime() - new Date(hasta + "T12:00:00Z").getTime()) / 86_400_000
+    );
+    // Solo extender si hay datos del mes siguiente
+    const hasData = !existingDates || hasDateInRange(existingDates, hasta, sunday);
+    if (daysFromNextMonth < 4 && hasData) newHasta = sunday;
+  }
+
+  return { desde: newDesde, hasta: newHasta };
+}
+
+function hasDateInRange(dates: Set<string>, from: string, to: string): boolean {
+  return Array.from(dates).some((d) => d >= from && d <= to);
+}
+
 export function buildPartialPayload(
   basePayload: OptimizePayload,
   currentAssignments: CalendarAssignment[],
   params: PartialRecalculateParams
 ): PartialOptimizePayload {
-  const { desde, hasta, excludedRuts, modo } = params;
+  const { desde: rawDesde, hasta: rawHasta, excludedRuts, modo } = params;
+  const existingDates = new Set(currentAssignments.map((a) => a.date));
+  const { desde, hasta } = extendToFullIsoWeeks(rawDesde, rawHasta, existingDates);
 
   const assignments_fijas: AssignmentFija[] = currentAssignments
     .filter((a) => a.date < desde || a.date > hasta)

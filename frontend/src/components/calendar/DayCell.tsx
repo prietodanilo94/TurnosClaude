@@ -13,6 +13,7 @@ interface DayCellProps {
   shifts: ShiftDef[];
   violationsByAssignment: Record<string, Violation[]>;
   overlappingIds: Set<string>;
+  slotToWorker?: Record<number, Worker>;
   partialRange?: { desde: string; hasta: string };
   onSlotClick?: (assignment: CalendarAssignment) => void;
 }
@@ -29,6 +30,7 @@ export function DayCell({
   shifts,
   violationsByAssignment,
   overlappingIds,
+  slotToWorker = {},
   partialRange,
   onSlotClick,
 }: DayCellProps) {
@@ -106,19 +108,49 @@ export function DayCell({
         </div>
       )}
 
-      {/* Slots de turno */}
+      {/* Slots de turno — orden fijo por slot, incluye libres */}
       <div className="flex flex-col gap-0.5">
-        {dayAssignments.map((a) => (
-          <ShiftSlot
-            key={a.id}
-            assignment={a}
-            shift={shiftMap[a.shift_id]}
-            worker={workerMap[a.worker_rut]}
-            violations={violationsByAssignment[a.id] ?? []}
-            isOverlapping={overlappingIds.has(a.id)}
-            onClick={() => onSlotClick?.(a)}
-          />
-        ))}
+        {workers.length > 0
+          ? Array.from({ length: workers.length }, (_, i) => i + 1).map((slot) => {
+              const a = dayAssignments.find((x) => x.worker_slot === slot);
+              if (a) {
+                return (
+                  <ShiftSlot
+                    key={a.id}
+                    assignment={a}
+                    shift={shiftMap[a.shift_id]}
+                    worker={workerMap[a.worker_rut]}
+                    violations={violationsByAssignment[a.id] ?? []}
+                    isOverlapping={overlappingIds.has(a.id)}
+                    onClick={() => onSlotClick?.(a)}
+                  />
+                );
+              }
+              const w = (slotToWorker as Record<number, Worker>)[slot];
+              const nombre = w
+                ? w.nombre_completo.split(" ").slice(0, 2).join(" ")
+                : `Trabajador ${slot}`;
+              return (
+                <div
+                  key={`libre-${slot}`}
+                  className="rounded-md border px-2 py-1 text-xs border-gray-100 bg-gray-50 text-gray-400 leading-tight"
+                >
+                  <div className="font-medium truncate">{nombre}</div>
+                  <div className="italic text-[10px]">libre</div>
+                </div>
+              );
+            })
+          : dayAssignments.map((a) => (
+              <ShiftSlot
+                key={a.id}
+                assignment={a}
+                shift={shiftMap[a.shift_id]}
+                worker={workerMap[a.worker_rut]}
+                violations={violationsByAssignment[a.id] ?? []}
+                isOverlapping={overlappingIds.has(a.id)}
+                onClick={() => onSlotClick?.(a)}
+              />
+            ))}
       </div>
 
       {/* Día cerrado */}

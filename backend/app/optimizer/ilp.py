@@ -149,6 +149,7 @@ def _add_weekly_constraints(
     day_by_index = {day.day_index - 1: day for day in inp.days}
     shift_by_id = {shift.id: shift for shift in inp.shifts}
     horas_max_minutos = int(round(inp.parametros["horas_semanales_max"] * 60))
+    horas_min_minutos = int(round(inp.parametros.get("horas_semanales_min", inp.parametros["horas_semanales_max"]) * 60))
     dias_maximos = int(inp.parametros["dias_maximos_consecutivos"])
 
     n_weeks = len(inp.weeks)
@@ -191,12 +192,15 @@ def _add_weekly_constraints(
             carryover_min = int(round(carryover_h * 60))
             has_carryover = wi == 0 and carryover_h > 0.0
 
-            use_equality = partial_context is None and (is_complete or has_carryover)
-            target = max(0, horas_max_minutos - fixed_h_min - carryover_min)
+            target_max = max(0, horas_max_minutos - fixed_h_min - carryover_min)
+            target_min = max(0, horas_min_minutos - fixed_h_min - carryover_min)
 
-            if use_equality and weekly_assignments:
-                model.Add(cp_model.LinearExpr.Sum(weekly_assignments) == target)
-            else:
+            if weekly_assignments and (is_complete or has_carryover):
+                # Semana completa: rango [min, max] siempre, incluso en recálculo parcial
+                model.Add(cp_model.LinearExpr.Sum(weekly_assignments) >= target_min)
+                model.Add(cp_model.LinearExpr.Sum(weekly_assignments) <= target_max)
+            elif weekly_assignments:
+                # Semana incompleta (primera/última parcial): solo cap máximo
                 model.Add(
                     cp_model.LinearExpr.Sum(weekly_assignments)
                     <= max(0, horas_max_minutos - fixed_h_min)

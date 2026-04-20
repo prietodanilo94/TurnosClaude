@@ -234,6 +234,10 @@ class Parametros(BaseModel):
         default=42, ge=1, le=60,
         description="Máximo de horas trabajadas por semana ISO por trabajador (legislación chilena: 45h, convenio típico retail: 42h).",
     )
+    horas_semanales_min: int = Field(
+        default=41, ge=1, le=60,
+        description="Mínimo de horas semanales por trabajador. El solver intentará llegar a horas_semanales_max; si no es posible, acepta hasta este piso.",
+    )
     horas_semanales_obj: int = Field(
         default=42, ge=1, le=60,
         description="Horas objetivo semanales por trabajador (se usa para cálculo de balance; generalmente igual a horas_semanales_max).",
@@ -267,8 +271,8 @@ class Parametros(BaseModel):
         description="Si True, el greedy llena primero sábados y domingos (mayor demanda en retail).",
     )
     time_limit_seconds: int = Field(
-        default=30, ge=5, le=120,
-        description="Tiempo máximo por ejecución del solver ILP. Para 95% de casos reales con ≤30 trabajadores, 30s es suficiente.",
+        default=60, ge=5, le=180,
+        description="Tiempo máximo por ejecución del solver ILP. Para casos con ≤30 trabajadores, 60s cubre la mayoría. Máx 180s.",
     )
     descanso_entre_jornadas: bool = Field(
         default=False,
@@ -474,3 +478,24 @@ class PartialOptimizeRequest(OptimizeRequest):
         description="RUTs de workers no disponibles en el rango. "
                     "Sus assignments_fijas se mantienen intactas.",
     )
+
+# ── Calendar export (vista calendario para jefe) ─────────────────────────────
+
+class WorkerCalendarInfo(BaseModel):
+    slot: int
+    nombre: str
+
+class AssignmentCalendarInfo(BaseModel):
+    slot: int
+    date: str    # "YYYY-MM-DD"
+    inicio: str  # "HH:MM"
+    fin: str     # "HH:MM"
+
+class CalendarExportRequest(BaseModel):
+    branch_nombre: str
+    codigo_area: str
+    year: int
+    month: int
+    workers: List[WorkerCalendarInfo]
+    assignments: List[AssignmentCalendarInfo]
+

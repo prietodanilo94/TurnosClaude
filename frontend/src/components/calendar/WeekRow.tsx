@@ -15,6 +15,7 @@ interface WeekRowProps {
   violationsByAssignment: Record<string, Violation[]>;
   overlappingIds: Set<string>;
   slotByRut: Record<string, number>;
+  slotToWorker: Record<number, Worker>;
   maxHours: number;
   partialRange?: { desde: string; hasta: string };
   onSlotClick?: (assignment: CalendarAssignment) => void;
@@ -28,6 +29,7 @@ export function WeekRow({
   violationsByAssignment,
   overlappingIds,
   slotByRut,
+  slotToWorker,
   maxHours,
   partialRange,
   onSlotClick,

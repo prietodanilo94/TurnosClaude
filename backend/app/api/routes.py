@@ -30,6 +30,8 @@ from app.optimizer.scoring import compute_metrics
 from app.services import appwrite_client as ac
 from app.services.appwrite_jwt import AppwriteUser
 from app.services.excel_exporter import build_filename, export_proposal_to_xlsx
+from app.services.calendar_exporter import build_calendar_filename, export_calendar_to_xlsx
+from app.models.schemas import CalendarExportRequest
 from app.services.proposal_fetcher import ExportError, fetch_export_dataset
 
 _XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -348,3 +350,16 @@ async def export_excel(
             "Content-Disposition": f'attachment; filename="{filename}"',
         },
     )
+
+@router.post("/export/calendar", tags=["export"])
+async def export_calendar(payload: CalendarExportRequest) -> Response:
+    """Exporta vista de calendario semanal para enviar al jefe de sucursal.
+    No requiere autenticación: los datos vienen en el request body."""
+    xlsx_bytes = export_calendar_to_xlsx(payload)
+    filename   = build_calendar_filename(payload)
+    return Response(
+        content=xlsx_bytes,
+        media_type=_XLSX_MIME,
+        headers={Content-Disposition: f'attachment; filename={filename}'},
+    )
+

@@ -13,13 +13,14 @@ import {
 import { useCalendarStore } from "@/store/calendar-store";
 import { validateLocal } from "@/lib/calendar/local-validator";
 import { ExportButton } from "./ExportButton";
+import { ExportCalendarButton } from "./ExportCalendarButton";
 import { MonthGrid } from "./MonthGrid";
 import { ProposalSelector } from "./ProposalSelector";
 import { SaveButton } from "./SaveButton";
 import { WorkerAssignDialog } from "./WorkerAssignDialog";
 import { PartialRecalculateDialog, type PartialRecalculateParams } from "@/features/calendar/PartialRecalculateDialog";
 import { WorkerMappingPanel } from "./WorkerMappingPanel";
-import { callPartialOptimize, PartialOptimizeError } from "@/lib/optimizer/build-partial-payload";
+import { callPartialOptimize, PartialOptimizeError, extendToFullIsoWeeks } from "@/lib/optimizer/build-partial-payload";
 import type { CalendarAssignment } from "@/types/optimizer";
 import { ID, Query } from "appwrite";
 import { account, databases } from "@/lib/auth/appwrite-client";
@@ -131,7 +132,11 @@ export function CalendarView() {
         ...a,
         id: `${a.worker_rut}_${a.date}_${a.shift_id}`,
       }));
-      enterPartialReview(pending, { desde: params.desde, hasta: params.hasta }, params.excludedRuts);
+      const existingDates = new Set(assignments.map((a) => a.date));
+      const { desde: extDesde, hasta: extHasta } = extendToFullIsoWeeks(
+        params.desde, params.hasta, existingDates
+      );
+      enterPartialReview(pending, { desde: extDesde, hasta: extHasta }, params.excludedRuts);
     } catch (e) {
       const msg = e instanceof PartialOptimizeError ? e.message : "Error al recalcular parcial.";
       setPartialError(msg);
@@ -326,6 +331,7 @@ export function CalendarView() {
             {partialLoading ? "Calculando…" : "Recalcular parcial"}
           </button>
           <SaveButton />
+          <ExportCalendarButton />
           <ExportButton />
         </div>
       </div>

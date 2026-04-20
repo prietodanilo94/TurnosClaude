@@ -58,3 +58,39 @@ export async function triggerDownload(proposalId: string): Promise<void> {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
+
+// ─── Calendar export ──────────────────────────────────────────────────────────
+
+export interface CalendarExportPayload {
+  branch_nombre: string;
+  codigo_area: string;
+  year: number;
+  month: number;
+  workers: { slot: number; nombre: string }[];
+  assignments: { slot: number; date: string; inicio: string; fin: string }[];
+}
+
+export async function triggerCalendarDownload(payload: CalendarExportPayload): Promise<void> {
+  const res = await fetch(`${OPTIMIZER_URL}/export/calendar`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    let detail = `Error ${res.status}`;
+    try { detail = (await res.json()).detail ?? detail; } catch { /* ignore */ }
+    throw new ExportError(detail, res.status);
+  }
+
+  const blob = await res.blob();
+  const disposition = res.headers.get("Content-Disposition") ?? "";
+  const filename = extractFilename(disposition, `calendario_${payload.year}${String(payload.month).padStart(2,"0")}.xlsx`);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+

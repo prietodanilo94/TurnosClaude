@@ -47,6 +47,17 @@ export function MonthGrid({
     return map;
   }, [assignments]);
 
+  const slotToWorker = useMemo(() => {
+    const byRut = Object.fromEntries(workers.map((w) => [w.rut, w]));
+    const map: Record<number, (typeof workers)[0]> = {};
+    for (const a of assignments) {
+      if (!map[a.worker_slot] && byRut[a.worker_rut]) {
+        map[a.worker_slot] = byRut[a.worker_rut];
+      }
+    }
+    return map;
+  }, [assignments, workers]);
+
   const violationsByAssignment = useMemo(() => {
     const map: Record<string, Violation[]> = {};
     for (const v of violations) {
@@ -90,6 +101,7 @@ export function MonthGrid({
           violationsByAssignment={violationsByAssignment}
           overlappingIds={overlapping}
           slotByRut={slotByRut}
+          slotToWorker={slotToWorker}
           maxHours={maxHours}
           partialRange={partialRange}
           onSlotClick={onSlotClick}
