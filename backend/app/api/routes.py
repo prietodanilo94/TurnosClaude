@@ -125,32 +125,26 @@ async def optimize(payload: OptimizeRequest):
         if not output.factible:
             continue
 
-        # Descartar asignaciones de días adyacentes al mes (semanas ISO completas)
-        month_asignaciones = _filter_month_assignments(
-            output.asignaciones, payload.month.year, payload.month.month
-        )
-        output_month = dataclasses.replace(output, asignaciones=month_asignaciones)
-
-        fp = _fingerprint(output_month.asignaciones)
+        fp = _fingerprint(output.asignaciones)
         if fp in seen:
             continue
 
         seen.add(fp)
-        last_output = output_month
+        last_output = output
         proposal_mode = ModoProposal.ilp if is_ilp else ModoProposal.greedy
         proposal_id = f"prop_{proposal_mode.value}_{len(proposals) + 1}"
 
-        raw_metrics = compute_metrics(output_month, inp)
+        raw_metrics = compute_metrics(output, inp)
         metrics_out = ProposalMetricsOut(**dataclasses.asdict(raw_metrics))
 
         proposals.append(
             ProposalOut(
                 id=proposal_id,
                 modo=proposal_mode,
-                score=output_month.score,
+                score=output.score,
                 factible=True,
                 dotacion_minima_sugerida=n_min,
-                asignaciones=_build_assignments_out(output_month.asignaciones, rut_to_slot),
+                asignaciones=_build_assignments_out(output.asignaciones, rut_to_slot),
                 metrics=metrics_out,
             )
         )

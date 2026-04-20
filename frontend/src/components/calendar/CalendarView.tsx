@@ -34,7 +34,7 @@ export function CalendarView() {
     branchId, year, month, assignments, workers, shiftCatalog,
     holidays, franjaPorDia, violations, partialReview,
     activeProposalId,
-    moveAssignment, assignWorker, removeAssignment, setViolations,
+    moveAssignment, removeAssignment, setViolations,
     enterPartialReview, exitPartialReview, applyPartialReview, markSaved, setSlotWorker,
   } = useCalendarStore();
 
@@ -106,15 +106,16 @@ export function CalendarView() {
     setDialogAssignment(a);
   }
 
-  function handleAssignWorker(workerRut: string, workerSlot: number) {
+  function handleAssignWorker(workerRut: string, _workerSlot: number) {
     if (!dialogAssignment) return;
+    const targetSlot = dialogAssignment.worker_slot;
+    setSlotWorker(targetSlot, workerRut);
     const makeId = (a: CalendarAssignment) => `${a.worker_rut}_${a.date}_${a.shift_id}`;
     const newAssignments = assignments.map((a) => {
-      if (a.id !== dialogAssignment.id) return a;
-      const updated = { ...a, worker_rut: workerRut, worker_slot: workerSlot };
+      if (a.worker_slot !== targetSlot) return a;
+      const updated = { ...a, worker_rut: workerRut };
       return { ...updated, id: makeId(updated) };
     });
-    assignWorker(dialogAssignment.id, workerRut, workerSlot);
     runValidation(newAssignments);
   }
 
