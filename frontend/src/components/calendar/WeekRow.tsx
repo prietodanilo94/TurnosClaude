@@ -47,6 +47,8 @@ export function WeekRow({
     hoursByWorker[rut] = weeks[week.isoWeek] ?? 0;
   }
 
+  const isPartialWeek = week.days.some((d) => !d.isCurrentMonth);
+
   return (
     <div className="flex gap-2">
       {/* 7 celdas (lun–dom) */}
@@ -73,6 +75,7 @@ export function WeekRow({
         workers={workers}
         slotByRut={slotByRut}
         maxHours={maxHours}
+        isPartialWeek={isPartialWeek}
       />
     </div>
   );

@@ -11,18 +11,24 @@ interface WeekHoursSummaryProps {
   /** slot por rut, para asignar color */
   slotByRut: Record<string, number>;
   maxHours: number;
+  /** true si la semana tiene días fuera del mes (primera o última semana) */
+  isPartialWeek?: boolean;
 }
 
-function statusClass(hours: number, max: number): string {
-  if (hours > max) return "text-red-600 font-semibold";
-  if (hours >= max * 0.95) return "text-amber-600 font-medium";
-  return "text-emerald-700";
-}
+const TARGET = 42;
 
-function statusIcon(hours: number, max: number): string {
-  if (hours > max) return "⚠";
-  if (hours >= max * 0.95) return "~";
-  return "✓";
+function statusInfo(
+  hours: number,
+  isPartial: boolean
+): { icon: string; css: string } {
+  if (isPartial) {
+    // Semana parcial: siempre ~ en ámbar (no se puede exigir 42h)
+    return { icon: "~", css: "text-amber-500 font-medium" };
+  }
+  if (hours > TARGET) return { icon: "⚠", css: "text-red-600 font-semibold" };
+  if (hours >= TARGET) return { icon: "✓", css: "text-emerald-700 font-semibold" };
+  if (hours >= TARGET * 0.92) return { icon: "~", css: "text-amber-600 font-medium" };
+  return { icon: "⚠", css: "text-red-600 font-semibold" };
 }
 
 export function WeekHoursSummary({
@@ -30,7 +36,8 @@ export function WeekHoursSummary({
   hoursByWorker,
   workers,
   slotByRut,
-  maxHours,
+  maxHours: _maxHours,
+  isPartialWeek = false,
 }: WeekHoursSummaryProps) {
   const entries = Object.entries(hoursByWorker)
     .filter(([, h]) => h > 0)
@@ -38,7 +45,9 @@ export function WeekHoursSummary({
 
   return (
     <div className="w-28 shrink-0 bg-white border border-gray-200 rounded-md p-2 text-xs space-y-1">
-      <div className="text-gray-400 font-medium mb-1">Sem {isoWeek}</div>
+      <div className="text-gray-400 font-medium mb-1">
+        Sem {isoWeek}{isPartialWeek && <span className="text-amber-400 ml-1">↗</span>}
+      </div>
       {entries.length === 0 ? (
         <div className="text-gray-300 italic">—</div>
       ) : (
@@ -49,12 +58,13 @@ export function WeekHoursSummary({
           const shortName = worker
             ? worker.nombre_completo.split(" ")[0]
             : `T${slot}`;
+          const { icon, css } = statusInfo(hours, isPartialWeek);
           return (
             <div key={rut} className="flex items-center gap-1">
               <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${color.bg} border ${color.border}`} />
               <span className="truncate text-gray-600 flex-1">{shortName}</span>
-              <span className={statusClass(hours, maxHours)}>
-                {hours.toFixed(0)}h {statusIcon(hours, maxHours)}
+              <span className={css}>
+                {hours.toFixed(0)}h {icon}
               </span>
             </div>
           );

@@ -1,5 +1,6 @@
 import { Query } from "appwrite";
 import { databases } from "@/lib/auth/appwrite-client";
+// Query se sigue usando para workers y constraints
 import { toOptimizerConstraint } from "@/lib/exceptions/to-optimizer-constraint";
 import type { OptimizerConstraint } from "@/lib/exceptions/to-optimizer-constraint";
 import type { Worker, Branch, BranchTypeConfig, ShiftCatalog, Holiday, WorkerConstraint } from "@/types/models";
@@ -56,12 +57,11 @@ export async function buildOptimizePayload(
   const branchDoc = await databases.getDocument(DB, "branches", branchId);
   const branch = branchDoc as unknown as Branch;
 
-  // branch_type_config usa tipo_franja como clave lógica, no $id
-  const configResult = await databases.listDocuments(DB, "branch_type_config", [
-    Query.equal("$id", branch.tipo_franja),
-    Query.limit(1),
-  ]);
-  const config = configResult.documents[0] as unknown as BranchTypeConfig | undefined;
+  // branch_type_config: el $id del documento es el mismo valor que tipo_franja
+  const config = await databases
+    .getDocument(DB, "branch_type_config", branch.tipo_franja)
+    .then((doc) => doc as unknown as BranchTypeConfig)
+    .catch(() => undefined);
 
   const workersResult = await databases.listDocuments(DB, "workers", [
     Query.equal("branch_id", branchId),
