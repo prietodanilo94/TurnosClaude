@@ -55,7 +55,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="min-h-screen flex">
-      <aside className="w-56 bg-gray-900 text-white flex flex-col shrink-0">
+      <aside className="w-44 bg-gray-900 text-white flex flex-col shrink-0">
         <div className="px-4 py-5 border-b border-gray-700">
           <p className="text-sm font-semibold text-white">Shift Optimizer</p>
           <p className="text-xs text-gray-400 mt-0.5">Administrador</p>
