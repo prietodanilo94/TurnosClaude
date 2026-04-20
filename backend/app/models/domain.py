@@ -46,6 +46,10 @@ class SolverInput:
     weeks: List[List[int]]   # lista de semanas; cada semana = lista de day_index
     open_sundays: int        # cantidad de domingos abiertos en el mes
     parametros: Dict         # los Parametros del request, como dict
+    # True si la semana tiene los 7 días dentro del mes (no es semana parcial inicio/fin)
+    complete_week_flags: List[bool] = field(default_factory=list)
+    # worker_rut -> horas trabajadas en el mes anterior para la primera semana parcial
+    first_week_carryover: Dict[str, float] = field(default_factory=dict)
 
 
 @dataclass

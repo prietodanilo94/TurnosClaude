@@ -149,9 +149,11 @@ def _add_weekly_constraints(
     horas_max_minutos = int(round(inp.parametros["horas_semanales_max"] * 60))
     dias_maximos = int(inp.parametros["dias_maximos_consecutivos"])
 
+    n_weeks = len(inp.weeks)
+
     for worker in inp.workers:
         for week_idx, week in enumerate(inp.weeks, start=1):
-            wi = week_idx - 1  # índice 0-based para lookup en partial_context
+            wi = week_idx - 1  # índice 0-based
 
             weekly_assignments = []
             weekly_days = []
@@ -179,10 +181,25 @@ def _add_weekly_constraints(
             else:
                 fixed_h_min = fixed_d = 0
 
-            model.Add(
-                cp_model.LinearExpr.Sum(weekly_assignments)
-                <= max(0, horas_max_minutos - fixed_h_min)
+            # Determinar si aplicar igualdad (solo en optimización completa, no parcial)
+            is_complete = (
+                wi < len(inp.complete_week_flags) and inp.complete_week_flags[wi]
             )
+            carryover_h = inp.first_week_carryover.get(worker.rut, 0.0) if wi == 0 else 0.0
+            carryover_min = int(round(carryover_h * 60))
+            has_carryover = wi == 0 and carryover_h > 0.0
+
+            use_equality = partial_context is None and (is_complete or has_carryover)
+            target = max(0, horas_max_minutos - fixed_h_min - carryover_min)
+
+            if use_equality and weekly_assignments:
+                model.Add(cp_model.LinearExpr.Sum(weekly_assignments) == target)
+            else:
+                model.Add(
+                    cp_model.LinearExpr.Sum(weekly_assignments)
+                    <= max(0, horas_max_minutos - fixed_h_min)
+                )
+
             model.Add(
                 cp_model.LinearExpr.Sum(weekly_days)
                 <= max(0, dias_maximos - fixed_d)

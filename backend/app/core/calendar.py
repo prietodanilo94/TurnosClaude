@@ -116,4 +116,6 @@ def build_solver_input(request: OptimizeRequest) -> SolverInput:
         weeks=weeks,
         open_sundays=open_sundays,
         parametros=request.parametros.model_dump(),
+        complete_week_flags=[len(w) == 7 for w in weeks],
+        first_week_carryover=dict(request.carryover_horas),
     )

@@ -304,6 +304,8 @@ class OptimizeRequest(BaseModel):
     holidays: List[str] = Field(default_factory=list)  # ["YYYY-MM-DD"]
     shift_catalog: List[ShiftDef] = Field(..., min_length=1)
     franja_por_dia: Dict[str, Optional[FranjaDia]]     # keys: lunes..domingo, valor null = cerrado
+    carryover_horas: Dict[str, float] = Field(default_factory=dict)
+    # worker_rut -> horas ya trabajadas en semana ISO de días del mes anterior
     parametros: Parametros = Field(default_factory=Parametros)
 
     @field_validator("franja_por_dia", mode="before")

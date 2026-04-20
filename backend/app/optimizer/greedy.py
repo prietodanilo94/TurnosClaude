@@ -93,6 +93,13 @@ def solve_greedy(
                     .get(worker.rut, {}).get(wi, 0)
                 )
 
+    # Carryover de mes anterior en la primera semana parcial
+    if inp.first_week_carryover:
+        for wix, worker in enumerate(workers):
+            carry = inp.first_week_carryover.get(worker.rut, 0.0)
+            if carry > 0.0:
+                horas_semana[wix][0] += carry
+
     domingos_trabajados = [0] * n_workers
 
     # Domingos máximos por trabajador (§3.8)
