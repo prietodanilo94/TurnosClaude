@@ -13,7 +13,9 @@ interface Props {
 }
 
 export function WorkerMappingPanel({ assignments, workers, onApply, onClose }: Props) {
-  const slots = [...new Set(assignments.map((a) => a.worker_slot))].sort((a, b) => a - b);
+  const slotsSet = new Set<number>();
+  assignments.forEach((a) => slotsSet.add(a.worker_slot));
+  const slots = Array.from(slotsSet).sort((a, b) => a - b);
 
   const initialMapping: Record<number, string> = {};
   for (const slot of slots) {
