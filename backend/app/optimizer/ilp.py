@@ -48,7 +48,7 @@ def _slot_range(day: DayInfo) -> range:
 
 
 def _is_shift_assignable(day: DayInfo, shift: ShiftInfo) -> bool:
-    return shift.inicio_min < day.cierre_min and shift.fin_min > day.apertura_min
+    return shift.inicio_min >= day.apertura_min and shift.fin_min <= day.cierre_min
 
 
 def _build_assignment_vars(

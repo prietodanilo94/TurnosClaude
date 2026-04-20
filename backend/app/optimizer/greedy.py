@@ -21,7 +21,7 @@ def _minimal_shift_cover(
     y extiende la cobertura más lejos.
     Devuelve lista vacía si hay un gap insalvable.
     """
-    candidates = [s for s in shifts if s.inicio_min < cierre and s.fin_min > apertura]
+    candidates = [s for s in shifts if s.inicio_min >= apertura and s.fin_min <= cierre]
 
     cover: List[ShiftInfo] = []
     covered_until = apertura
