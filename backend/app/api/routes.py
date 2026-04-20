@@ -360,6 +360,6 @@ async def export_calendar(payload: CalendarExportRequest) -> Response:
     return Response(
         content=xlsx_bytes,
         media_type=_XLSX_MIME,
-        headers={Content-Disposition: f'attachment; filename={filename}'},
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 

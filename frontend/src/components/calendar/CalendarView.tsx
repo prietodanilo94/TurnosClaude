@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -38,6 +38,20 @@ export function CalendarView() {
     moveAssignment, removeAssignment, setViolations,
     enterPartialReview, exitPartialReview, applyPartialReview, markSaved, setSlotWorker,
   } = useCalendarStore();
+
+  // slotToWorker: mapeado desde assignments REALES (con RUTs reales), no displayAssignments.
+  // En modo revisión, los pendingAssignments tienen RUTs anónimos (worker_N) del solver.
+  const slotToWorker = useMemo(() => {
+    const byRut = Object.fromEntries(workers.map((w) => [w.rut, w]));
+    const map: Record<number, typeof workers[0]> = {};
+    const source = partialReview?.originalAssignments ?? assignments;
+    for (const a of source) {
+      if (!map[a.worker_slot] && byRut[a.worker_rut]) {
+        map[a.worker_slot] = byRut[a.worker_rut];
+      }
+    }
+    return map;
+  }, [assignments, workers, partialReview]);
 
   // En modo revisión: mostrar asignaciones originales fuera del rango + pendientes dentro
   const displayAssignments = partialReview
@@ -346,6 +360,7 @@ export function CalendarView() {
           assignments={displayAssignments}
           workers={workers}
           shifts={shiftCatalog}
+          slotToWorker={slotToWorker}
           violations={partialReview ? [] : violations}
           maxHours={42}
           partialRange={partialReview?.range}
