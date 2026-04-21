@@ -69,14 +69,26 @@ export function CalendarView() {
   const [partialLoading, setPartialLoading] = useState(false);
   const [partialError, setPartialError] = useState<string | null>(null);
   const [showMappingPanel, setShowMappingPanel] = useState(false);
+  const [dragError, setDragError] = useState<string | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
   );
 
+  function sameISOWeek(a: string, b: string): boolean {
+    const getMonday = (d: Date) => {
+      const day = d.getDay() || 7;
+      const mon = new Date(d);
+      mon.setDate(d.getDate() - day + 1);
+      return mon.toISOString().slice(0, 10);
+    };
+    return getMonday(new Date(a + "T12:00:00")) === getMonday(new Date(b + "T12:00:00"));
+  }
+
   function handleDragStart(event: DragStartEvent) {
     const data = event.active.data.current as { assignment: CalendarAssignment } | undefined;
     setDraggingAssignment(data?.assignment ?? null);
+    setDragError(null);
   }
 
   function handleDragEnd(event: DragEndEvent) {
@@ -89,7 +101,20 @@ export function CalendarView() {
     const original = assignments.find((a) => a.id === oldId);
     if (!original || original.date === newDate) return;
 
-    // Proyectar estado post-movimiento para validar antes de persistir
+    if (!sameISOWeek(original.date, newDate)) {
+      setDragError("Solo se puede mover un turno dentro de la misma semana.");
+      return;
+    }
+
+    const workerBusy = assignments.some(
+      (a) => a.id !== oldId && a.worker_rut === original.worker_rut && a.date === newDate
+    );
+    if (workerBusy) {
+      setDragError("El trabajador ya tiene turno ese día.");
+      return;
+    }
+
+    setDragError(null);
     const makeId = (a: CalendarAssignment) => `${a.worker_rut}_${a.date}_${a.shift_id}`;
     const newAssignments = assignments.map((a) => {
       if (a.id !== oldId) return a;
@@ -324,6 +349,11 @@ export function CalendarView() {
         </div>
 
         <div className="flex items-center gap-3">
+          {dragError && (
+            <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-md px-3 py-1.5">
+              <span className="text-amber-700 font-medium text-sm">{dragError}</span>
+            </div>
+          )}
           {violations.length > 0 && (
             <div className="flex items-center gap-1.5 bg-red-50 border border-red-200 rounded-md px-3 py-1.5">
               <span className="text-red-600 font-medium text-sm">
