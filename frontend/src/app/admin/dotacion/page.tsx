@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { ExcelDropZone } from "./components/ExcelDropZone";
 import { PreviewTable } from "./components/PreviewTable";
 import { NewBranchesPanel } from "./components/NewBranchesPanel";
@@ -12,6 +13,7 @@ import type { ParsedRow, ParseError, DotacionDiff, BranchDiff } from "@/types/do
 type Stage = "idle" | "parsed" | "diffed" | "syncing" | "done";
 
 export default function DotacionPage() {
+  const router = useRouter();
   const [stage, setStage] = useState<Stage>("idle");
   const [parsing, setParsing] = useState(false);
   const [pageError, setPageError] = useState<string | null>(null);
@@ -145,15 +147,11 @@ export default function DotacionPage() {
           diff={diff}
           rows={rows}
           onClose={() => setShowDialog(false)}
-          onDone={() => { setShowDialog(false); setStage("done"); }}
+          onDone={() => { setShowDialog(false); router.push("/admin/sucursales"); }}
         />
       )}
 
-      {stage === "done" && (
-        <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800">
-          ✅ Sincronización completada. Podés subir otro archivo o cerrar esta página.
-        </div>
-      )}
+
     </div>
   );
 }
