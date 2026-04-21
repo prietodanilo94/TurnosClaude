@@ -113,12 +113,13 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
   partialReview: null,
 
   init({ branchId, year, month, proposals, workers, shiftCatalog, holidays, franjaPorDia }) {
-    const first = proposals[0] ?? null;
+    const sorted = [...proposals].sort((a, b) => b.score - a.score);
+    const first = sorted[0] ?? null;
     set({
       branchId,
       year,
       month,
-      availableProposals: proposals,
+      availableProposals: sorted,
       activeProposalId: first?.id ?? null,
       assignments: first ? first.asignaciones.map(toCalendarAssignment) : [],
       workers,
