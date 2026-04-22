@@ -298,7 +298,7 @@ Si detectas una contradicción entre dos specs o entre una spec y `v2/docs/`, **
 - Motor de diferencias (`compute-diff.ts`) utiliza `lookupArea()` para inferir automáticamente la sucursal de un empleado a partir de su ID de área sin pedir ayuda del usuario, auto-clasificando branches nuevas que están en el catálogo.
 - La pantalla de UI unificada (`page.tsx`) fue replicada desde v1 y mejorado su `NewBranchesPanel` y `PreviewTable` para soportar las nuevas variables.
 
-### 🔲 Pendiente
+### 🔲 Pendiente (Próximos pasos para mañana)
 
 - Spec 003 — shift-catalog
 - Spec 004 — optimizer
