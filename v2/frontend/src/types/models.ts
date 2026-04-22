@@ -27,7 +27,7 @@ export interface Branch {
   codigo_area: string;
   nombre: string;
   tipo_franja: TipoFranja;
-  clasificacion: Clasificacion;
+  clasificacion?: Clasificacion; // Opcional hasta que sea derivada de AreaCatalog o impuesta por admin
   activa: boolean;
   creada_desde_excel: boolean;
 }
@@ -60,4 +60,12 @@ export interface BranchManager {
   branch_id: string;
   asignado_desde: string;
   asignado_hasta?: string;
+}
+
+export interface SyncReport {
+  creados: number;
+  actualizados: number;
+  desactivados: number;
+  sinCambios: number;
+  errores: string[];
 }

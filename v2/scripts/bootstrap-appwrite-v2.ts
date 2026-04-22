@@ -178,6 +178,105 @@ async function bootstrapBranchManagers(): Promise<void> {
   );
 }
 
+// ─── colección: branches ──────────────────────────────────────────────────────
+
+async function bootstrapBranches(): Promise<void> {
+  console.log("\n[branches]");
+  await ensureCollection("branches", "Branches", [
+    Permission.read(Role.any()), // Todos pueden ver sucursales
+    Permission.create(Role.label("admin")),
+    Permission.update(Role.label("admin")),
+    Permission.delete(Role.label("admin")),
+  ]);
+
+  const attrs = await getExistingAttrKeys("branches");
+  await create("codigo_area", attrs, () => db.createStringAttribute(DB, "branches", "codigo_area", 20, true));
+  await create("nombre", attrs, () => db.createStringAttribute(DB, "branches", "nombre", 255, true));
+  await create("tipo_franja", attrs, () =>
+    db.createEnumAttribute(
+      DB,
+      "branches",
+      "tipo_franja",
+      ["standalone", "autopark", "movicenter", "tqaoev", "sur"],
+      true
+    )
+  );
+  await create("clasificacion", attrs, () =>
+    db.createEnumAttribute(
+      DB,
+      "branches",
+      "clasificacion",
+      ["standalone", "mall_sin_dom", "mall_7d", "mall_autopark"],
+      false // opcional por si no logramos clasificarla en la subida, se hará después
+    )
+  );
+  await create("activa", attrs, () => db.createBooleanAttribute(DB, "branches", "activa", false, true));
+  await create("creada_desde_excel", attrs, () => db.createBooleanAttribute(DB, "branches", "creada_desde_excel", false, true));
+
+  await sleep(2000);
+
+  const idxs = await getExistingIdxKeys("branches");
+  await create("idx_codigo_unique", idxs, () => db.createIndex(DB, "branches", "idx_codigo_unique", IndexType.Unique, ["codigo_area"]));
+}
+
+// ─── colección: workers ───────────────────────────────────────────────────────
+
+async function bootstrapWorkers(): Promise<void> {
+  console.log("\n[workers]");
+  await ensureCollection("workers", "Workers", [
+    Permission.read(Role.label("admin")),
+    Permission.read(Role.label("jefesucursal")),
+    Permission.create(Role.label("admin")),
+    Permission.update(Role.label("admin")),
+    Permission.delete(Role.label("admin")),
+  ]);
+
+  const attrs = await getExistingAttrKeys("workers");
+  await create("rut", attrs, () => db.createStringAttribute(DB, "workers", "rut", 20, true));
+  await create("nombre_completo", attrs, () => db.createStringAttribute(DB, "workers", "nombre_completo", 255, true));
+  await create("branch_id", attrs, () => db.createStringAttribute(DB, "workers", "branch_id", 36, true));
+  await create("area_negocio", attrs, () =>
+    db.createEnumAttribute(
+      DB,
+      "workers",
+      "area_negocio",
+      ["ventas", "postventa"],
+      true
+    )
+  );
+  await create("rotation_group", attrs, () => db.createStringAttribute(DB, "workers", "rotation_group", 50, true));
+  await create("supervisor_nombre", attrs, () => db.createStringAttribute(DB, "workers", "supervisor_nombre", 255, false));
+  await create("activo", attrs, () => db.createBooleanAttribute(DB, "workers", "activo", false, true));
+  await create("ultima_sync_excel", attrs, () => db.createDatetimeAttribute(DB, "workers", "ultima_sync_excel", false));
+
+  await sleep(2000);
+
+  const idxs = await getExistingIdxKeys("workers");
+  await create("idx_rut_unique", idxs, () => db.createIndex(DB, "workers", "idx_rut_unique", IndexType.Unique, ["rut"]));
+  await create("idx_branch", idxs, () => db.createIndex(DB, "workers", "idx_branch", IndexType.Key, ["branch_id"]));
+}
+
+// ─── colección: audit_log ─────────────────────────────────────────────────────
+
+async function bootstrapAuditLog(): Promise<void> {
+  console.log("\n[audit_log]");
+  await ensureCollection("audit_log", "Audit Log", [
+    Permission.read(Role.label("admin")),
+    Permission.create(Role.label("admin")),
+  ]);
+
+  const attrs = await getExistingAttrKeys("audit_log");
+  await create("user_id", attrs, () => db.createStringAttribute(DB, "audit_log", "user_id", 36, true));
+  await create("accion", attrs, () => db.createStringAttribute(DB, "audit_log", "accion", 50, true));
+  await create("entidad", attrs, () => db.createStringAttribute(DB, "audit_log", "entidad", 50, true));
+  await create("metadata", attrs, () => db.createStringAttribute(DB, "audit_log", "metadata", 10000, false));
+
+  await sleep(2000);
+
+  const idxs = await getExistingIdxKeys("audit_log");
+  await create("idx_accion", idxs, () => db.createIndex(DB, "audit_log", "idx_accion", IndexType.Key, ["accion"]));
+}
+
 // ─── main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -191,6 +290,9 @@ async function main() {
   await bootstrapAreaCatalog();
   await bootstrapUsers();
   await bootstrapBranchManagers();
+  await bootstrapBranches();
+  await bootstrapWorkers();
+  await bootstrapAuditLog();
 
   console.log("\n=== bootstrap completado ===\n");
 }

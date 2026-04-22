@@ -269,7 +269,7 @@ Si detectas una contradicción entre dos specs o entre una spec y `v2/docs/`, **
 
 ## Estado actual del proyecto
 
-> Última actualización: 2026-04-22 — v2/chore(auth): spec 006 completa (scaffolding frontend/backend y JWT auth)
+> Última actualización: 2026-04-22 — v2/feat(dotacion): spec 002 completa (parser inteligente y persistencia con area catálogo)
 
 ### ✅ Hecho
 
@@ -291,9 +291,15 @@ Si detectas una contradicción entre dos specs o entre una spec y `v2/docs/`, **
 - Collections adicionales auto-creadas en DB main-v2 (`users` y `branch_managers`).
 - `tests/e2e/auth-v2.spec.ts` creado.
 
+#### Spec 002 — excel-ingestion ✅ COMPLETA (tasks 1–6)
+- Script de base de datos ampliado para incluir `branches`, `workers` y `audit_log` con sus nuevos atributos (`area_negocio`, `rotation_group`, `clasificacion`).
+- Types y dependencias de Sync (models.ts y rut-utils.ts) adaptadas.
+- Parser inteligente (`excel-parser.ts`) que ahora lee la columna "Área de Negocio" y la normaliza a minúsculas.
+- Motor de diferencias (`compute-diff.ts`) utiliza `lookupArea()` para inferir automáticamente la sucursal de un empleado a partir de su ID de área sin pedir ayuda del usuario, auto-clasificando branches nuevas que están en el catálogo.
+- La pantalla de UI unificada (`page.tsx`) fue replicada desde v1 y mejorado su `NewBranchesPanel` y `PreviewTable` para soportar las nuevas variables.
+
 ### 🔲 Pendiente
 
-- Spec 002 — excel-ingestion
 - Spec 003 — shift-catalog
 - Spec 004 — optimizer
 - Spec 005 — calendar-ui
