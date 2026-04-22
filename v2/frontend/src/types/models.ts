@@ -44,3 +44,20 @@ export interface Worker {
   activo: boolean;
   ultima_sync_excel?: string;
 }
+
+export interface User {
+  $id: string;
+  email: string;
+  nombre_completo: string;
+  rut?: string;
+  rol: Rol;
+  activo: boolean;
+}
+
+export interface BranchManager {
+  $id: string;
+  user_id: string;
+  branch_id: string;
+  asignado_desde: string;
+  asignado_hasta?: string;
+}

@@ -269,7 +269,7 @@ Si detectas una contradicción entre dos specs o entre una spec y `v2/docs/`, **
 
 ## Estado actual del proyecto
 
-> Última actualización: 2026-04-22 — v2/chore(area-catalog): spec 001 completa
+> Última actualización: 2026-04-22 — v2/chore(auth): spec 006 completa (scaffolding frontend/backend y JWT auth)
 
 ### ✅ Hecho
 
@@ -282,9 +282,17 @@ Si detectas una contradicción entre dos specs o entre una spec y `v2/docs/`, **
 - `v2/frontend/src/lib/area-catalog.ts` — `lookupArea()` + `getRotationGroup()`
 - `v2/backend/app/services/area_catalog.py` — `lookup_area()` + `get_rotation_group()`
 
+#### Spec 006 — auth ✅ COMPLETA (tasks 1–7)
+- Scaffolding de Frontend (Next.js) copiado de v1 y adaptado con puerto 3011.
+- Scaffolding de Backend preparado (fastapi, uvicorn, config enviroment).
+- `appwrite-client.ts`, `use-current-user.ts` (hooks base para React).
+- Layouts de roles protegidos por middleware (`/admin`, `/jefe`).
+- `deps.py` en FastAPI con verificación de appwrite session (JWT validation).
+- Collections adicionales auto-creadas en DB main-v2 (`users` y `branch_managers`).
+- `tests/e2e/auth-v2.spec.ts` creado.
+
 ### 🔲 Pendiente
 
-- Spec 006 — auth
 - Spec 002 — excel-ingestion
 - Spec 003 — shift-catalog
 - Spec 004 — optimizer

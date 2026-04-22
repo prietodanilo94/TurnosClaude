@@ -127,6 +127,57 @@ async function bootstrapAreaCatalog(): Promise<void> {
   );
 }
 
+// ─── colección: users ────────────────────────────────────────────────────────
+
+async function bootstrapUsers(): Promise<void> {
+  console.log("\n[users]");
+  await ensureCollection("users", "Users", [
+    Permission.read(Role.label("admin")),
+    Permission.create(Role.label("admin")),
+    Permission.update(Role.label("admin")),
+    Permission.delete(Role.label("admin")),
+  ]);
+
+  const attrs = await getExistingAttrKeys("users");
+  await create("email", attrs, () => db.createEmailAttribute(DB, "users", "email", true));
+  await create("nombre_completo", attrs, () => db.createStringAttribute(DB, "users", "nombre_completo", 255, true));
+  await create("rut", attrs, () => db.createStringAttribute(DB, "users", "rut", 20, false));
+  await create("rol", attrs, () => db.createEnumAttribute(DB, "users", "rol", ["admin", "jefe_sucursal"], true));
+  await create("activo", attrs, () => db.createBooleanAttribute(DB, "users", "activo", false, true));
+
+  await sleep(2000);
+
+  const idxs = await getExistingIdxKeys("users");
+  await create("idx_email_unique", idxs, () => db.createIndex(DB, "users", "idx_email_unique", IndexType.Unique, ["email"]));
+  await create("idx_rol", idxs, () => db.createIndex(DB, "users", "idx_rol", IndexType.Key, ["rol"]));
+}
+
+// ─── colección: branch_managers ─────────────────────────────────────────────
+
+async function bootstrapBranchManagers(): Promise<void> {
+  console.log("\n[branch_managers]");
+  await ensureCollection("branch_managers", "Branch Managers", [
+    Permission.read(Role.label("admin")),
+    Permission.read(Role.label("jefesucursal")),
+    Permission.create(Role.label("admin")),
+    Permission.update(Role.label("admin")),
+    Permission.delete(Role.label("admin")),
+  ]);
+
+  const attrs = await getExistingAttrKeys("branch_managers");
+  await create("user_id", attrs, () => db.createStringAttribute(DB, "branch_managers", "user_id", 36, true));
+  await create("branch_id", attrs, () => db.createStringAttribute(DB, "branch_managers", "branch_id", 36, true));
+  await create("asignado_desde", attrs, () => db.createDatetimeAttribute(DB, "branch_managers", "asignado_desde", true));
+  await create("asignado_hasta", attrs, () => db.createDatetimeAttribute(DB, "branch_managers", "asignado_hasta", false));
+
+  await sleep(2000);
+
+  const idxs = await getExistingIdxKeys("branch_managers");
+  await create("idx_user_branch_unique", idxs, () =>
+    db.createIndex(DB, "branch_managers", "idx_user_branch_unique", IndexType.Unique, ["user_id", "branch_id"])
+  );
+}
+
 // ─── main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -138,6 +189,8 @@ async function main() {
 
   await ensureDatabase();
   await bootstrapAreaCatalog();
+  await bootstrapUsers();
+  await bootstrapBranchManagers();
 
   console.log("\n=== bootstrap completado ===\n");
 }
