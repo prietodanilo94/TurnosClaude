@@ -1,0 +1,12 @@
+# Shift Optimizer v2
+node_modules/
+dist/
+.next/
+*.env
+!.env.example
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+*.tsbuildinfo
+test-results/
