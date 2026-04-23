@@ -251,6 +251,8 @@ cd /opt/shift-optimizer && git pull && cd v2 && docker compose up -d --build
 
 ---
 
+**REGLA OBLIGATORIA**: DespuÃ©s de cada commit + push, sincronizar el servidor (`ssh antigravity`) con `git pull` y recrear los servicios necesarios para v2. Si el servidor estÃ¡ "dirty" (working tree con cambios locales), resolverlo antes del pull y dejar documentado en `v2/CLAUDE.md` quÃ© se hizo y por quÃ©.
+
 ## Estilo de respuestas
 
 - Respuestas cortas y densas. Sin intro ni resumen final.
@@ -270,6 +272,7 @@ Si detectas una contradicción entre dos specs o entre una spec y `v2/docs/`, **
 ## Estado actual del proyecto
 
 > Update 2026-04-23: spec 004 en progreso; backend optimizer scaffolded, suite `tests/test_optimizer_vm7.py` en verde, indexacion ILP alineada con `weeks` 0-based y JWT Appwrite en v2 ajustado a `X-Appwrite-JWT`.
+> Update 2026-04-23: v2 ya tiene `frontend/Dockerfile`, `backend/Dockerfile` y `v2/docker-compose.yml`; el deploy documentado ahora existe como configuracion real del repo.
 
 > Última actualización: 2026-04-23 — v2/feat(shift-catalog): spec 003 completa (catálogo de turnos poblado y tipado)
 
@@ -308,7 +311,6 @@ Si detectas una contradicción entre dos specs o entre una spec y `v2/docs/`, **
 
 ### 🔲 Pendiente (Próximos pasos para mañana)
 
-- Spec 004 — optimizer
 - Spec 005 — calendar-ui
 - Spec 007 — overrides
 - Spec 008 — branch-edit
@@ -323,6 +325,8 @@ Si detectas una contradicción entre dos specs o entre una spec y `v2/docs/`, **
 - `tests/test_optimizer_vm7.py` cubre 6 casos de V_M7 y actualmente pasa completa.
 - Se corrigio la inconsistencia de indexacion entre `days` y `weeks` en el ILP.
 - Validacion JWT de Appwrite alineada a `X-Appwrite-JWT` en v2.
+- Pendiente operativo: sincronizar `/opt/shift-optimizer` en servidor y reconstruir contenedores para alinear el entorno remoto con `origin/main`.
+- Infra de despliegue agregada: `v2/docker-compose.yml`, `v2/frontend/Dockerfile`, `v2/backend/Dockerfile`.
 
 ### Infraestructura
 

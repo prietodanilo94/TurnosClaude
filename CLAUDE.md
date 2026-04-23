@@ -120,6 +120,8 @@ docker compose build
 
 **REGLA OBLIGATORIA**: Después de hacer commit y push, actualizar la sección "Estado actual del proyecto" en este archivo (`CLAUDE.md`) para reflejar exactamente qué tasks quedaron completas. Esto aplica siempre, sin excepción.
 
+**REGLA OBLIGATORIA**: DespuÃ©s de cada commit + push, sincronizar el servidor (`ssh antigravity`) con `git pull` y recrear los servicios necesarios. Si el servidor estÃ¡ "dirty" (working tree con cambios locales), resolverlo antes del pull y dejar documentado en `CLAUDE.md` quÃ© se hizo y por quÃ©.
+
 ## Estilo de respuestas
 
 - Respuestas cortas y densas. Sin intro ni resumen final.
