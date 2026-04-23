@@ -1,4 +1,5 @@
 import type { CalendarAssignment, ShiftDef } from "@/types/optimizer";
+import { getShiftWindow } from "./shift-utils";
 
 export interface OverlapPair {
   a: CalendarAssignment;
@@ -38,10 +39,14 @@ export function detectOverlaps(
         const sj = shiftMap[group[j].shift_id];
         if (!si || !sj) continue;
 
-        const startI = parseTime(si.inicio);
-        const endI = parseTime(si.fin);
-        const startJ = parseTime(sj.inicio);
-        const endJ = parseTime(sj.fin);
+        const windowI = getShiftWindow(si, group[i].date);
+        const windowJ = getShiftWindow(sj, group[j].date);
+        if (!windowI || !windowJ) continue;
+
+        const startI = parseTime(windowI.inicio);
+        const endI = parseTime(windowI.fin);
+        const startJ = parseTime(windowJ.inicio);
+        const endJ = parseTime(windowJ.fin);
 
         if (startI < endJ && startJ < endI) {
           overlaps.push({ a: group[i], b: group[j], date: group[i].date });

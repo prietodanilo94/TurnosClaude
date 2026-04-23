@@ -24,6 +24,7 @@ import { callPartialOptimize, PartialOptimizeError, extendToFullIsoWeeks } from 
 import type { CalendarAssignment } from "@/types/optimizer";
 import { ID, Query } from "appwrite";
 import { account, databases } from "@/lib/auth/appwrite-client";
+import { getShiftWindow } from "@/lib/calendar/shift-utils";
 
 const MONTH_NAMES = [
   "", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -209,7 +210,7 @@ export function CalendarView() {
 
     // Persistir en Appwrite
     if (activeProposalId) {
-      const DB = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID ?? "main";
+      const DB = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID ?? "main-v2";
       const rutToId = new Map(workers.map((w) => [w.rut, w.$id]));
 
       try {
@@ -268,7 +269,7 @@ export function CalendarView() {
     try {
       const authUser = await account.get();
       await databases.createDocument(
-        process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID ?? "main",
+        process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID ?? "main-v2",
         "audit_log",
         ID.unique(),
         {
@@ -302,6 +303,7 @@ export function CalendarView() {
   const dragShift = draggingAssignment
     ? shiftCatalog.find((s) => s.id === draggingAssignment.shift_id)
     : null;
+  const dragWindow = draggingAssignment ? getShiftWindow(dragShift, draggingAssignment.date) : null;
   const dragLabel = dragWorker
     ? dragWorker.nombre_completo.split(" ").slice(0, 2).join(" ")
     : draggingAssignment
@@ -401,8 +403,8 @@ export function CalendarView() {
           {draggingAssignment && (
             <div className="rounded-md border px-2 py-1 text-xs leading-tight bg-white border-gray-400 shadow-xl opacity-95 w-32 pointer-events-none">
               <div className="font-medium truncate">{dragLabel}</div>
-              {dragShift && (
-                <div className="opacity-75">{dragShift.inicio}–{dragShift.fin}</div>
+              {dragWindow && (
+                <div className="opacity-75">{dragWindow.inicio}-{dragWindow.fin}</div>
               )}
             </div>
           )}

@@ -2,7 +2,7 @@ import { Query } from "appwrite";
 import { databases } from "@/lib/auth/appwrite-client";
 import type { ShiftV2 } from "@/types/models";
 
-const DB_ID = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!;
+const DB_ID = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID ?? "main-v2";
 const COLL_ID = "shift_catalog_v2";
 
 /**

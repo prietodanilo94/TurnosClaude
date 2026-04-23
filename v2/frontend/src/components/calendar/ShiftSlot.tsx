@@ -5,6 +5,7 @@ import { CSS } from "@dnd-kit/utilities";
 import type { CalendarAssignment, ShiftDef, Violation } from "@/types/optimizer";
 import type { Worker } from "@/types/models";
 import { workerColor, UNASSIGNED_COLOR } from "./worker-colors";
+import { getShiftWindow } from "@/lib/calendar/shift-utils";
 
 interface ShiftSlotProps {
   assignment: CalendarAssignment;
@@ -42,8 +43,9 @@ export function ShiftSlot({
     ? worker.nombre_completo.split(" ").slice(0, 2).join(" ")
     : `Trabajador ${assignment.worker_slot}`;
 
-  const timeRange = shift
-    ? `${shift.inicio}–${shift.fin}`
+  const window = getShiftWindow(shift, assignment.date);
+  const timeRange = window
+    ? `${window.inicio}-${window.fin}`
     : assignment.shift_id;
 
   const style = {

@@ -34,7 +34,7 @@ export interface CalendarState {
   workers: Worker[];
   shiftCatalog: ShiftDef[];
   holidays: string[];
-  franjaPorDia: Record<string, { apertura: string; cierre: string } | null>;
+  franjaPorDia: Record<string, { apertura: string | null; cierre: string | null } | null>;
   violations: Violation[];
   dirty: boolean;
   partialReview: PartialReviewState | null;
@@ -46,7 +46,7 @@ export interface CalendarState {
     workers: Worker[];
     shiftCatalog: ShiftDef[];
     holidays: string[];
-    franjaPorDia: Record<string, { apertura: string; cierre: string } | null>;
+    franjaPorDia: Record<string, { apertura: string | null; cierre: string | null } | null>;
   }) => void;
   selectProposal: (proposalId: string) => void;
   moveAssignment: (assignmentId: string, newDate: string) => void;

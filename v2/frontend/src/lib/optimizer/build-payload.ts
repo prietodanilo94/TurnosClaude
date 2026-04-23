@@ -1,9 +1,12 @@
 import { Query } from "appwrite";
 import { databases } from "@/lib/auth/appwrite-client";
+import { getShiftsForGroup } from "@/lib/shift-catalog";
+import { getRotationGroup, lookupArea } from "@/lib/area-catalog";
 import type { OptimizerConstraint } from "@/lib/exceptions/to-optimizer-constraint";
-import type { Worker, Branch, BranchTypeConfig, Holiday } from "@/types/models";
+import type { Branch, ShiftV2, Worker } from "@/types/models";
+import type { ShiftDef } from "@/types/optimizer";
 
-const DB = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID ?? "main";
+const DB = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID ?? "main-v2";
 
 export interface WorkerInputPayload {
   rut: string;
@@ -18,66 +21,106 @@ export interface OptimizePayload {
     nombre: string;
     tipo_franja: string;
   };
+  rotation_group: string;
   month: { year: number; month: number };
   workers: WorkerInputPayload[];
   holidays: string[];
-  shift_catalog: {
-    id: string;
-    inicio: string;
-    fin: string;
-    duracion_minutos: number;
-    descuenta_colacion: boolean;
-  }[];
+  shift_catalog: ShiftDef[];
   franja_por_dia: Record<string, { apertura: string | null; cierre: string | null } | null>;
   carryover_horas: Record<string, number>;
   parametros?: Record<string, unknown>;
 }
 
-export function buildWorkersForPayload(workers: Worker[]): WorkerInputPayload[] {
-  return workers.map((_, i) => ({
-    rut: `worker_${i + 1}`,
-    nombre: `Trabajador ${i + 1}`,
-    constraints: [] as OptimizerConstraint[],
-  }));
+function parseTime(hhmm: string): number {
+  const [h, m] = hhmm.split(":").map(Number);
+  return h * 60 + m;
 }
 
-function generateFreeShifts(
-  franjaPorDia: Record<string, { apertura: string | null; cierre: string | null } | null>
-): OptimizePayload["shift_catalog"] {
-  const MIN_DURATION = 240;
-  const MAX_DURATION = 600;
+function minutesToTime(minutes: number): string {
+  return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+}
 
-  let minApertura = Infinity;
-  let maxCierre = 0;
+function deriveRotationGroup(workers: Worker[], branch: Branch): string {
+  const existing = Array.from(
+    new Set(workers.map((w) => w.rotation_group).filter((v): v is string => Boolean(v)))
+  );
 
-  for (const franja of Object.values(franjaPorDia)) {
-    if (!franja?.apertura || !franja?.cierre) continue;
-    const [ah, am] = franja.apertura.split(":").map(Number);
-    const [ch, cm] = franja.cierre.split(":").map(Number);
-    minApertura = Math.min(minApertura, ah * 60 + am);
-    maxCierre = Math.max(maxCierre, ch * 60 + cm);
+  if (existing.length === 1) return existing[0];
+  if (existing.length > 1) {
+    throw new Error(
+      `La sucursal tiene multiples rotation_group activos (${existing.join(", ")}).`
+    );
   }
 
-  if (!isFinite(minApertura) || maxCierre === 0) return [];
+  const area = lookupArea(branch.codigo_area);
+  const areaNegocios = Array.from(
+    new Set(workers.map((w) => w.area_negocio).filter((v): v is "ventas" | "postventa" => Boolean(v)))
+  );
+  const areaNegocio = areaNegocios[0] ?? "ventas";
 
-  const toTime = (minutes: number) =>
-    `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+  if (!area) {
+    throw new Error(
+      `No se pudo inferir el rotation_group para area ${branch.codigo_area}.`
+    );
+  }
 
-  const shifts: OptimizePayload["shift_catalog"] = [];
-  for (let start = minApertura; start + MIN_DURATION <= maxCierre; start += 30) {
-    const endLimit = Math.min(maxCierre, start + MAX_DURATION);
-    for (let end = start + MIN_DURATION; end <= endLimit; end += 30) {
-      shifts.push({
-        id: `T${toTime(start).replace(":", "")}_${toTime(end).replace(":", "")}`,
-        inicio: toTime(start),
-        fin: toTime(end),
-        duracion_minutos: end - start,
-        descuenta_colacion: false,
-      });
+  return getRotationGroup(area.clasificacion, areaNegocio, area.comuna);
+}
+
+function toShiftDef(shift: ShiftV2): ShiftDef {
+  return {
+    id: shift.$id,
+    nombre_display: shift.nombre_display,
+    rotation_group: shift.rotation_group,
+    nombre_turno: shift.nombre_turno,
+    horario_por_dia: shift.horario_por_dia,
+    descuenta_colacion: shift.descuenta_colacion,
+    dias_aplicables: shift.dias_aplicables,
+  };
+}
+
+function buildFranjaPorDia(
+  shifts: ShiftDef[]
+): Record<string, { apertura: string | null; cierre: string | null } | null> {
+  const weekdays = [
+    "lunes",
+    "martes",
+    "miercoles",
+    "jueves",
+    "viernes",
+    "sabado",
+    "domingo",
+  ];
+
+  const franja: Record<string, { apertura: string | null; cierre: string | null } | null> = {};
+
+  for (const day of weekdays) {
+    const windows = shifts
+      .map((shift) => shift.horario_por_dia[day])
+      .filter((window): window is { inicio: string; fin: string } => Boolean(window));
+
+    if (windows.length === 0) {
+      franja[day] = null;
+      continue;
     }
+
+    const apertura = Math.min(...windows.map((w) => parseTime(w.inicio)));
+    const cierre = Math.max(...windows.map((w) => parseTime(w.fin)));
+    franja[day] = {
+      apertura: minutesToTime(apertura),
+      cierre: minutesToTime(cierre),
+    };
   }
 
-  return shifts;
+  return franja;
+}
+
+export function buildWorkersForPayload(workers: Worker[]): WorkerInputPayload[] {
+  return workers.map((worker) => ({
+    rut: worker.rut,
+    nombre: worker.nombre_completo,
+    constraints: [],
+  }));
 }
 
 export async function buildOptimizePayload(
@@ -88,11 +131,6 @@ export async function buildOptimizePayload(
   const branchDoc = await databases.getDocument(DB, "branches", branchId);
   const branch = branchDoc as unknown as Branch;
 
-  const config = await databases
-    .getDocument(DB, "branch_type_config", branch.tipo_franja)
-    .then((doc) => doc as unknown as BranchTypeConfig)
-    .catch(() => undefined);
-
   const workersResult = await databases.listDocuments(DB, "workers", [
     Query.equal("branch_id", branchId),
     Query.equal("activo", true),
@@ -100,17 +138,25 @@ export async function buildOptimizePayload(
   ]);
   const workers = workersResult.documents as unknown as Worker[];
 
+  if (workers.length === 0) {
+    throw new Error("La sucursal no tiene trabajadores activos.");
+  }
+
   const holidaysResult = await databases.listDocuments(DB, "holidays", [
     Query.equal("anio", year),
     Query.limit(50),
   ]);
-  const holidays = (holidaysResult.documents as unknown as Holiday[]).map((h) => h.fecha);
+  const holidays = (holidaysResult.documents as unknown as Array<{ fecha: string }>).map((h) =>
+    h.fecha.slice(0, 10)
+  );
 
-  const franja_por_dia = (() => {
-    const raw = config?.franja_por_dia;
-    if (!raw) return {} as OptimizePayload["franja_por_dia"];
-    return (typeof raw === "string" ? JSON.parse(raw) : raw) as OptimizePayload["franja_por_dia"];
-  })();
+  const rotation_group = deriveRotationGroup(workers, branch);
+  const shiftCatalogV2 = await getShiftsForGroup(rotation_group);
+  const shift_catalog = shiftCatalogV2.map(toShiftDef);
+
+  if (shift_catalog.length === 0) {
+    throw new Error(`No hay turnos configurados para rotation_group ${rotation_group}.`);
+  }
 
   return {
     branch: {
@@ -119,11 +165,16 @@ export async function buildOptimizePayload(
       nombre: branch.nombre,
       tipo_franja: branch.tipo_franja,
     },
+    rotation_group,
     month: { year, month },
     workers: buildWorkersForPayload(workers),
     holidays,
-    shift_catalog: generateFreeShifts(franja_por_dia),
-    franja_por_dia,
+    shift_catalog,
+    franja_por_dia: buildFranjaPorDia(shift_catalog),
     carryover_horas: {},
+    parametros: {
+      modo: "ilp",
+      num_propuestas: 3,
+    },
   };
 }

@@ -10,14 +10,14 @@ import { ID } from "appwrite";
 type SaveState = "idle" | "validating" | "saving" | "success" | "error";
 
 const OPTIMIZER_URL = process.env.NEXT_PUBLIC_OPTIMIZER_URL ?? "http://localhost:8000";
-const DATABASE_ID = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID ?? "main";
+const DATABASE_ID = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID ?? "main-v2";
 const PROPOSALS_COLLECTION = "proposals";
 const ASSIGNMENTS_COLLECTION = "assignments";
 
 export function SaveButton() {
   const {
     dirty, violations, assignments, workers, shiftCatalog,
-    holidays, franjaPorDia, activeProposalId, availableProposals, branchId, year, month,
+    holidays, franjaPorDia, activeProposalId, branchId, year, month,
     setViolations, markSaved,
   } = useCalendarStore();
 
@@ -37,8 +37,9 @@ export function SaveButton() {
         id: branchId,
         codigo_area: branchId,
         nombre: "Sucursal",
-        tipo_franja: "autopark",
+        tipo_franja: shiftCatalog[0]?.rotation_group ?? "standalone",
       },
+      rotation_group: shiftCatalog[0]?.rotation_group ?? "V_SA",
       month: { year, month },
       workers: workers.map((w) => ({
         rut: w.rut,

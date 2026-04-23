@@ -1,9 +1,10 @@
-import type { CalendarAssignment } from "@/types/optimizer";
+import type { CalendarAssignment, ShiftDef } from "@/types/optimizer";
+import { getShiftDurationMinutes } from "./shift-utils";
 
-export interface ShiftLike {
-  id: string;
-  duracion_minutos: number;
-}
+export type ShiftLike = Pick<
+  ShiftDef,
+  "id" | "horario_por_dia" | "descuenta_colacion" | "dias_aplicables"
+>;
 
 export type HoursMap = Record<string, Record<number, number>>;
 
@@ -19,15 +20,15 @@ export function calculateHours(
   assignments: CalendarAssignment[],
   shifts: ShiftLike[]
 ): HoursMap {
-  const shiftMinutes: Record<string, number> = {};
+  const shiftById: Record<string, ShiftLike> = {};
   for (const s of shifts) {
-    shiftMinutes[s.id] = s.duracion_minutos;
+    shiftById[s.id] = s;
   }
 
   const result: HoursMap = {};
 
   for (const a of assignments) {
-    const minutes = shiftMinutes[a.shift_id] ?? 0;
+    const minutes = getShiftDurationMinutes(shiftById[a.shift_id], a.date);
     const hours = minutes / 60;
     const week = isoWeek(a.date);
 

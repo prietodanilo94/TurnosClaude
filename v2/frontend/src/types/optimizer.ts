@@ -1,9 +1,11 @@
 export interface ShiftDef {
   id: string;
-  inicio: string;
-  fin: string;
-  duracion_minutos: number;
+  nombre_display?: string;
+  rotation_group?: string;
+  nombre_turno?: string;
+  horario_por_dia: Record<string, { inicio: string; fin: string }>;
   descuenta_colacion: boolean;
+  dias_aplicables: string[];
 }
 
 export interface OptimizerAssignment {

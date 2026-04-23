@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import type { CalendarAssignment, ShiftDef } from "@/types/optimizer";
 import type { Worker } from "@/types/models";
 import { workerColor } from "./worker-colors";
+import { getShiftWindow } from "@/lib/calendar/shift-utils";
 
 interface WorkerAssignDialogProps {
   assignment: CalendarAssignment;
@@ -37,6 +38,8 @@ export function WorkerAssignDialog({
     if (e.target === overlayRef.current) onClose();
   }
 
+  const shiftWindow = getShiftWindow(shift, assignment.date);
+
   return (
     <div
       ref={overlayRef}
@@ -49,7 +52,7 @@ export function WorkerAssignDialog({
           <div>
             <p className="text-sm font-semibold text-gray-900">Asignar trabajador</p>
             <p className="text-xs text-gray-500">
-              {assignment.date} — {shift ? `${shift.inicio}–${shift.fin}` : assignment.shift_id}
+              {assignment.date} — {shiftWindow ? `${shiftWindow.inicio}-${shiftWindow.fin}` : assignment.shift_id}
             </p>
           </div>
           <button

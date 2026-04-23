@@ -5,8 +5,9 @@ import { Query } from "appwrite";
 import { databases } from "@/lib/auth/appwrite-client";
 import { useCalendarStore } from "@/store/calendar-store";
 import { triggerCalendarDownload, ExportError } from "@/lib/export/trigger-download";
+import { getShiftWindow } from "@/lib/calendar/shift-utils";
 
-const DB = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID ?? "main";
+const DB = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID ?? "main-v2";
 
 export function ExportCalendarButton() {
   const branchId     = useCalendarStore((s) => s.branchId);
@@ -49,8 +50,9 @@ export function ExportCalendarButton() {
       const assignmentsList = assignments
         .map((a) => {
           const shift = shiftMap[a.shift_id];
-          if (!shift) return null;
-          return { slot: a.worker_slot, date: a.date, inicio: shift.inicio, fin: shift.fin };
+          const window = getShiftWindow(shift, a.date);
+          if (!window) return null;
+          return { slot: a.worker_slot, date: a.date, inicio: window.inicio, fin: window.fin };
         })
         .filter((x): x is NonNullable<typeof x> => x !== null);
 

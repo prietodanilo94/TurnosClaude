@@ -1,6 +1,7 @@
 import type { CalendarAssignment, ShiftDef, Violation } from "@/types/optimizer";
 import type { Worker, WorkerConstraint } from "@/types/models";
 import { isoWeek } from "./hours-calculator";
+import { getShiftDurationMinutes, getShiftWindow, weekdayKey } from "./shift-utils";
 
 interface ValidateContext {
   assignments: CalendarAssignment[];
@@ -12,30 +13,27 @@ interface ValidateContext {
   diasMaximosConsecutivos: number;
   domingoLibresMinimos: number;
   coberturaminima: number;
-  franjaPorDia: Record<string, { apertura: string; cierre: string } | null>;
+  franjaPorDia: Record<string, { apertura: string | null; cierre: string | null } | null>;
 }
 
-function parseTime(hhmm: string): number {
+function parseTime(hhmm: string | null): number {
+  if (!hhmm) return 0;
   const [h, m] = hhmm.split(":").map(Number);
   return h * 60 + m;
 }
 
-function dayOfWeek(dateStr: string): string {
-  const days = ["domingo", "lunes", "martes", "miercoles", "jueves", "viernes", "sabado"];
-  return days[new Date(`${dateStr}T12:00:00`).getDay()];
-}
-
 function checkHorasSemanales(ctx: ValidateContext): Violation[] {
   const violations: Violation[] = [];
-  const shiftMin: Record<string, number> = {};
-  for (const s of ctx.shiftCatalog) shiftMin[s.id] = s.duracion_minutos;
+  const shiftMap: Record<string, ShiftDef> = {};
+  for (const s of ctx.shiftCatalog) shiftMap[s.id] = s;
 
   const horasPorRutSemana: Record<string, Record<number, number>> = {};
   for (const a of ctx.assignments) {
     const wk = isoWeek(a.date);
     if (!horasPorRutSemana[a.worker_rut]) horasPorRutSemana[a.worker_rut] = {};
     horasPorRutSemana[a.worker_rut][wk] =
-      (horasPorRutSemana[a.worker_rut][wk] ?? 0) + (shiftMin[a.shift_id] ?? 0) / 60;
+      (horasPorRutSemana[a.worker_rut][wk] ?? 0) +
+      getShiftDurationMinutes(shiftMap[a.shift_id], a.date) / 60;
   }
 
   for (const [rut, weeks] of Object.entries(horasPorRutSemana)) {
@@ -82,7 +80,7 @@ function checkDiasSemanales(ctx: ValidateContext): Violation[] {
 function checkDomingosLibres(ctx: ValidateContext): Violation[] {
   const violations: Violation[] = [];
   const domingosDates = ctx.assignments
-    .filter((a) => dayOfWeek(a.date) === "domingo")
+    .filter((a) => weekdayKey(a.date) === "domingo")
     .map((a) => a.date);
   const allDomingos = Array.from(new Set(domingosDates)).sort();
   const openDomingos = allDomingos.length;
@@ -93,7 +91,7 @@ function checkDomingosLibres(ctx: ValidateContext): Violation[] {
   const workedByRut: Record<string, number> = {};
 
   for (const a of ctx.assignments) {
-    if (dayOfWeek(a.date) === "domingo") {
+    if (weekdayKey(a.date) === "domingo") {
       workedByRut[a.worker_rut] = (workedByRut[a.worker_rut] ?? 0) + 1;
     }
   }
@@ -123,7 +121,7 @@ function checkCobertura(ctx: ValidateContext): Violation[] {
   }
 
   for (const [date, assigns] of Object.entries(assignsByDate)) {
-    const dow = dayOfWeek(date);
+    const dow = weekdayKey(date);
     const franja = ctx.franjaPorDia[dow];
     if (!franja) continue;
 
@@ -132,9 +130,9 @@ function checkCobertura(ctx: ValidateContext): Violation[] {
 
     for (let t = apertura; t < cierre; t += 30) {
       const count = assigns.filter((a) => {
-        const s = shiftMap[a.shift_id];
-        if (!s) return false;
-        return parseTime(s.inicio) <= t && t < parseTime(s.fin);
+        const window = getShiftWindow(shiftMap[a.shift_id], a.date);
+        if (!window) return false;
+        return parseTime(window.inicio) <= t && t < parseTime(window.fin);
       }).length;
 
       if (count < ctx.coberturaminima) {
@@ -194,11 +192,11 @@ function checkConstraints(ctx: ValidateContext): Violation[] {
       }
     }
 
-    if ((prohibDaysByRut[a.worker_rut] ?? []).includes(dayOfWeek(a.date))) {
+    if ((prohibDaysByRut[a.worker_rut] ?? []).includes(weekdayKey(a.date))) {
       violations.push({
         tipo: "dia_prohibido_asignado",
         worker_rut: a.worker_rut,
-        detalle: `${a.worker_rut} tiene prohibido el ${dayOfWeek(a.date)}`,
+        detalle: `${a.worker_rut} tiene prohibido el ${weekdayKey(a.date)}`,
       });
     }
 

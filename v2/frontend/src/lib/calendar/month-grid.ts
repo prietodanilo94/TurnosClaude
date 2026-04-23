@@ -56,7 +56,7 @@ function isoDow(d: Date): number {
 export function buildMonthGrid(
   year: number,
   month: number,
-  franjaPorDia: Record<string, { apertura: string; cierre: string } | null>,
+  franjaPorDia: Record<string, { apertura: string | null; cierre: string | null } | null>,
   holidays: string[]
 ): WeekInGrid[] {
   const holidaySet = new Set(holidays);

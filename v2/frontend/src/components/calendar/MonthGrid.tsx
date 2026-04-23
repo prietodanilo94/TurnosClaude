@@ -10,7 +10,7 @@ import { WeekRow } from "./WeekRow";
 interface MonthGridProps {
   year: number;
   month: number;
-  franjaPorDia: Record<string, { apertura: string; cierre: string } | null>;
+  franjaPorDia: Record<string, { apertura: string | null; cierre: string | null } | null>;
   holidays: string[];
   assignments: CalendarAssignment[];
   workers: Worker[];
