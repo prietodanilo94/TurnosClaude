@@ -273,6 +273,7 @@ Si detectas una contradicción entre dos specs o entre una spec y `v2/docs/`, **
 
 > Update 2026-04-23: spec 004 en progreso; backend optimizer scaffolded, suite `tests/test_optimizer_vm7.py` en verde, indexacion ILP alineada con `weeks` 0-based y JWT Appwrite en v2 ajustado a `X-Appwrite-JWT`.
 > Update 2026-04-23: v2 ya tiene `frontend/Dockerfile`, `backend/Dockerfile` y `v2/docker-compose.yml`; el deploy documentado ahora existe como configuracion real del repo.
+> Update 2026-04-23: servidor `/opt/shift-optimizer` sincronizado a `origin/main`; v1 quedo actualizado. El despliegue real de v2 sigue bloqueado por falta de `/opt/shift-optimizer/v2/.env` en servidor y por definir una `NEXT_PUBLIC_OPTIMIZER_URL` publica/usable.
 
 > Última actualización: 2026-04-23 — v2/feat(shift-catalog): spec 003 completa (catálogo de turnos poblado y tipado)
 
@@ -325,7 +326,8 @@ Si detectas una contradicción entre dos specs o entre una spec y `v2/docs/`, **
 - `tests/test_optimizer_vm7.py` cubre 6 casos de V_M7 y actualmente pasa completa.
 - Se corrigio la inconsistencia de indexacion entre `days` y `weeks` en el ILP.
 - Validacion JWT de Appwrite alineada a `X-Appwrite-JWT` en v2.
-- Pendiente operativo: sincronizar `/opt/shift-optimizer` en servidor y reconstruir contenedores para alinear el entorno remoto con `origin/main`.
+- Estado remoto: `/opt/shift-optimizer` ya fue sincronizado con `origin/main` y el working tree quedo limpio.
+- Bloqueo actual de despliegue v2: falta crear `/opt/shift-optimizer/v2/.env` en servidor y definir una `NEXT_PUBLIC_OPTIMIZER_URL` publica/usable para el frontend.
 - Infra de despliegue agregada: `v2/docker-compose.yml`, `v2/frontend/Dockerfile`, `v2/backend/Dockerfile`.
 
 ### Infraestructura
