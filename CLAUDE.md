@@ -139,6 +139,7 @@ Si detectas una contradicción entre dos specs o entre una spec y `docs/`, **det
 ## Estado actual del proyecto
 
 > Update 2026-04-23: `main` mantiene v1 operativa y v2 ya quedo desplegada en `turnos2.dpmake.cl` usando puertos locales `3012/8022` via nginx. Verificado: frontend responde por nginx, `/api/optimize` del optimizer queda publico y alcanzable, y el smoke real `optimize + validate` pasa en v2.
+> Update 2026-04-23: v2 ya sincroniza `main-v2` con bootstrap idempotente completo; en `ssh antigravity` se crearon `branch_type_config`, `holidays`, `worker_constraints`, `proposals` y `assignments`, y el backend de export quedo alineado con `shift_catalog_v2` y con proposals serializadas desde Appwrite. Verificado en contenedor: `test_export_v2.py` 4/4, `test_optimizer_vm7.py` 6/6 y smoke real `optimize + validate` OK.
 
 > Última actualización: 2026-04-19 — commit c342558
 

@@ -280,6 +280,9 @@ Si detectas una contradicción entre dos specs o entre una spec y `v2/docs/`, **
 > Update 2026-04-23: el optimizer remoto reinicio por dependencias Python faltantes (`ortools`, `python-dateutil`, `openpyxl`) y se corrigieron en `v2/backend/requirements.txt`.
 > Update 2026-04-23: v2 quedo desplegado en `ssh antigravity`; nginx de `turnos2.dpmake.cl` apunta a `127.0.0.1:3012` y `127.0.0.1:8022`, frontend responde por localhost/nginx y el optimizer responde `200` en `/health` y `405` en `/api/optimize` (route publica alcanzable).
 > Update 2026-04-23: se agrego `v2/scripts/smoke-optimizer-v2.ts` y `npm run smoke:optimizer`; smoke real verificado contra `https://turnos2.dpmake.cl/api`: `optimize=200`, `validate=200`, `violations=0`.
+> Update 2026-04-23: el backend de export/persistencia quedo alineado con `main-v2`; `Proposal` ahora parsea JSON string de Appwrite, `proposal_fetcher` resuelve horarios desde `shift_catalog_v2`, `excel_exporter` exporta usando horas ya resueltas y `v2/backend/tests/test_export_v2.py` quedo verde en contenedor (`4 passed`).
+> Update 2026-04-23: `v2/scripts/bootstrap-appwrite-v2.ts` ahora crea `branch_type_config`, `holidays`, `worker_constraints`, `proposals` y `assignments`, y reaplica permisos por rol. Verificado en `ssh antigravity` sobre `main-v2`.
+> Update 2026-04-23: en servidor `v2` requirio `npm install --include=dev` para exponer `tsx` y poder ejecutar `npm run bootstrap:appwrite`; despues de eso el stack quedo rebuildado, `python -m pytest tests/test_export_v2.py -q` paso (`4 passed`), `python -m pytest tests/test_optimizer_vm7.py -q` paso (`6 passed`) y el smoke real `optimize + validate` siguio OK.
 
 > Última actualización: 2026-04-23 — v2/feat(shift-catalog): spec 003 completa (catálogo de turnos poblado y tipado)
 
@@ -330,6 +333,7 @@ Si detectas una contradicción entre dos specs o entre una spec y `v2/docs/`, **
 - `core/calendar.py` arma `SolverInput` con `rotation_group`, semanas ISO y flags de semana completa.
 - Se portaron/adaptaron modelos internos, validadores, exporters y modulos del solver (`greedy`, `ilp`, `lower_bound`, `objective`, `partial`, `scoring`).
 - `tests/test_optimizer_vm7.py` cubre 6 casos de V_M7 y actualmente pasa completa.
+- `tests/test_export_v2.py` cubre parseo de proposals serializadas, resolucion de horarios desde `shift_catalog_v2`, rechazo de slots sin asignar y export a xlsx; pasa completa en contenedor.
 - Se corrigio la inconsistencia de indexacion entre `days` y `weeks` en el ILP.
 - Validacion JWT de Appwrite alineada a `X-Appwrite-JWT` en v2.
 - Estado remoto: `/opt/shift-optimizer` ya fue sincronizado con `origin/main`, nginx `turnos2.conf` quedo repuntado a `3012/8022` y el stack `v2` esta levantado.
@@ -340,14 +344,16 @@ Si detectas una contradicción entre dos specs o entre una spec y `v2/docs/`, **
 - Infra de despliegue agregada: `v2/docker-compose.yml`, `v2/frontend/Dockerfile`, `v2/backend/Dockerfile`.
 - Seguridad de despliegue: el compose de v2 publica `3012` y `8022` solo en `127.0.0.1`; el acceso externo debe pasar por nginx.
 - Smoke operacional agregado: `v2/scripts/smoke-optimizer-v2.ts` ejecuta `POST /api/optimize` + `POST /api/validate` con payload VM7 y falla si no hay propuesta valida.
+- Persistencia/export v2: `proposals.asignaciones`, `parametros` y `metrics` se parsean correctamente desde Appwrite aunque vengan serializados como string JSON.
+- Appwrite `main-v2`: el bootstrap ya deja creadas y con permisos consistentes las colecciones `branch_type_config`, `holidays`, `worker_constraints`, `proposals` y `assignments`.
 
 ### Infraestructura
 
 - Appwrite: `https://appwrite.dpmake.cl/v1` ✅ (mismo que v1)
 - Appwrite Project ID: `69e0f594001ed045d0c5` (mismo que v1)
-- Database v2: `main-v2` 🔲 por crear
-- Dominio: `turnos2.dpmake.cl` 🔲 por configurar en nginx
+- Database v2: `main-v2` ✅ creada y bootstrap idempotente operativo
+- Dominio: `turnos2.dpmake.cl` ✅ configurado en nginx
 - Puertos v2: frontend `:3012`, optimizer `:8022`
 - GitHub: mismo repo `github.com/prietodanilo94/TurnosClaude`, subcarpeta `v2/`
 - Repo en servidor: `/opt/shift-optimizer/v2`
-- Deploy: `cd /opt/shift-optimizer && git pull && cd v2 && docker compose up -d --build`
+- Deploy: `cd /opt/shift-optimizer && git pull && cd v2 && npm install --include=dev && npm run bootstrap:appwrite && docker compose up -d --build`
