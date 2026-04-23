@@ -8,8 +8,8 @@ import { NewBranchesPanel } from "./components/NewBranchesPanel";
 import { SyncConfirmDialog } from "./components/SyncConfirmDialog";
 import { parseDotacionExcel } from "@/lib/excel-parser";
 import { computeDiff } from "@/lib/compute-diff";
-import type { ParsedRow } from "@/lib/excel-parser";
-import type { DotacionDiff, BranchDiffInfo as BranchDiff } from "@/lib/compute-diff";
+import type { ParseError, ParsedRow } from "@/lib/excel-parser";
+import type { BranchDiffInfo as BranchDiff, DotacionDiff } from "@/lib/compute-diff";
 import type { Clasificacion, TipoFranja } from "@/types/models";
 
 type Stage = "idle" | "parsed" | "diffed" | "syncing" | "done";
@@ -69,22 +69,22 @@ export default function DotacionPage() {
       if (!prev) return prev;
       return {
         ...prev,
-        branches: prev.branches.map((b) =>
+        branches: prev.branches.map((b: BranchDiff) =>
           b.codigoArea === codigoArea ? { ...b, tipoFranja: tipo, clasificacion: clasif } : b
         ),
       };
     });
   }
 
-  const activatedCount = diff?.branches.filter((b) => b.isNew && b.tipoFranja && b.clasificacion).length ?? 0;
-  const skippedCount = diff?.branches.filter((b) => b.isNew && (!b.tipoFranja || !b.clasificacion)).length ?? 0;
+  const skippedCount =
+    diff?.branches.filter((b) => b.isNew && (!b.tipoFranja || !b.clasificacion)).length ?? 0;
 
   return (
     <div className="p-6 max-w-5xl">
       <div className="mb-6">
-        <h1 className="text-xl font-semibold text-gray-900">Dotación</h1>
+        <h1 className="text-xl font-semibold text-gray-900">Dotacion</h1>
         <p className="text-sm text-gray-500 mt-0.5">
-          Subí el Excel de dotación activa para sincronizar sucursales y trabajadores.
+          Subi el Excel de dotacion activa para sincronizar sucursales y trabajadores.
         </p>
       </div>
 
@@ -109,7 +109,7 @@ export default function DotacionPage() {
               disabled={diffLoading}
               className="mt-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
             >
-              {diffLoading ? "Consultando Appwrite…" : "Analizar cambios"}
+              {diffLoading ? "Consultando Appwrite..." : "Analizar cambios"}
             </button>
           )}
         </div>
@@ -126,19 +126,27 @@ export default function DotacionPage() {
 
           <div className="flex items-center gap-4 pt-2 flex-wrap">
             <div className="text-sm text-gray-600 space-x-4">
-              <span className="text-green-700 font-medium">+{diff.workers.filter((w) => w.status === "nuevo").length} nuevos</span>
-              <span className="text-blue-700 font-medium">↺ {diff.workers.filter((w) => w.status === "modificado").length} actualizados</span>
-              <span className="text-gray-400">{diff.workers.filter((w) => w.status === "sin_cambios").length} sin cambios</span>
-              <span className="text-red-600 font-medium">✕ {diff.toDeactivate.length} a desactivar</span>
+              <span className="text-green-700 font-medium">
+                +{diff.workers.filter((w) => w.status === "nuevo").length} nuevos
+              </span>
+              <span className="text-blue-700 font-medium">
+                {diff.workers.filter((w) => w.status === "actualizado").length} actualizados
+              </span>
+              <span className="text-gray-400">
+                {diff.workers.filter((w) => w.status === "sin_cambios").length} sin cambios
+              </span>
+              <span className="text-red-600 font-medium">
+                {diff.toDeactivate.length} a desactivar
+              </span>
               {skippedCount > 0 && (
-                <span className="text-gray-400">{skippedCount} sucursal(es) sin tipo se omitirán</span>
+                <span className="text-gray-400">{skippedCount} sucursal(es) sin tipo se omitiran</span>
               )}
             </div>
             <button
               onClick={() => setShowDialog(true)}
               className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition-colors"
             >
-              Confirmar sincronización
+              Confirmar sincronizacion
             </button>
           </div>
         </div>
@@ -149,11 +157,12 @@ export default function DotacionPage() {
           diff={diff}
           rows={rows}
           onClose={() => setShowDialog(false)}
-          onDone={() => { setShowDialog(false); router.push("/admin/sucursales"); }}
+          onDone={() => {
+            setShowDialog(false);
+            router.push("/admin/sucursales");
+          }}
         />
       )}
-
-
     </div>
   );
 }

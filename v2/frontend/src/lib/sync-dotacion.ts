@@ -1,6 +1,6 @@
 import { ID } from "appwrite";
 import { databases } from "@/lib/auth/appwrite-client";
-import type { DotacionDiff, SyncReport } from "@/types/models";
+import type { DotacionDiff, SyncReport } from "@/types/dotacion-sync";
 import type { ParsedRow } from "@/lib/excel-parser";
 import { getRotationGroup } from "./area-catalog";
 

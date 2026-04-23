@@ -1,0 +1,97 @@
+import { account } from "@/lib/auth/appwrite-client";
+
+const OPTIMIZER_URL = process.env.NEXT_PUBLIC_OPTIMIZER_URL ?? "http://localhost:8000";
+
+export class ExportError extends Error {
+  constructor(
+    message: string,
+    public readonly statusCode?: number
+  ) {
+    super(message);
+    this.name = "ExportError";
+  }
+}
+
+function extractFilename(contentDisposition: string, fallback: string): string {
+  const match = contentDisposition.match(/filename="?([^";\s]+)"?/);
+  return match?.[1] ?? fallback;
+}
+
+export async function triggerDownload(proposalId: string): Promise<void> {
+  const { jwt } = await account.createJWT();
+
+  const res = await fetch(`${OPTIMIZER_URL}/export`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${jwt}`,
+    },
+    body: JSON.stringify({ proposal_id: proposalId }),
+  });
+
+  if (!res.ok) {
+    let detail = `Error ${res.status}`;
+    try {
+      const body = await res.json();
+      detail = body.detail ?? detail;
+    } catch {
+      detail = (await res.text()) || detail;
+    }
+    throw new ExportError(detail, res.status);
+  }
+
+  const blob = await res.blob();
+  const disposition = res.headers.get("Content-Disposition") ?? "";
+  const filename = extractFilename(disposition, `turnos_${proposalId}.xlsx`);
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+export interface CalendarExportPayload {
+  branch_nombre: string;
+  codigo_area: string;
+  year: number;
+  month: number;
+  workers: { slot: number; nombre: string }[];
+  assignments: { slot: number; date: string; inicio: string; fin: string }[];
+}
+
+export async function triggerCalendarDownload(payload: CalendarExportPayload): Promise<void> {
+  const res = await fetch(`${OPTIMIZER_URL}/export/calendar`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    let detail = `Error ${res.status}`;
+    try {
+      detail = (await res.json()).detail ?? detail;
+    } catch {
+      // ignore
+    }
+    throw new ExportError(detail, res.status);
+  }
+
+  const blob = await res.blob();
+  const disposition = res.headers.get("Content-Disposition") ?? "";
+  const filename = extractFilename(
+    disposition,
+    `calendario_${payload.year}${String(payload.month).padStart(2, "0")}.xlsx`
+  );
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}

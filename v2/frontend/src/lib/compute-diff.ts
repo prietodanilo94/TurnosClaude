@@ -1,6 +1,10 @@
-import { ParsedRow } from "./excel-parser";
-import { Branch, Worker, Clasificacion, TipoFranja } from "@/types/models";
+import { Query } from "appwrite";
+import { databases } from "@/lib/auth/appwrite-client";
+import type { ParsedRow } from "./excel-parser";
+import type { Branch, Worker, Clasificacion, TipoFranja } from "@/types/models";
 import { lookupArea } from "./area-catalog";
+
+const DB = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!;
 
 export interface BranchDiffInfo {
   codigoArea: string;
@@ -12,7 +16,7 @@ export interface BranchDiffInfo {
   workerCount: number;
 }
 
-export type WorkerSyncStatus = "nuevo" | "modificado" | "sin_cambios";
+export type WorkerSyncStatus = "nuevo" | "actualizado" | "sin_cambios";
 
 export interface WorkerDiffInfo {
   row: ParsedRow;
@@ -26,6 +30,25 @@ export interface DotacionDiff {
   branches: BranchDiffInfo[];
   workers: WorkerDiffInfo[];
   toDeactivate: Worker[];
+}
+
+async function fetchAll<T extends { $id: string }>(
+  collection: string,
+  queries: string[] = []
+): Promise<T[]> {
+  const all: T[] = [];
+  let cursor: string | undefined;
+
+  do {
+    const q = [...queries, Query.limit(100)];
+    if (cursor) q.push(Query.cursorAfter(cursor));
+
+    const page = await databases.listDocuments(DB, collection, q);
+    all.push(...(page.documents as unknown as T[]));
+    cursor = page.documents.length === 100 ? page.documents.at(-1)!.$id : undefined;
+  } while (cursor);
+
+  return all;
 }
 
 export function computeDotacionDiff(
@@ -62,7 +85,7 @@ export function computeDotacionDiff(
           codigoArea: row.codigoArea,
           nombre: row.nombreSucursal,
           isNew: true,
-          tipoFranja: catValue?.franja,
+          tipoFranja: catValue?.tipo_franja,
           clasificacion: catValue?.clasificacion,
           workerCount: 0,
         };
@@ -88,7 +111,7 @@ export function computeDotacionDiff(
       if (changes.length > 0) {
         workerDiffs.push({
           row,
-          status: "modificado",
+          status: "actualizado",
           workerId: existing.$id,
           changes,
         });
@@ -111,4 +134,17 @@ export function computeDotacionDiff(
     workers: workerDiffs,
     toDeactivate,
   };
+}
+
+export async function computeDiff(rows: ParsedRow[]): Promise<DotacionDiff> {
+  const [branches, workers] = await Promise.all([
+    fetchAll<Branch>("branches"),
+    fetchAll<Worker>("workers"),
+  ]);
+
+  return computeDotacionDiff(
+    rows,
+    branches.filter((branch) => branch.activa),
+    workers.filter((worker) => worker.activo)
+  );
 }
