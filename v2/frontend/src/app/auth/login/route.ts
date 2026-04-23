@@ -59,12 +59,15 @@ export async function POST(request: NextRequest) {
     (typeof sessionPayload?.secret === "string" ? sessionPayload.secret : null) ??
     getSessionSecret(sessionResponse.headers.get("x-fallback-cookies"));
 
+  console.log("[auth/login] session status:", sessionResponse.status, "| secret?", !!sessionSecret, "| payload keys:", sessionPayload ? Object.keys(sessionPayload) : null);
+
   if (!sessionResponse.ok || !sessionSecret) {
     const message =
       typeof sessionPayload?.message === "string"
         ? sessionPayload.message
         : "No fue posible iniciar sesión.";
     const status = sessionResponse.status === 401 ? 401 : 400;
+    console.log("[auth/login] error:", message);
     return NextResponse.json({ message }, { status });
   }
 
