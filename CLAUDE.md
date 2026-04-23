@@ -141,6 +141,7 @@ Si detectas una contradicción entre dos specs o entre una spec y `docs/`, **det
 > Update 2026-04-23: `main` mantiene v1 operativa y v2 ya quedo desplegada en `turnos2.dpmake.cl` usando puertos locales `3012/8022` via nginx. Verificado: frontend responde por nginx, `/api/optimize` del optimizer queda publico y alcanzable, y el smoke real `optimize + validate` pasa en v2.
 > Update 2026-04-23: v2 ya sincroniza `main-v2` con bootstrap idempotente completo; en `ssh antigravity` se crearon `branch_type_config`, `holidays`, `worker_constraints`, `proposals` y `assignments`, y el backend de export quedo alineado con `shift_catalog_v2` y con proposals serializadas desde Appwrite. Verificado en contenedor: `test_export_v2.py` 4/4, `test_optimizer_vm7.py` 6/6 y smoke real `optimize + validate` OK.
 > Update 2026-04-23: v2 cerro la spec de export backend; `excel_exporter.py` ahora refleja overrides con asterisco, encabezado enriquecido, `Turno Base`, feriados, dias cerrados y horas laborales reales. Revalidado en `antigravity` con `test_export_v2.py` 8/8, `test_optimizer_vm7.py` 6/6 y smoke `RESULT=OK`.
+> Update 2026-04-23: v2 quedo mas coherente operativamente; `seed-holidays.ts` ya existe en `v2`, `npm run seed:holidays` cargo feriados 2026/2027 en `main-v2`, el frontend local usa `3012`, `.env.example` apunta a `8022`, y se agrego `test_routes_v2.py` para cubrir autorizacion de export y el caso 422 de optimize parcial. Validado en `antigravity` con `5 passed`, `14 passed` y smoke `RESULT=OK`.
 
 > Última actualización: 2026-04-19 — commit c342558
 
