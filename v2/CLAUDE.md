@@ -269,6 +269,8 @@ Si detectas una contradicción entre dos specs o entre una spec y `v2/docs/`, **
 
 ## Estado actual del proyecto
 
+> Update 2026-04-23: spec 004 en progreso; backend optimizer scaffolded, suite `tests/test_optimizer_vm7.py` en verde, indexacion ILP alineada con `weeks` 0-based y JWT Appwrite en v2 ajustado a `X-Appwrite-JWT`.
+
 > Última actualización: 2026-04-23 — v2/feat(shift-catalog): spec 003 completa (catálogo de turnos poblado y tipado)
 
 ### ✅ Hecho
@@ -311,6 +313,16 @@ Si detectas una contradicción entre dos specs o entre una spec y `v2/docs/`, **
 - Spec 007 — overrides
 - Spec 008 — branch-edit
 - Spec 009 — export-excel
+
+### En progreso
+
+#### Spec 004 - optimizer
+- Backend FastAPI v2 expone `POST /api/optimize`, `POST /api/optimize/partial`, `POST /api/validate` y `POST /api/export`.
+- `core/calendar.py` arma `SolverInput` con `rotation_group`, semanas ISO y flags de semana completa.
+- Se portaron/adaptaron modelos internos, validadores, exporters y modulos del solver (`greedy`, `ilp`, `lower_bound`, `objective`, `partial`, `scoring`).
+- `tests/test_optimizer_vm7.py` cubre 6 casos de V_M7 y actualmente pasa completa.
+- Se corrigio la inconsistencia de indexacion entre `days` y `weeks` en el ILP.
+- Validacion JWT de Appwrite alineada a `X-Appwrite-JWT` en v2.
 
 ### Infraestructura
 

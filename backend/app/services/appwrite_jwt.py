@@ -25,7 +25,7 @@ async def validate_jwt(token: str) -> AppwriteUser:
     url = f"{settings.appwrite_endpoint}/account"
     headers = {
         "X-Appwrite-Project": settings.appwrite_project_id,
-        "Authorization": f"Bearer {token}",
+        "X-Appwrite-JWT": token,
     }
 
     async with httpx.AsyncClient() as client:
