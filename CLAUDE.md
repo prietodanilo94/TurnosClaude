@@ -138,7 +138,7 @@ Si detectas una contradicción entre dos specs o entre una spec y `docs/`, **det
 
 ## Estado actual del proyecto
 
-> Update 2026-04-23: `main` mantiene v1 operativa y v2 ya tiene stack remoto propio (`turnos2.dpmake.cl`, puertos locales 3011/8021 via nginx). El ultimo bloqueo fuerte de v2 quedo reducido al deploy remoto: frontend compila localmente otra vez con `tsc --noEmit -p v2/frontend`.
+> Update 2026-04-23: `main` mantiene v1 operativa y v2 ya tiene stack remoto propio (`turnos2.dpmake.cl`, puertos locales 3012/8022 via nginx). El ultimo bloqueo fuerte de v2 quedo reducido al deploy remoto: frontend compila localmente otra vez con `tsc --noEmit -p v2/frontend`.
 
 > Última actualización: 2026-04-19 — commit c342558
 

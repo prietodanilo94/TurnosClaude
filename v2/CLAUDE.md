@@ -11,7 +11,7 @@
 Convive con v1 en el mismo repositorio git (`shift-optimizer/`), pero es una aplicación completamente independiente:
 - Datos: mismo Appwrite (`appwrite.dpmake.cl`), **nueva base de datos `main-v2`**.
 - Dominio: `turnos2.dpmake.cl` (v1 sigue en `turnos.dpmake.cl`).
-- Puertos: frontend `:3011`, optimizer `:8021` (v1 usa 3010/8020).
+- Puertos: frontend `:3012`, optimizer `:8022` (v1 usa 3010/8020).
 - Nada se migra de v1. Parte limpio.
 
 ### Diferencias clave respecto a v1
@@ -227,7 +227,7 @@ npm run bootstrap:appwrite               # crea colecciones en DB main-v2
 npm run seed:all                         # carga seeds (áreas, turnos, feriados)
 
 # Dev
-docker compose up                        # levanta frontend (:3011) + optimizer (:8021)
+docker compose up                        # levanta frontend (:3012) + optimizer (:8022)
 npm run dev --workspace=frontend         # solo frontend
 uvicorn app.main:app --reload            # solo backend (en v2/backend)
 
@@ -291,7 +291,7 @@ Si detectas una contradicción entre dos specs o entre una spec y `v2/docs/`, **
 - `v2/backend/app/services/area_catalog.py` — `lookup_area()` + `get_rotation_group()`
 
 #### Spec 006 — auth ✅ COMPLETA (tasks 1–7)
-- Scaffolding de Frontend (Next.js) copiado de v1 y adaptado con puerto 3011.
+- Scaffolding de Frontend (Next.js) copiado de v1 y adaptado con puerto 3012.
 - Scaffolding de Backend preparado (fastapi, uvicorn, config enviroment).
 - `appwrite-client.ts`, `use-current-user.ts` (hooks base para React).
 - Layouts de roles protegidos por middleware (`/admin`, `/jefe`).
@@ -333,7 +333,7 @@ Si detectas una contradicción entre dos specs o entre una spec y `v2/docs/`, **
 - Verificacion local: `tsc --noEmit -p v2/frontend` pasa completo.
 - Ajuste de dependencias remoto: `v2/frontend/package.json` ahora declara `@dnd-kit/core`, requerido por `CalendarView`, `DayCell` y `ShiftSlot`.
 - Infra de despliegue agregada: `v2/docker-compose.yml`, `v2/frontend/Dockerfile`, `v2/backend/Dockerfile`.
-- Seguridad de despliegue: el compose de v2 publica `3011` y `8021` solo en `127.0.0.1`; el acceso externo debe pasar por nginx.
+- Seguridad de despliegue: el compose de v2 publica `3012` y `8022` solo en `127.0.0.1`; el acceso externo debe pasar por nginx.
 
 ### Infraestructura
 
@@ -341,7 +341,7 @@ Si detectas una contradicción entre dos specs o entre una spec y `v2/docs/`, **
 - Appwrite Project ID: `69e0f594001ed045d0c5` (mismo que v1)
 - Database v2: `main-v2` 🔲 por crear
 - Dominio: `turnos2.dpmake.cl` 🔲 por configurar en nginx
-- Puertos v2: frontend `:3011`, optimizer `:8021`
+- Puertos v2: frontend `:3012`, optimizer `:8022`
 - GitHub: mismo repo `github.com/prietodanilo94/TurnosClaude`, subcarpeta `v2/`
 - Repo en servidor: `/opt/shift-optimizer/v2`
 - Deploy: `cd /opt/shift-optimizer && git pull && cd v2 && docker compose up -d --build`
