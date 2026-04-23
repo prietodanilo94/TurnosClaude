@@ -286,6 +286,7 @@ Si detectas una contradicción entre dos specs o entre una spec y `v2/docs/`, **
 > Update 2026-04-23: se abrio el flujo real de calendar-ui en `v2/frontend/src/app/admin/sucursales/*`; `build-payload.ts` y el stack de calendario quedaron alineados a turnos dinamicos (`horario_por_dia`) en lugar del shape legacy `inicio/fin`.
 > Update 2026-04-23: frontend v2 verificado localmente con `npm exec --workspace=frontend tsc --noEmit` y `npm run build --workspace=frontend`. En `ssh antigravity` hubo que forzar `docker compose build --no-cache frontend` para invalidar cache y dejar `https://turnos2.dpmake.cl/admin/sucursales` respondiendo `200`.
 > Update 2026-04-23: flujo de propuestas/export v2 alineado; `persist-proposals.ts` ahora crea `assignments` al generar, la primera propuesta queda `seleccionada`, `ProposalSelector` persiste cambios de seleccion en Appwrite y `trigger-download.ts` usa `X-Appwrite-JWT`.
+> Update 2026-04-23: spec 008 implementada en frontend; `v2/frontend/src/app/admin/sucursales/[branchId]/page.tsx` abre ficha editable de sucursal, permite cambiar `clasificacion` + `tipo_franja`, advierte si ya existen propuestas del mes, actualiza opcionalmente `area_catalog` y escribe `audit_log`.
 
 > Última actualización: 2026-04-23 — v2/feat(shift-catalog): spec 003 completa (catálogo de turnos poblado y tipado)
 
@@ -325,7 +326,6 @@ Si detectas una contradicción entre dos specs o entre una spec y `v2/docs/`, **
 ### 🔲 Pendiente (Próximos pasos para mañana)
 
 - Spec 007 — overrides
-- Spec 008 — branch-edit
 - Spec 009 — export-excel
 
 ### En progreso
@@ -361,6 +361,15 @@ Si detectas una contradicción entre dos specs o entre una spec y `v2/docs/`, **
 - `v2/frontend/src/lib/export/trigger-download.ts` usa `X-Appwrite-JWT`, que es el header requerido por el backend v2.
 - Verificacion local: `tsc --noEmit` y `next build` OK.
 - Estado remoto: `turnos2.dpmake.cl/admin/sucursales` responde `200` despues de pull + rebuild forzado sin cache del frontend.
+
+#### Spec 008 - branch-edit
+- `v2/frontend/src/app/admin/sucursales/[branchId]/page.tsx` + `BranchDetailClient.tsx` agregan ficha de sucursal editable para admin.
+- El admin puede cambiar `clasificacion`, recibir autocompletado de `tipo_franja` y sobreescribirlo manualmente.
+- La ficha muestra advertencia si ya existen propuestas del mes actual para la sucursal.
+- El guardado actualiza `branches` y, si el checkbox esta activo, tambien `area_catalog`.
+- Cada cambio deja registro en `audit_log`.
+- El listado `v2/frontend/src/app/admin/sucursales/page.tsx` ahora enlaza tanto a la ficha como al calendario.
+- Verificacion local: `next build` OK y la ruta dinamica `/admin/sucursales/[branchId]` aparece en el output de Next.
 
 ### Infraestructura
 

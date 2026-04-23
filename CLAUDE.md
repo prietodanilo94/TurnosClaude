@@ -229,6 +229,7 @@ Si detectas una contradicción entre dos specs o entre una spec y `docs/`, **det
 - `v2/frontend/src/lib/optimizer/build-payload.ts` + `v2/frontend/src/lib/calendar/shift-utils.ts` — v2 ya arma payload y renderiza calendario usando `horario_por_dia`, no turnos fijos legacy
 - `v2/frontend/src/lib/proposals/persist-proposals.ts` + `v2/frontend/src/components/calendar/ProposalSelector.tsx` — v2 deja la propuesta inicial seleccionada, crea `assignments` desde el primer generate y persiste el cambio de propuesta activa en Appwrite
 - `v2/frontend/src/lib/export/trigger-download.ts` — export v2 usa `X-Appwrite-JWT`, alineado al backend
+- `v2/frontend/src/app/admin/sucursales/[branchId]/page.tsx` — v2 ya tiene ficha de sucursal con edicion de `clasificacion` y `tipo_franja`, advertencia por propuestas existentes y update opcional de `area_catalog`
 
 ---
 
