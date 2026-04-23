@@ -83,7 +83,10 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
 
   init({ branchId, year, month, proposals, workers, shiftCatalog, holidays, franjaPorDia }) {
     const sorted = [...proposals].sort((a, b) => b.score - a.score);
-    const first = sorted[0] ?? null;
+    const first =
+      sorted.find((p) => p.estado === "seleccionada" || p.estado === "exportada") ??
+      sorted[0] ??
+      null;
     set({
       branchId,
       year,

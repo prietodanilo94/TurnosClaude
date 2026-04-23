@@ -285,6 +285,7 @@ Si detectas una contradicción entre dos specs o entre una spec y `v2/docs/`, **
 > Update 2026-04-23: en servidor `v2` requirio `npm install --include=dev` para exponer `tsx` y poder ejecutar `npm run bootstrap:appwrite`; despues de eso el stack quedo rebuildado, `python -m pytest tests/test_export_v2.py -q` paso (`4 passed`), `python -m pytest tests/test_optimizer_vm7.py -q` paso (`6 passed`) y el smoke real `optimize + validate` siguio OK.
 > Update 2026-04-23: se abrio el flujo real de calendar-ui en `v2/frontend/src/app/admin/sucursales/*`; `build-payload.ts` y el stack de calendario quedaron alineados a turnos dinamicos (`horario_por_dia`) en lugar del shape legacy `inicio/fin`.
 > Update 2026-04-23: frontend v2 verificado localmente con `npm exec --workspace=frontend tsc --noEmit` y `npm run build --workspace=frontend`. En `ssh antigravity` hubo que forzar `docker compose build --no-cache frontend` para invalidar cache y dejar `https://turnos2.dpmake.cl/admin/sucursales` respondiendo `200`.
+> Update 2026-04-23: flujo de propuestas/export v2 alineado; `persist-proposals.ts` ahora crea `assignments` al generar, la primera propuesta queda `seleccionada`, `ProposalSelector` persiste cambios de seleccion en Appwrite y `trigger-download.ts` usa `X-Appwrite-JWT`.
 
 > Última actualización: 2026-04-23 — v2/feat(shift-catalog): spec 003 completa (catálogo de turnos poblado y tipado)
 
@@ -355,6 +356,9 @@ Si detectas una contradicción entre dos specs o entre una spec y `v2/docs/`, **
 - `v2/frontend/src/lib/proposals/fetch-proposals.ts` y `persist-proposals.ts` conectan el calendario con `proposals` + `assignments`.
 - `v2/frontend/src/types/optimizer.ts` y el stack de calendario (`hours-calculator`, `local-validator`, `overlap-detector`, `month-grid`, `calendar-store`, `ShiftSlot`, `WorkerAssignDialog`, `CalendarView`) quedaron alineados a `horario_por_dia`.
 - `v2/frontend/src/lib/optimizer/build-payload.ts` ahora deriva `rotation_group`, obtiene turnos reales desde `shift_catalog_v2` y construye `franja_por_dia` dinamica.
+- `v2/frontend/src/lib/proposals/persist-proposals.ts` ahora crea `assignment` docs por slot al generar y deja la primera propuesta en estado `seleccionada`.
+- `v2/frontend/src/lib/proposals/select-proposal.ts` + `ProposalSelector.tsx` persisten el cambio de propuesta activa en Appwrite.
+- `v2/frontend/src/lib/export/trigger-download.ts` usa `X-Appwrite-JWT`, que es el header requerido por el backend v2.
 - Verificacion local: `tsc --noEmit` y `next build` OK.
 - Estado remoto: `turnos2.dpmake.cl/admin/sucursales` responde `200` despues de pull + rebuild forzado sin cache del frontend.
 

@@ -227,6 +227,8 @@ Si detectas una contradicción entre dos specs o entre una spec y `docs/`, **det
 - Nav lateral de admin: link Sucursales agregado
 - `v2/frontend/src/app/admin/sucursales/page.tsx` + `v2/frontend/src/app/admin/sucursales/[branchId]/mes/[year]/[month]/page.tsx` — v2 ya expone listado real de sucursales y ruta mensual navegable
 - `v2/frontend/src/lib/optimizer/build-payload.ts` + `v2/frontend/src/lib/calendar/shift-utils.ts` — v2 ya arma payload y renderiza calendario usando `horario_por_dia`, no turnos fijos legacy
+- `v2/frontend/src/lib/proposals/persist-proposals.ts` + `v2/frontend/src/components/calendar/ProposalSelector.tsx` — v2 deja la propuesta inicial seleccionada, crea `assignments` desde el primer generate y persiste el cambio de propuesta activa en Appwrite
+- `v2/frontend/src/lib/export/trigger-download.ts` — export v2 usa `X-Appwrite-JWT`, alineado al backend
 
 ---
 

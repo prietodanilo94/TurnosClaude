@@ -30,6 +30,7 @@ export interface OptimizerProposal {
   score: number;
   factible: boolean;
   dotacion_minima_sugerida: number;
+  estado?: "generada" | "publicada" | "seleccionada" | "exportada" | "descartada";
   asignaciones: OptimizerAssignment[];
   metrics?: ProposalMetrics;
 }

@@ -24,7 +24,7 @@ export async function triggerDownload(proposalId: string): Promise<void> {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${jwt}`,
+      "X-Appwrite-JWT": jwt,
     },
     body: JSON.stringify({ proposal_id: proposalId }),
   });

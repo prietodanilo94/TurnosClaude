@@ -82,7 +82,15 @@ export function CalendarPageClient({ branchId, year, month }: Props) {
     setErrorMsg(null);
 
     try {
-      const payload = await buildOptimizePayload(branchId, year, month);
+      const [payload, rawWorkers] = await Promise.all([
+        buildOptimizePayload(branchId, year, month),
+        databases.listDocuments(DB, "workers", [
+          Query.equal("branch_id", branchId),
+          Query.equal("activo", true),
+          Query.limit(200),
+        ]),
+      ]);
+
       const res = await fetch(`${OPTIMIZER_URL}/optimize`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -101,7 +109,14 @@ export function CalendarPageClient({ branchId, year, month }: Props) {
         );
       }
 
-      await persistProposals(data.propuestas, branchId, year, month, user.$id);
+      await persistProposals(
+        data.propuestas,
+        branchId,
+        year,
+        month,
+        user.$id,
+        rawWorkers.documents as unknown as Worker[]
+      );
       await loadData();
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : "Error al generar turnos.");

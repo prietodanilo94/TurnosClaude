@@ -64,6 +64,7 @@ export async function fetchProposals(
       score: p.score,
       factible: p.factible,
       dotacion_minima_sugerida: p.dotacion_sugerida,
+      estado: p.estado,
       asignaciones,
       ...(metrics && { metrics }),
     });
