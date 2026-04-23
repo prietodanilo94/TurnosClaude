@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     (typeof sessionPayload?.secret === "string" ? sessionPayload.secret : null) ??
     getSessionSecret(sessionResponse.headers.get("x-fallback-cookies"));
 
-  console.log("[auth/login] session status:", sessionResponse.status, "| secret?", !!sessionSecret, "| payload keys:", sessionPayload ? Object.keys(sessionPayload) : null);
+  console.log("[auth/login] session status:", sessionResponse.status, "| secret value:", JSON.stringify(sessionPayload?.secret), "| fallback-cookies:", sessionResponse.headers.get("x-fallback-cookies"));
 
   if (!sessionResponse.ok || !sessionSecret) {
     const message =
