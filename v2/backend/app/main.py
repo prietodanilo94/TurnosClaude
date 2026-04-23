@@ -10,7 +10,7 @@ app = FastAPI(
 )
 
 _CORS_ORIGINS = [
-    "http://localhost:3011",
+    "http://localhost:3012",
     "https://turnos2.dpmake.cl",
 ]
 
