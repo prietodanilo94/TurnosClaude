@@ -329,6 +329,7 @@ Si detectas una contradicción entre dos specs o entre una spec y `v2/docs/`, **
 - Estado remoto: `/opt/shift-optimizer` ya fue sincronizado con `origin/main` y el working tree quedo limpio.
 - Bloqueo actual de despliegue v2: falta crear `/opt/shift-optimizer/v2/.env` en servidor y definir una `NEXT_PUBLIC_OPTIMIZER_URL` publica/usable para el frontend.
 - Infra de despliegue agregada: `v2/docker-compose.yml`, `v2/frontend/Dockerfile`, `v2/backend/Dockerfile`.
+- Seguridad de despliegue: el compose de v2 publica `3011` y `8021` solo en `127.0.0.1`; el acceso externo debe pasar por nginx.
 
 ### Infraestructura
 
