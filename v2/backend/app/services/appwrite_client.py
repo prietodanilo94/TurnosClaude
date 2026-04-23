@@ -15,9 +15,11 @@ from app.models.schemas import (
     Assignment,
     Branch,
     BranchManager,
+    Holiday,
     Proposal,
     ShiftCatalog,
     ShiftCatalogV2,
+    SlotOverride,
     Worker,
 )
 
@@ -93,6 +95,20 @@ async def list_workers_by_ids(worker_ids: list[str]) -> list[Worker]:
     return [Worker.model_validate(doc) for doc in r.json()["documents"]]
 
 
+async def list_workers_by_branch(branch_id: str) -> list[Worker]:
+    params = {
+        "queries[]": [
+            _q("equal", "branch_id", [branch_id]),
+            _q("equal", "activo", [True]),
+            _qlimit(500),
+        ]
+    }
+    async with httpx.AsyncClient() as client:
+        r = await client.get(_collection_url("workers"), headers=_headers(), params=params)
+    r.raise_for_status()
+    return [Worker.model_validate(doc) for doc in r.json()["documents"]]
+
+
 async def get_shift_catalog() -> list[ShiftCatalog]:
     params = {"queries[]": [_qlimit(50)]}
     async with httpx.AsyncClient() as client:
@@ -107,6 +123,34 @@ async def get_shift_catalog_v2() -> list[ShiftCatalogV2]:
         r = await client.get(_collection_url("shift_catalog_v2"), headers=_headers(), params=params)
     r.raise_for_status()
     return [ShiftCatalogV2.model_validate(doc) for doc in r.json()["documents"]]
+
+
+async def list_holidays_by_year(year: int) -> list[Holiday]:
+    params = {
+        "queries[]": [
+            _q("equal", "anio", [year]),
+            _qlimit(200),
+        ]
+    }
+    async with httpx.AsyncClient() as client:
+        r = await client.get(_collection_url("holidays"), headers=_headers(), params=params)
+    r.raise_for_status()
+    return [Holiday.model_validate(doc) for doc in r.json()["documents"]]
+
+
+async def list_slot_overrides_by_proposal(proposal_id: str) -> list[SlotOverride]:
+    params = {
+        "queries[]": [
+            _q("equal", "proposal_id", [proposal_id]),
+            _qlimit(500),
+        ]
+    }
+    async with httpx.AsyncClient() as client:
+        r = await client.get(_collection_url("slot_overrides"), headers=_headers(), params=params)
+    if r.status_code == 404:
+        return []
+    r.raise_for_status()
+    return [SlotOverride.model_validate(doc) for doc in r.json()["documents"]]
 
 
 async def list_branch_managers_by_user(user_id: str) -> list[BranchManager]:

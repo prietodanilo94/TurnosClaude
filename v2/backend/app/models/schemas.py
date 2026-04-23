@@ -34,6 +34,13 @@ class TipoConstraint(str, Enum):
     vacaciones = "vacaciones"
 
 
+class OverrideType(str, Enum):
+    cambiar_turno = "cambiar_turno"
+    marcar_libre = "marcar_libre"
+    marcar_trabajado = "marcar_trabajado"
+    proteger_domingo = "proteger_domingo"
+
+
 class ModoProposal(str, Enum):
     ilp = "ilp"
     greedy = "greedy"
@@ -117,6 +124,7 @@ class Branch(AppwriteDoc):
     codigo_area: str
     nombre: str
     tipo_franja: TipoFranja
+    clasificacion: Optional[str] = None
     activa: bool
     creada_desde_excel: bool
 
@@ -159,6 +167,8 @@ class Worker(AppwriteDoc):
     rut: str
     nombre_completo: str
     branch_id: str
+    area_negocio: Optional[str] = None
+    rotation_group: Optional[str] = None
     supervisor_nombre: Optional[str] = None
     activo: bool
     ultima_sync_excel: Optional[str] = None
@@ -215,6 +225,17 @@ class Assignment(AppwriteDoc):
     worker_id: Optional[str] = None
     asignado_por: Optional[str] = None
     asignado_en: Optional[str] = None
+
+
+class SlotOverride(AppwriteDoc):
+    proposal_id: str
+    fecha: str
+    slot_numero: Optional[int] = None
+    tipo: OverrideType
+    shift_id_original: Optional[str] = None
+    shift_id_nuevo: Optional[str] = None
+    notas: Optional[str] = None
+    creado_por: str
 
 
 class AuditLog(AppwriteDoc):
