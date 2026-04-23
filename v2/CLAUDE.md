@@ -288,6 +288,7 @@ Si detectas una contradicción entre dos specs o entre una spec y `v2/docs/`, **
 > Update 2026-04-23: flujo de propuestas/export v2 alineado; `persist-proposals.ts` ahora crea `assignments` al generar, la primera propuesta queda `seleccionada`, `ProposalSelector` persiste cambios de seleccion en Appwrite y `trigger-download.ts` usa `X-Appwrite-JWT`.
 > Update 2026-04-23: spec 008 implementada en frontend; `v2/frontend/src/app/admin/sucursales/[branchId]/page.tsx` abre ficha editable de sucursal, permite cambiar `clasificacion` + `tipo_franja`, advierte si ya existen propuestas del mes, actualiza opcionalmente `area_catalog` y escribe `audit_log`.
 > Update 2026-04-23: spec 007 implementada en v2 a nivel base; `slot_overrides` entra al bootstrap de Appwrite, el calendario abre menu de override con click derecho sobre slot o dia libre, persiste cambios en Appwrite y permite revertirlos desde la misma UI.
+> Update 2026-04-23: spec 009 quedo cerrada del lado backend; `excel_exporter.py` ahora genera encabezado enriquecido, `Turno Base`, horas laborales reales, feriados, dias cerrados y overrides con asterisco + notas. Verificado en `ssh antigravity` con `docker exec v2-optimizer-1 python -m pytest /app/tests/test_export_v2.py -q` (`8 passed`), `test_optimizer_vm7.py` (`6 passed`) y `npm run smoke:optimizer` (`RESULT=OK`).
 
 > Última actualización: 2026-04-23 — v2/feat(shift-catalog): spec 003 completa (catálogo de turnos poblado y tipado)
 
@@ -327,6 +328,9 @@ Si detectas una contradicción entre dos specs o entre una spec y `v2/docs/`, **
 ### 🔲 Pendiente (Próximos pasos para mañana)
 
 - Spec 009 — export-excel
+
+Nota 2026-04-23:
+- Spec 009 backend ya no esta pendiente; solo queda la validacion manual final de descarga Excel desde navegador autenticado en `turnos2.dpmake.cl`.
 
 ### En progreso
 
@@ -378,6 +382,14 @@ Si detectas una contradicción entre dos specs o entre una spec y `v2/docs/`, **
 - `v2/frontend/src/lib/proposals/fetch-slot-overrides.ts` + `calendar-store.ts` cargan y mantienen overrides por propuesta activa.
 - `MonthGrid`, `WeekRow`, `DayCell` y `ShiftSlot` muestran icono de override y permiten abrir el menu contextual sobre slot trabajado o dia libre.
 - Verificacion local: `next build` OK; la ruta mensual del calendario sigue compilando con el menu nuevo.
+
+#### Spec 009 - export-excel
+- `v2/backend/app/services/excel_exporter.py` exporta encabezado enriquecido, `Turno Base`, horarios legibles, `Horas Mes`, `FERIADO`, dia cerrado `—` y notas de override.
+- `v2/backend/app/services/proposal_fetcher.py` resuelve metadata extra para export: `branch_clasificacion`, `area_negocio_label`, `worker_slot_by_id`, feriados, dias cerrados y overrides.
+- `v2/backend/app/services/appwrite_client.py` agrega lectura de `holidays`, `slot_overrides` y workers activos por sucursal.
+- `v2/backend/app/models/schemas.py` incorpora `OverrideType`, `SlotOverride`, `clasificacion` en `Branch` y metadata adicional en `Worker`.
+- `v2/backend/tests/test_export_v2.py` ahora cubre 8 casos: parseo JSON, horarios resueltos, rechazo de slots sin asignar, override con asterisco, horas laborales, domingo visible, dia cerrado y feriado.
+- Verificacion remota: `test_export_v2.py` 8/8, `test_optimizer_vm7.py` 6/6 y `npm run smoke:optimizer` OK en `ssh antigravity`.
 
 ### Infraestructura
 
