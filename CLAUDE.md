@@ -225,6 +225,8 @@ Si detectas una contradicción entre dos specs o entre una spec y `docs/`, **det
 - `frontend/src/lib/proposals/persist-proposals.ts` — guarda resultado del optimizer en `proposals` + `assignments`
 - `frontend/src/app/admin/sucursales/[branchId]/mes/[year]/[month]/CalendarPageClient.tsx` — carga datos reales, botón "Generar turnos" si no hay propuestas
 - Nav lateral de admin: link Sucursales agregado
+- `v2/frontend/src/app/admin/sucursales/page.tsx` + `v2/frontend/src/app/admin/sucursales/[branchId]/mes/[year]/[month]/page.tsx` — v2 ya expone listado real de sucursales y ruta mensual navegable
+- `v2/frontend/src/lib/optimizer/build-payload.ts` + `v2/frontend/src/lib/calendar/shift-utils.ts` — v2 ya arma payload y renderiza calendario usando `horario_por_dia`, no turnos fijos legacy
 
 ---
 
@@ -265,3 +267,4 @@ Si detectas una contradicción entre dos specs o entre una spec y `docs/`, **det
   - Optimizer (FastAPI): puerto 8020 → nginx /optimizer/
   - Repo en servidor: `/opt/shift-optimizer`
   - Deploy: `cd /opt/shift-optimizer && git pull && docker compose up -d --build`
+  - Update 2026-04-23: `turnos2.dpmake.cl/admin/sucursales` quedo operativo despues de `git pull` + rebuild forzado `docker compose build --no-cache frontend && docker compose up -d frontend`
