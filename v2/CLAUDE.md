@@ -277,6 +277,7 @@ Si detectas una contradicción entre dos specs o entre una spec y `v2/docs/`, **
 > Update 2026-04-23: el bloqueo de compilacion frontend de v2 quedo resuelto localmente; se repusieron modulos reutilizados de calendario/optimizer/export/auth, se alinearon tipos compartidos y `tsc --noEmit -p v2/frontend` pasa limpio.
 > Update 2026-04-23: el primer rebuild remoto de v2 ya entra al `next build`; detecto una dependencia faltante real en el contenedor (`@dnd-kit/core`) y se corrigio en `v2/frontend/package.json`.
 > Update 2026-04-23: el optimizer remoto reinicio por dependencias Python faltantes (`ortools`, `python-dateutil`, `openpyxl`) y se corrigieron en `v2/backend/requirements.txt`.
+> Update 2026-04-23: v2 quedo desplegado en `ssh antigravity`; nginx de `turnos2.dpmake.cl` apunta a `127.0.0.1:3012` y `127.0.0.1:8022`, frontend responde por localhost/nginx y el optimizer responde `200` en `/health` y `405` en `/api/optimize` (route publica alcanzable).
 
 > Última actualización: 2026-04-23 — v2/feat(shift-catalog): spec 003 completa (catálogo de turnos poblado y tipado)
 
@@ -329,7 +330,7 @@ Si detectas una contradicción entre dos specs o entre una spec y `v2/docs/`, **
 - `tests/test_optimizer_vm7.py` cubre 6 casos de V_M7 y actualmente pasa completa.
 - Se corrigio la inconsistencia de indexacion entre `days` y `weeks` en el ILP.
 - Validacion JWT de Appwrite alineada a `X-Appwrite-JWT` en v2.
-- Estado remoto: `/opt/shift-optimizer` ya fue sincronizado con `origin/main` y el working tree quedo limpio.
+- Estado remoto: `/opt/shift-optimizer` ya fue sincronizado con `origin/main`, nginx `turnos2.conf` quedo repuntado a `3012/8022` y el stack `v2` esta levantado.
 - Estado frontend local: `compute-diff`, `types/models` y el modulo de dotacion quedaron alineados; tambien se restauraron `types/optimizer`, `store/calendar-store`, `lib/calendar/*`, `lib/optimizer/*`, `lib/export/*`, `lib/auth/jefe-user-context` y `features/calendar/PartialRecalculateDialog`.
 - Verificacion local: `tsc --noEmit -p v2/frontend` pasa completo.
 - Ajuste de dependencias remoto: `v2/frontend/package.json` ahora declara `@dnd-kit/core`, requerido por `CalendarView`, `DayCell` y `ShiftSlot`.
