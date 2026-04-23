@@ -235,6 +235,7 @@ uvicorn app.main:app --reload            # solo backend (en v2/backend)
 npm test                                 # frontend (vitest)
 pytest                                   # backend (en v2/backend)
 npm run test:e2e                         # playwright
+npm run smoke:optimizer                  # smoke real contra optimize + validate en v2
 
 # Build
 docker compose build
@@ -278,6 +279,7 @@ Si detectas una contradicción entre dos specs o entre una spec y `v2/docs/`, **
 > Update 2026-04-23: el primer rebuild remoto de v2 ya entra al `next build`; detecto una dependencia faltante real en el contenedor (`@dnd-kit/core`) y se corrigio en `v2/frontend/package.json`.
 > Update 2026-04-23: el optimizer remoto reinicio por dependencias Python faltantes (`ortools`, `python-dateutil`, `openpyxl`) y se corrigieron en `v2/backend/requirements.txt`.
 > Update 2026-04-23: v2 quedo desplegado en `ssh antigravity`; nginx de `turnos2.dpmake.cl` apunta a `127.0.0.1:3012` y `127.0.0.1:8022`, frontend responde por localhost/nginx y el optimizer responde `200` en `/health` y `405` en `/api/optimize` (route publica alcanzable).
+> Update 2026-04-23: se agrego `v2/scripts/smoke-optimizer-v2.ts` y `npm run smoke:optimizer`; smoke real verificado contra `https://turnos2.dpmake.cl/api`: `optimize=200`, `validate=200`, `violations=0`.
 
 > Última actualización: 2026-04-23 — v2/feat(shift-catalog): spec 003 completa (catálogo de turnos poblado y tipado)
 
@@ -337,6 +339,7 @@ Si detectas una contradicción entre dos specs o entre una spec y `v2/docs/`, **
 - Ajuste de dependencias backend: `v2/backend/requirements.txt` ahora instala `ortools`, `python-dateutil` y `openpyxl`, requeridos por solver/export.
 - Infra de despliegue agregada: `v2/docker-compose.yml`, `v2/frontend/Dockerfile`, `v2/backend/Dockerfile`.
 - Seguridad de despliegue: el compose de v2 publica `3012` y `8022` solo en `127.0.0.1`; el acceso externo debe pasar por nginx.
+- Smoke operacional agregado: `v2/scripts/smoke-optimizer-v2.ts` ejecuta `POST /api/optimize` + `POST /api/validate` con payload VM7 y falla si no hay propuesta valida.
 
 ### Infraestructura
 

@@ -138,7 +138,7 @@ Si detectas una contradicción entre dos specs o entre una spec y `docs/`, **det
 
 ## Estado actual del proyecto
 
-> Update 2026-04-23: `main` mantiene v1 operativa y v2 ya quedo desplegada en `turnos2.dpmake.cl` usando puertos locales `3012/8022` via nginx. Verificado: frontend responde por nginx y `/api/optimize` del optimizer queda publico y alcanzable.
+> Update 2026-04-23: `main` mantiene v1 operativa y v2 ya quedo desplegada en `turnos2.dpmake.cl` usando puertos locales `3012/8022` via nginx. Verificado: frontend responde por nginx, `/api/optimize` del optimizer queda publico y alcanzable, y el smoke real `optimize + validate` pasa en v2.
 
 > Última actualización: 2026-04-19 — commit c342558
 
