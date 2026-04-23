@@ -55,9 +55,9 @@ export async function POST(request: NextRequest) {
   });
 
   const sessionPayload = await sessionResponse.json().catch(() => null);
-  const sessionSecret = getSessionSecret(
-    sessionResponse.headers.get("x-fallback-cookies")
-  );
+  const sessionSecret =
+    (typeof sessionPayload?.secret === "string" ? sessionPayload.secret : null) ??
+    getSessionSecret(sessionResponse.headers.get("x-fallback-cookies"));
 
   if (!sessionResponse.ok || !sessionSecret) {
     const message =
