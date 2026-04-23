@@ -276,6 +276,7 @@ Si detectas una contradicción entre dos specs o entre una spec y `v2/docs/`, **
 > Update 2026-04-23: servidor `/opt/shift-optimizer` sincronizado a `origin/main`; v1 quedo actualizado. El despliegue real de v2 sigue bloqueado por falta de `/opt/shift-optimizer/v2/.env` en servidor y por definir una `NEXT_PUBLIC_OPTIMIZER_URL` publica/usable.
 > Update 2026-04-23: el bloqueo de compilacion frontend de v2 quedo resuelto localmente; se repusieron modulos reutilizados de calendario/optimizer/export/auth, se alinearon tipos compartidos y `tsc --noEmit -p v2/frontend` pasa limpio.
 > Update 2026-04-23: el primer rebuild remoto de v2 ya entra al `next build`; detecto una dependencia faltante real en el contenedor (`@dnd-kit/core`) y se corrigio en `v2/frontend/package.json`.
+> Update 2026-04-23: el optimizer remoto reinicio por dependencias Python faltantes (`ortools`, `python-dateutil`, `openpyxl`) y se corrigieron en `v2/backend/requirements.txt`.
 
 > Última actualización: 2026-04-23 — v2/feat(shift-catalog): spec 003 completa (catálogo de turnos poblado y tipado)
 
@@ -332,6 +333,7 @@ Si detectas una contradicción entre dos specs o entre una spec y `v2/docs/`, **
 - Estado frontend local: `compute-diff`, `types/models` y el modulo de dotacion quedaron alineados; tambien se restauraron `types/optimizer`, `store/calendar-store`, `lib/calendar/*`, `lib/optimizer/*`, `lib/export/*`, `lib/auth/jefe-user-context` y `features/calendar/PartialRecalculateDialog`.
 - Verificacion local: `tsc --noEmit -p v2/frontend` pasa completo.
 - Ajuste de dependencias remoto: `v2/frontend/package.json` ahora declara `@dnd-kit/core`, requerido por `CalendarView`, `DayCell` y `ShiftSlot`.
+- Ajuste de dependencias backend: `v2/backend/requirements.txt` ahora instala `ortools`, `python-dateutil` y `openpyxl`, requeridos por solver/export.
 - Infra de despliegue agregada: `v2/docker-compose.yml`, `v2/frontend/Dockerfile`, `v2/backend/Dockerfile`.
 - Seguridad de despliegue: el compose de v2 publica `3012` y `8022` solo en `127.0.0.1`; el acceso externo debe pasar por nginx.
 
