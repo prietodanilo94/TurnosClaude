@@ -277,6 +277,33 @@ async function bootstrapAuditLog(): Promise<void> {
   await create("idx_accion", idxs, () => db.createIndex(DB, "audit_log", "idx_accion", IndexType.Key, ["accion"]));
 }
 
+// ─── colección: shift_catalog_v2 ────────────────────────────────────────────────
+
+async function bootstrapShiftCatalogV2(): Promise<void> {
+  console.log("\n[shift_catalog_v2]");
+  await ensureCollection("shift_catalog_v2", "Shift Catalog v2", [
+    Permission.read(Role.any()), // Todos pueden ver los turnos
+    Permission.create(Role.label("admin")),
+    Permission.update(Role.label("admin")),
+    Permission.delete(Role.label("admin")),
+  ]);
+
+  const attrs = await getExistingAttrKeys("shift_catalog_v2");
+  await create("rotation_group", attrs, () => db.createStringAttribute(DB, "shift_catalog_v2", "rotation_group", 50, true));
+  await create("nombre_turno", attrs, () => db.createStringAttribute(DB, "shift_catalog_v2", "nombre_turno", 50, true));
+  await create("nombre_display", attrs, () => db.createStringAttribute(DB, "shift_catalog_v2", "nombre_display", 100, true));
+  await create("horario_por_dia", attrs, () => db.createStringAttribute(DB, "shift_catalog_v2", "horario_por_dia", 10000, true));
+  await create("descuenta_colacion", attrs, () => db.createBooleanAttribute(DB, "shift_catalog_v2", "descuenta_colacion", false, true));
+  
+  // Appwrite array of strings support
+  await create("dias_aplicables", attrs, () => db.createStringAttribute(DB, "shift_catalog_v2", "dias_aplicables", 20, true, undefined, true));
+
+  await sleep(2000);
+
+  const idxs = await getExistingIdxKeys("shift_catalog_v2");
+  await create("idx_grupo_rotacion", idxs, () => db.createIndex(DB, "shift_catalog_v2", "idx_grupo_rotacion", IndexType.Key, ["rotation_group"]));
+}
+
 // ─── main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -293,6 +320,7 @@ async function main() {
   await bootstrapBranches();
   await bootstrapWorkers();
   await bootstrapAuditLog();
+  await bootstrapShiftCatalogV2();
 
   console.log("\n=== bootstrap completado ===\n");
 }

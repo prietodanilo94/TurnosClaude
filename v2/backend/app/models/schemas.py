@@ -3,7 +3,7 @@ Modelos Pydantic — Shift Optimizer v2
 Fuente de verdad del backend. Se expande con cada spec.
 """
 from enum import Enum
-from typing import Optional
+from typing import Optional, Dict, List
 from pydantic import BaseModel
 
 
@@ -66,3 +66,28 @@ class Worker(BaseModel):
     supervisor_nombre: Optional[str] = None
     activo: bool = True
     ultima_sync_excel: Optional[str] = None
+
+
+# Stub — se expande en spec 002
+class WorkerInfo(BaseModel):
+    id: str
+    rut: str
+    nombre_completo: str
+    branch_id: str
+    area_negocio: str
+    rotation_group: str
+    supervisor_nombre: Optional[str] = None
+    activo: bool
+
+class HorarioDia(BaseModel):
+    inicio: str
+    fin: str
+
+class ShiftInfoV2(BaseModel):
+    id: str
+    nombre_display: str
+    rotation_group: str
+    nombre_turno: str
+    horario_por_dia: Dict[str, HorarioDia]
+    descuenta_colacion: bool
+    dias_aplicables: List[str]

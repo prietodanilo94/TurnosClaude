@@ -269,7 +269,7 @@ Si detectas una contradicción entre dos specs o entre una spec y `v2/docs/`, **
 
 ## Estado actual del proyecto
 
-> Última actualización: 2026-04-22 — v2/feat(dotacion): spec 002 completa (parser inteligente y persistencia con area catálogo)
+> Última actualización: 2026-04-23 — v2/feat(shift-catalog): spec 003 completa (catálogo de turnos poblado y tipado)
 
 ### ✅ Hecho
 
@@ -298,9 +298,14 @@ Si detectas una contradicción entre dos specs o entre una spec y `v2/docs/`, **
 - Motor de diferencias (`compute-diff.ts`) utiliza `lookupArea()` para inferir automáticamente la sucursal de un empleado a partir de su ID de área sin pedir ayuda del usuario, auto-clasificando branches nuevas que están en el catálogo.
 - La pantalla de UI unificada (`page.tsx`) fue replicada desde v1 y mejorado su `NewBranchesPanel` y `PreviewTable` para soportar las nuevas variables.
 
+#### Spec 003 — shift-catalog ✅ COMPLETA (tasks 1–5)
+- Bootstrapping de `shift_catalog_v2` con todos sus atributos incluyendo json e index.
+- Script seeder para poblar 22 turnos distribuidos por rotaciones como `V_M7`, `P_MO`, `V_SA`, etc.
+- Funciones en frontend para llamar esta data desde Appwrite devolviendo `ShiftV2` (`lib/shift-catalog.ts`).
+- Tipos de TypeScript y Pydantic (`schemas.py`) ampliados y unificados.
+
 ### 🔲 Pendiente (Próximos pasos para mañana)
 
-- Spec 003 — shift-catalog
 - Spec 004 — optimizer
 - Spec 005 — calendar-ui
 - Spec 007 — overrides

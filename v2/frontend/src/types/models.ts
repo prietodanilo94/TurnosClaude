@@ -69,3 +69,20 @@ export interface SyncReport {
   sinCambios: number;
   errores: string[];
 }
+
+export type NombreTurnoV2 = "apertura" | "cierre" | "completo" | "sabado" | "unico" | "opcion_a" | "opcion_b";
+
+export interface HorarioDia {
+  inicio: string; // "HH:MM"
+  fin: string;    // "HH:MM"
+}
+
+export interface ShiftV2 {
+  $id: string; // Ej: V_SA_APE
+  nombre_display: string;
+  rotation_group: string; // Ej: V_SA
+  nombre_turno: NombreTurnoV2;
+  horario_por_dia: Record<string, HorarioDia>; // "lunes" -> {inicio, fin}
+  descuenta_colacion: boolean;
+  dias_aplicables: string[];
+}
