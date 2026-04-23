@@ -2,6 +2,7 @@
 
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
+import type { MouseEvent } from "react";
 import type { CalendarAssignment, ShiftDef, Violation } from "@/types/optimizer";
 import type { Worker } from "@/types/models";
 import { workerColor, UNASSIGNED_COLOR } from "./worker-colors";
@@ -13,7 +14,9 @@ interface ShiftSlotProps {
   worker: Worker | undefined;
   violations: Violation[];
   isOverlapping: boolean;
+  hasOverride?: boolean;
   onClick?: () => void;
+  onContextMenu?: (event: MouseEvent<HTMLDivElement>) => void;
 }
 
 export function ShiftSlot({
@@ -22,7 +25,9 @@ export function ShiftSlot({
   worker,
   violations,
   isOverlapping,
+  hasOverride = false,
   onClick,
+  onContextMenu,
 }: ShiftSlotProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: assignment.id,
@@ -71,9 +76,16 @@ export function ShiftSlot({
           e.stopPropagation();
           onClick?.();
         }}
+        onContextMenu={(event) => {
+          event.stopPropagation();
+          onContextMenu?.(event);
+        }}
       >
         <div className="font-medium truncate">{label}</div>
         <div className="opacity-75">{timeRange}</div>
+        {hasOverride && (
+          <span className="absolute top-0.5 left-0.5 text-amber-600 font-bold text-[10px]">✎</span>
+        )}
         {hasViolation && (
           <span className="absolute top-0.5 right-0.5 text-red-500 font-bold text-[10px]">!</span>
         )}

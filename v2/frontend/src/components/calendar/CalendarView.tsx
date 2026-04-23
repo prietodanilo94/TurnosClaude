@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, type MouseEvent } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -11,10 +11,12 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { useCalendarStore } from "@/store/calendar-store";
+import { useCurrentUser } from "@/lib/auth/use-current-user";
 import { validateLocal } from "@/lib/calendar/local-validator";
 import { ExportButton } from "./ExportButton";
 import { ExportCalendarButton } from "./ExportCalendarButton";
 import { MonthGrid } from "./MonthGrid";
+import { OverrideMenu, type OverrideTarget } from "./OverrideMenu";
 import { ProposalSelector } from "./ProposalSelector";
 import { SaveButton } from "./SaveButton";
 import { WorkerAssignDialog } from "./WorkerAssignDialog";
@@ -22,6 +24,7 @@ import { PartialRecalculateDialog, type PartialRecalculateParams } from "@/featu
 import { WorkerMappingPanel } from "./WorkerMappingPanel";
 import { callPartialOptimize, PartialOptimizeError, extendToFullIsoWeeks } from "@/lib/optimizer/build-partial-payload";
 import type { CalendarAssignment } from "@/types/optimizer";
+import type { OverrideType, SlotOverride } from "@/types/models";
 import { ID, Query } from "appwrite";
 import { account, databases } from "@/lib/auth/appwrite-client";
 import { getShiftWindow } from "@/lib/calendar/shift-utils";
@@ -34,11 +37,14 @@ const MONTH_NAMES = [
 export function CalendarView() {
   const {
     branchId, year, month, assignments, workers, shiftCatalog,
+    currentOverrides,
     holidays, franjaPorDia, violations, partialReview,
     activeProposalId,
     moveAssignment, removeAssignment, setViolations,
     enterPartialReview, exitPartialReview, applyPartialReview, markSaved, setSlotWorker,
+    replaceAssignments, setCurrentOverrides,
   } = useCalendarStore();
+  const { user } = useCurrentUser();
 
   // slotToWorker: mapeado desde assignments REALES (con RUTs reales), no displayAssignments.
   // En modo revisión, los pendingAssignments tienen RUTs anónimos (worker_N) del solver.
@@ -71,6 +77,7 @@ export function CalendarView() {
   const [partialError, setPartialError] = useState<string | null>(null);
   const [showMappingPanel, setShowMappingPanel] = useState(false);
   const [dragError, setDragError] = useState<string | null>(null);
+  const [overrideTarget, setOverrideTarget] = useState<OverrideTarget | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
@@ -143,6 +150,52 @@ export function CalendarView() {
     setViolations(newViolations);
   }
 
+  function serializeAssignments(currentAssignments: CalendarAssignment[]) {
+    return JSON.stringify(
+      currentAssignments.map((assignment) => ({
+        slot: assignment.worker_slot,
+        date: assignment.date,
+        shift_id: assignment.shift_id,
+        worker_rut: assignment.worker_rut,
+      }))
+    );
+  }
+
+  async function persistProposalAssignments(currentAssignments: CalendarAssignment[]) {
+    if (!activeProposalId) {
+      throw new Error("No hay propuesta activa para aplicar overrides.");
+    }
+
+    await databases.updateDocument(
+      process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID ?? "main-v2",
+      "proposals",
+      activeProposalId,
+      {
+        asignaciones: serializeAssignments(currentAssignments),
+      }
+    );
+  }
+
+  async function writeOverrideAuditLog(
+    action: string,
+    metadata: Record<string, unknown>
+  ) {
+    if (!user || !activeProposalId) return;
+
+    await databases.createDocument(
+      process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID ?? "main-v2",
+      "audit_log",
+      ID.unique(),
+      {
+        user_id: user.$id,
+        accion: action,
+        entidad: "proposals",
+        entidad_id: activeProposalId,
+        metadata: JSON.stringify(metadata),
+      }
+    );
+  }
+
   function handleSlotClick(a: CalendarAssignment) {
     setDialogAssignment(a);
   }
@@ -158,6 +211,248 @@ export function CalendarView() {
       return { ...updated, id: makeId(updated) };
     });
     runValidation(newAssignments);
+  }
+
+  function openAssignmentOverrideMenu(
+    event: MouseEvent<HTMLDivElement>,
+    payload: { assignment: CalendarAssignment; override?: SlotOverride }
+  ) {
+    event.preventDefault();
+    if (partialReview) return;
+
+    const worker = workers.find((item) => item.rut === payload.assignment.worker_rut);
+    setOverrideTarget({
+      date: payload.assignment.date,
+      slot: payload.assignment.worker_slot,
+      workerLabel: worker
+        ? worker.nombre_completo.split(" ").slice(0, 2).join(" ")
+        : `Trabajador ${payload.assignment.worker_slot}`,
+      assignment: payload.assignment,
+      existingOverride: payload.override,
+      isSunday: payload.assignment.date ? new Date(`${payload.assignment.date}T12:00:00`).getDay() === 0 : false,
+    });
+  }
+
+  function openFreeSlotOverrideMenu(
+    event: MouseEvent<HTMLDivElement>,
+    payload: { date: string; slot: number; override?: SlotOverride; isSunday: boolean }
+  ) {
+    event.preventDefault();
+    if (partialReview) return;
+
+    const worker = slotToWorker[payload.slot];
+    setOverrideTarget({
+      date: payload.date,
+      slot: payload.slot,
+      workerLabel: worker
+        ? worker.nombre_completo.split(" ").slice(0, 2).join(" ")
+        : `Trabajador ${payload.slot}`,
+      existingOverride: payload.override,
+      isSunday: payload.isSunday,
+    });
+  }
+
+  async function handleApplyOverride(params: {
+    tipo: OverrideType;
+    shiftIdNuevo?: string;
+    notas?: string;
+  }) {
+    if (!overrideTarget || !activeProposalId || !user) {
+      throw new Error("No hay contexto suficiente para aplicar el override.");
+    }
+
+    const previousAssignments = assignments;
+    const previousOverrides = currentOverrides;
+    let nextAssignments = assignments;
+
+    if (params.tipo === "cambiar_turno") {
+      if (!overrideTarget.assignment || !params.shiftIdNuevo) {
+        throw new Error("Falta el turno nuevo para cambiar el slot.");
+      }
+      nextAssignments = assignments.map((assignment) =>
+        assignment.id === overrideTarget.assignment?.id
+          ? {
+              ...assignment,
+              shift_id: params.shiftIdNuevo!,
+              id: `${assignment.worker_rut}_${assignment.date}_${params.shiftIdNuevo!}`,
+            }
+          : assignment
+      );
+    }
+
+    if (params.tipo === "marcar_libre") {
+      if (!overrideTarget.assignment) {
+        throw new Error("No hay slot trabajado para marcar libre.");
+      }
+      nextAssignments = assignments.filter(
+        (assignment) => assignment.id !== overrideTarget.assignment?.id
+      );
+    }
+
+    if (params.tipo === "marcar_trabajado") {
+      if (!params.shiftIdNuevo) {
+        throw new Error("Selecciona el turno que quieres agregar.");
+      }
+
+      const worker = slotToWorker[overrideTarget.slot];
+      if (!worker) {
+        throw new Error("Este slot no tiene un trabajador vinculado.");
+      }
+
+      const alreadyWorkingThatDay = assignments.some(
+        (assignment) =>
+          assignment.worker_rut === worker.rut && assignment.date === overrideTarget.date
+      );
+      if (alreadyWorkingThatDay) {
+        throw new Error("El trabajador ya tiene un turno ese dia.");
+      }
+
+      nextAssignments = [
+        ...assignments,
+        {
+          id: `${worker.rut}_${overrideTarget.date}_${params.shiftIdNuevo}`,
+          worker_slot: overrideTarget.slot,
+          worker_rut: worker.rut,
+          date: overrideTarget.date,
+          shift_id: params.shiftIdNuevo,
+        },
+      ];
+    }
+
+    if (params.tipo === "proteger_domingo" && !overrideTarget.isSunday) {
+      throw new Error("Solo se puede proteger un domingo libre.");
+    }
+
+    const optimisticOverride: SlotOverride = {
+      $id: `temp-${Date.now()}`,
+      proposal_id: activeProposalId,
+      fecha: overrideTarget.date,
+      slot_numero: overrideTarget.slot,
+      tipo: params.tipo,
+      shift_id_original: overrideTarget.assignment?.shift_id,
+      shift_id_nuevo: params.shiftIdNuevo,
+      notas: params.notas,
+      creado_por: user.$id,
+    };
+
+    replaceAssignments(nextAssignments, false);
+    setCurrentOverrides([...previousOverrides, optimisticOverride]);
+    runValidation(nextAssignments);
+
+    try {
+      const overrideDoc = (await databases.createDocument(
+        process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID ?? "main-v2",
+        "slot_overrides",
+        ID.unique(),
+        {
+          proposal_id: activeProposalId,
+          fecha: overrideTarget.date,
+          slot_numero: overrideTarget.slot,
+          tipo: params.tipo,
+          shift_id_original: overrideTarget.assignment?.shift_id,
+          shift_id_nuevo: params.shiftIdNuevo,
+          notas: params.notas,
+          creado_por: user.$id,
+        }
+      )) as unknown as SlotOverride;
+
+      await persistProposalAssignments(nextAssignments);
+      await writeOverrideAuditLog("slot_override.create", {
+        tipo: params.tipo,
+        fecha: overrideTarget.date,
+        slot_numero: overrideTarget.slot,
+        shift_id_original: overrideTarget.assignment?.shift_id ?? null,
+        shift_id_nuevo: params.shiftIdNuevo ?? null,
+      });
+
+      setCurrentOverrides([...previousOverrides, overrideDoc]);
+      markSaved();
+    } catch (error) {
+      replaceAssignments(previousAssignments, false);
+      setCurrentOverrides(previousOverrides);
+      runValidation(previousAssignments);
+      throw error;
+    }
+  }
+
+  async function handleRevertOverride(override: SlotOverride) {
+    if (!activeProposalId || !user) {
+      throw new Error("No hay contexto suficiente para revertir el override.");
+    }
+
+    const previousAssignments = assignments;
+    const previousOverrides = currentOverrides;
+    let nextAssignments = assignments;
+
+    if (override.tipo === "cambiar_turno") {
+      if (!override.shift_id_original) {
+        throw new Error("El override no tiene turno original para revertir.");
+      }
+      nextAssignments = assignments.map((assignment) =>
+        assignment.date === override.fecha && assignment.worker_slot === override.slot_numero
+          ? {
+              ...assignment,
+              shift_id: override.shift_id_original!,
+              id: `${assignment.worker_rut}_${assignment.date}_${override.shift_id_original!}`,
+            }
+          : assignment
+      );
+    }
+
+    if (override.tipo === "marcar_libre") {
+      if (!override.shift_id_original || override.slot_numero === undefined) {
+        throw new Error("Faltan datos para restaurar el turno original.");
+      }
+      const worker = slotToWorker[override.slot_numero];
+      if (!worker) {
+        throw new Error("No se pudo resolver el trabajador del slot original.");
+      }
+      nextAssignments = [
+        ...assignments,
+        {
+          id: `${worker.rut}_${override.fecha}_${override.shift_id_original}`,
+          worker_slot: override.slot_numero,
+          worker_rut: worker.rut,
+          date: override.fecha,
+          shift_id: override.shift_id_original,
+        },
+      ];
+    }
+
+    if (override.tipo === "marcar_trabajado") {
+      nextAssignments = assignments.filter(
+        (assignment) =>
+          !(
+            assignment.date === override.fecha &&
+            assignment.worker_slot === override.slot_numero &&
+            assignment.shift_id === override.shift_id_nuevo
+          )
+      );
+    }
+
+    replaceAssignments(nextAssignments, false);
+    setCurrentOverrides(previousOverrides.filter((item) => item.$id !== override.$id));
+    runValidation(nextAssignments);
+
+    try {
+      await databases.deleteDocument(
+        process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID ?? "main-v2",
+        "slot_overrides",
+        override.$id
+      );
+      await persistProposalAssignments(nextAssignments);
+      await writeOverrideAuditLog("slot_override.revert", {
+        tipo: override.tipo,
+        fecha: override.fecha,
+        slot_numero: override.slot_numero ?? null,
+      });
+      markSaved();
+    } catch (error) {
+      replaceAssignments(previousAssignments, false);
+      setCurrentOverrides(previousOverrides);
+      runValidation(previousAssignments);
+      throw error;
+    }
   }
 
   async function handlePartialConfirm(params: PartialRecalculateParams) {
@@ -392,11 +687,14 @@ export function CalendarView() {
           assignments={displayAssignments}
           workers={workers}
           shifts={shiftCatalog}
+          currentOverrides={partialReview ? [] : currentOverrides}
           slotToWorker={slotToWorker}
           violations={partialReview ? [] : violations}
           maxHours={42}
           partialRange={partialReview?.range}
           onSlotClick={partialReview ? undefined : handleSlotClick}
+          onAssignmentContextMenu={partialReview ? undefined : openAssignmentOverrideMenu}
+          onFreeSlotContextMenu={partialReview ? undefined : openFreeSlotOverrideMenu}
         />
 
         <DragOverlay dropAnimation={null}>
@@ -441,6 +739,16 @@ export function CalendarView() {
           workers={workers}
           onApply={handleApplyMapping}
           onClose={() => setShowMappingPanel(false)}
+        />
+      )}
+
+      {overrideTarget && (
+        <OverrideMenu
+          target={overrideTarget}
+          shifts={shiftCatalog}
+          onApply={handleApplyOverride}
+          onRevert={handleRevertOverride}
+          onClose={() => setOverrideTarget(null)}
         />
       )}
     </div>

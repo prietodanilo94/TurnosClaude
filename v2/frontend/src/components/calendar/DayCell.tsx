@@ -1,9 +1,10 @@
 "use client";
 
+import type { MouseEvent } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import type { DayInGrid } from "@/lib/calendar/month-grid";
 import type { CalendarAssignment, ShiftDef, Violation } from "@/types/optimizer";
-import type { Worker } from "@/types/models";
+import type { SlotOverride, Worker } from "@/types/models";
 import { ShiftSlot } from "./ShiftSlot";
 
 interface DayCellProps {
@@ -14,8 +15,17 @@ interface DayCellProps {
   violationsByAssignment: Record<string, Violation[]>;
   overlappingIds: Set<string>;
   slotToWorker?: Record<number, Worker>;
+  currentOverrides?: SlotOverride[];
   partialRange?: { desde: string; hasta: string };
   onSlotClick?: (assignment: CalendarAssignment) => void;
+  onAssignmentContextMenu?: (
+    event: MouseEvent<HTMLDivElement>,
+    payload: { assignment: CalendarAssignment; override?: SlotOverride }
+  ) => void;
+  onFreeSlotContextMenu?: (
+    event: MouseEvent<HTMLDivElement>,
+    payload: { date: string; slot: number; override?: SlotOverride; isSunday: boolean }
+  ) => void;
 }
 
 const WEEKDAY_LABELS: Record<string, string> = {
@@ -31,8 +41,11 @@ export function DayCell({
   violationsByAssignment,
   overlappingIds,
   slotToWorker = {},
+  currentOverrides = [],
   partialRange,
   onSlotClick,
+  onAssignmentContextMenu,
+  onFreeSlotContextMenu,
 }: DayCellProps) {
   const { setNodeRef, isOver } = useDroppable({ id: day.date });
 
@@ -42,6 +55,12 @@ export function DayCell({
   for (const w of workers) workerMap[w.rut] = w;
 
   const dayAssignments = assignments.filter((a) => a.date === day.date);
+  const overridesBySlot = new Map<number, SlotOverride>();
+  for (const override of currentOverrides) {
+    if (override.fecha === day.date && override.slot_numero !== undefined) {
+      overridesBySlot.set(override.slot_numero, override);
+    }
+  }
 
   // Modo revisión parcial: determinar si el día está dentro o fuera del rango
   const partialStatus = partialRange && day.isCurrentMonth
@@ -122,7 +141,14 @@ export function DayCell({
                     worker={workerMap[a.worker_rut]}
                     violations={violationsByAssignment[a.id] ?? []}
                     isOverlapping={overlappingIds.has(a.id)}
+                    hasOverride={overridesBySlot.has(a.worker_slot)}
                     onClick={() => onSlotClick?.(a)}
+                    onContextMenu={(event) =>
+                      onAssignmentContextMenu?.(event, {
+                        assignment: a,
+                        override: overridesBySlot.get(a.worker_slot),
+                      })
+                    }
                   />
                 );
               }
@@ -133,8 +159,19 @@ export function DayCell({
               return (
                 <div
                   key={`libre-${slot}`}
-                  className="rounded-md border px-2 py-1 text-xs border-gray-100 bg-gray-50 text-gray-400 leading-tight"
+                  className="rounded-md border px-2 py-1 text-xs border-gray-100 bg-gray-50 text-gray-400 leading-tight relative"
+                  onContextMenu={(event) =>
+                    onFreeSlotContextMenu?.(event, {
+                      date: day.date,
+                      slot,
+                      override: overridesBySlot.get(slot),
+                      isSunday: day.weekday === "domingo",
+                    })
+                  }
                 >
+                  {overridesBySlot.has(slot) && (
+                    <span className="absolute top-0.5 left-0.5 text-amber-600 font-bold text-[10px]">✎</span>
+                  )}
                   <div className="font-medium truncate">{nombre}</div>
                   <div className="italic text-[10px]">libre</div>
                 </div>
@@ -148,7 +185,14 @@ export function DayCell({
                 worker={workerMap[a.worker_rut]}
                 violations={violationsByAssignment[a.id] ?? []}
                 isOverlapping={overlappingIds.has(a.id)}
+                hasOverride={overridesBySlot.has(a.worker_slot)}
                 onClick={() => onSlotClick?.(a)}
+                onContextMenu={(event) =>
+                  onAssignmentContextMenu?.(event, {
+                    assignment: a,
+                    override: overridesBySlot.get(a.worker_slot),
+                  })
+                }
               />
             ))}
       </div>

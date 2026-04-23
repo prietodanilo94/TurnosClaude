@@ -12,6 +12,11 @@ export type Clasificacion = "standalone" | "mall_sin_dom" | "mall_7d" | "mall_au
 export type AreaNegocio = "ventas" | "postventa";
 export type Categoria = "principal" | "adicional";
 export type TipoConstraint = "dia_prohibido" | "turno_prohibido" | "vacaciones";
+export type OverrideType =
+  | "cambiar_turno"
+  | "marcar_libre"
+  | "marcar_trabajado"
+  | "proteger_domingo";
 export type ModoProposal = "ilp" | "greedy";
 export type EstadoProposal =
   | "generada"
@@ -140,6 +145,17 @@ export interface Assignment extends AppwriteDoc {
   worker_id?: string;
   asignado_por?: string;
   asignado_en?: string;
+}
+
+export interface SlotOverride extends AppwriteDoc {
+  proposal_id: string;
+  fecha: string;
+  slot_numero?: number;
+  tipo: OverrideType;
+  shift_id_original?: string;
+  shift_id_nuevo?: string;
+  notas?: string;
+  creado_por: string;
 }
 
 export interface AuditLog extends AppwriteDoc {

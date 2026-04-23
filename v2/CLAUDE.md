@@ -287,6 +287,7 @@ Si detectas una contradicción entre dos specs o entre una spec y `v2/docs/`, **
 > Update 2026-04-23: frontend v2 verificado localmente con `npm exec --workspace=frontend tsc --noEmit` y `npm run build --workspace=frontend`. En `ssh antigravity` hubo que forzar `docker compose build --no-cache frontend` para invalidar cache y dejar `https://turnos2.dpmake.cl/admin/sucursales` respondiendo `200`.
 > Update 2026-04-23: flujo de propuestas/export v2 alineado; `persist-proposals.ts` ahora crea `assignments` al generar, la primera propuesta queda `seleccionada`, `ProposalSelector` persiste cambios de seleccion en Appwrite y `trigger-download.ts` usa `X-Appwrite-JWT`.
 > Update 2026-04-23: spec 008 implementada en frontend; `v2/frontend/src/app/admin/sucursales/[branchId]/page.tsx` abre ficha editable de sucursal, permite cambiar `clasificacion` + `tipo_franja`, advierte si ya existen propuestas del mes, actualiza opcionalmente `area_catalog` y escribe `audit_log`.
+> Update 2026-04-23: spec 007 implementada en v2 a nivel base; `slot_overrides` entra al bootstrap de Appwrite, el calendario abre menu de override con click derecho sobre slot o dia libre, persiste cambios en Appwrite y permite revertirlos desde la misma UI.
 
 > Última actualización: 2026-04-23 — v2/feat(shift-catalog): spec 003 completa (catálogo de turnos poblado y tipado)
 
@@ -325,7 +326,6 @@ Si detectas una contradicción entre dos specs o entre una spec y `v2/docs/`, **
 
 ### 🔲 Pendiente (Próximos pasos para mañana)
 
-- Spec 007 — overrides
 - Spec 009 — export-excel
 
 ### En progreso
@@ -370,6 +370,14 @@ Si detectas una contradicción entre dos specs o entre una spec y `v2/docs/`, **
 - Cada cambio deja registro en `audit_log`.
 - El listado `v2/frontend/src/app/admin/sucursales/page.tsx` ahora enlaza tanto a la ficha como al calendario.
 - Verificacion local: `next build` OK y la ruta dinamica `/admin/sucursales/[branchId]` aparece en el output de Next.
+
+#### Spec 007 - overrides
+- `v2/scripts/bootstrap-appwrite-v2.ts` ahora crea la coleccion `slot_overrides` y aplica permisos por rol.
+- `v2/frontend/src/components/calendar/OverrideMenu.tsx` agrega menu para `cambiar_turno`, `marcar_libre`, `marcar_trabajado` y `proteger_domingo`.
+- `v2/frontend/src/components/calendar/CalendarView.tsx` persiste el override en Appwrite, actualiza `proposals.asignaciones`, deja audit log y soporta revertir el override activo.
+- `v2/frontend/src/lib/proposals/fetch-slot-overrides.ts` + `calendar-store.ts` cargan y mantienen overrides por propuesta activa.
+- `MonthGrid`, `WeekRow`, `DayCell` y `ShiftSlot` muestran icono de override y permiten abrir el menu contextual sobre slot trabajado o dia libre.
+- Verificacion local: `next build` OK; la ruta mensual del calendario sigue compilando con el menu nuevo.
 
 ### Infraestructura
 

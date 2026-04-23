@@ -2,7 +2,8 @@
 
 import type { WeekInGrid } from "@/lib/calendar/month-grid";
 import type { CalendarAssignment, ShiftDef, Violation } from "@/types/optimizer";
-import type { Worker } from "@/types/models";
+import type { SlotOverride, Worker } from "@/types/models";
+import type { MouseEvent } from "react";
 import { DayCell } from "./DayCell";
 import { WeekHoursSummary } from "./WeekHoursSummary";
 import { calculateHours } from "@/lib/calendar/hours-calculator";
@@ -16,9 +17,18 @@ interface WeekRowProps {
   overlappingIds: Set<string>;
   slotByRut: Record<string, number>;
   slotToWorker: Record<number, Worker>;
+  currentOverrides: SlotOverride[];
   maxHours: number;
   partialRange?: { desde: string; hasta: string };
   onSlotClick?: (assignment: CalendarAssignment) => void;
+  onAssignmentContextMenu?: (
+    event: MouseEvent<HTMLDivElement>,
+    payload: { assignment: CalendarAssignment; override?: SlotOverride }
+  ) => void;
+  onFreeSlotContextMenu?: (
+    event: MouseEvent<HTMLDivElement>,
+    payload: { date: string; slot: number; override?: SlotOverride; isSunday: boolean }
+  ) => void;
 }
 
 export function WeekRow({
@@ -30,9 +40,12 @@ export function WeekRow({
   overlappingIds,
   slotByRut,
   slotToWorker,
+  currentOverrides,
   maxHours,
   partialRange,
   onSlotClick,
+  onAssignmentContextMenu,
+  onFreeSlotContextMenu,
 }: WeekRowProps) {
   const weekAssignments = assignments.filter((a) => {
     const d = new Date(a.date + "T12:00:00");
@@ -64,8 +77,12 @@ export function WeekRow({
             shifts={shifts}
             violationsByAssignment={violationsByAssignment}
             overlappingIds={overlappingIds}
+            slotToWorker={slotToWorker}
+            currentOverrides={currentOverrides}
             partialRange={partialRange}
             onSlotClick={onSlotClick}
+            onAssignmentContextMenu={onAssignmentContextMenu}
+            onFreeSlotContextMenu={onFreeSlotContextMenu}
           />
         ))}
       </div>

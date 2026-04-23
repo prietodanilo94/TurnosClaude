@@ -428,6 +428,47 @@ async function bootstrapAssignments(): Promise<void> {
   );
 }
 
+// --- coleccion: slot_overrides ------------------------------------------------
+
+async function bootstrapSlotOverrides(): Promise<void> {
+  console.log("\n[slot_overrides]");
+  await ensureCollection("slot_overrides", "Slot Overrides", [
+    Permission.read(Role.label("admin")),
+    Permission.read(Role.label("jefesucursal")),
+    Permission.create(Role.label("admin")),
+    Permission.update(Role.label("admin")),
+    Permission.delete(Role.label("admin")),
+  ]);
+
+  const attrs = await getExistingAttrKeys("slot_overrides");
+  await create("proposal_id", attrs, () => db.createStringAttribute(DB, "slot_overrides", "proposal_id", 36, true));
+  await create("fecha", attrs, () => db.createStringAttribute(DB, "slot_overrides", "fecha", 10, true));
+  await create("slot_numero", attrs, () => db.createIntegerAttribute(DB, "slot_overrides", "slot_numero", false));
+  await create("tipo", attrs, () =>
+    db.createEnumAttribute(
+      DB,
+      "slot_overrides",
+      "tipo",
+      ["cambiar_turno", "marcar_libre", "marcar_trabajado", "proteger_domingo"],
+      true
+    )
+  );
+  await create("shift_id_original", attrs, () => db.createStringAttribute(DB, "slot_overrides", "shift_id_original", 100, false));
+  await create("shift_id_nuevo", attrs, () => db.createStringAttribute(DB, "slot_overrides", "shift_id_nuevo", 100, false));
+  await create("notas", attrs, () => db.createStringAttribute(DB, "slot_overrides", "notas", 1000, false));
+  await create("creado_por", attrs, () => db.createStringAttribute(DB, "slot_overrides", "creado_por", 36, true));
+
+  await sleep(2000);
+
+  const idxs = await getExistingIdxKeys("slot_overrides");
+  await create("idx_override_proposal", idxs, () =>
+    db.createIndex(DB, "slot_overrides", "idx_override_proposal", IndexType.Key, ["proposal_id"])
+  );
+  await create("idx_override_fecha", idxs, () =>
+    db.createIndex(DB, "slot_overrides", "idx_override_fecha", IndexType.Key, ["fecha"])
+  );
+}
+
 // ─── colección: audit_log ─────────────────────────────────────────────────────
 
 async function bootstrapAuditLog(): Promise<void> {
@@ -583,6 +624,14 @@ async function configurePermissions(): Promise<void> {
     Permission.update(JEFE),
     Permission.delete(ADMIN),
   ], false);
+
+  await setCollectionPerms("slot_overrides", "Slot Overrides", [
+    Permission.read(ADMIN),
+    Permission.read(JEFE),
+    Permission.create(ADMIN),
+    Permission.update(ADMIN),
+    Permission.delete(ADMIN),
+  ], false);
 }
 
 // ─── main ─────────────────────────────────────────────────────────────────────
@@ -605,6 +654,7 @@ async function main() {
   await bootstrapWorkerConstraints();
   await bootstrapProposals();
   await bootstrapAssignments();
+  await bootstrapSlotOverrides();
   await bootstrapAuditLog();
   await bootstrapShiftCatalogV2();
   await configurePermissions();

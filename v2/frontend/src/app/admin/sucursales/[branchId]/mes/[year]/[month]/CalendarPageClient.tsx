@@ -7,6 +7,7 @@ import { useCurrentUser } from "@/lib/auth/use-current-user";
 import { useCalendarStore } from "@/store/calendar-store";
 import { buildOptimizePayload } from "@/lib/optimizer/build-payload";
 import { fetchProposals } from "@/lib/proposals/fetch-proposals";
+import { fetchSlotOverridesMap } from "@/lib/proposals/fetch-slot-overrides";
 import { persistProposals } from "@/lib/proposals/persist-proposals";
 import { CalendarView } from "@/components/calendar/CalendarView";
 import type { Worker } from "@/types/models";
@@ -45,6 +46,8 @@ export function CalendarPageClient({ branchId, year, month }: Props) {
         fetchProposals(branchId, year, month),
       ]);
 
+      const proposalOverrides = await fetchSlotOverridesMap(proposals.map((proposal) => proposal.id));
+
       const workerList = rawWorkers.documents as unknown as Worker[];
       const shifts = payload.shift_catalog as ShiftDef[];
 
@@ -58,6 +61,7 @@ export function CalendarPageClient({ branchId, year, month }: Props) {
         year,
         month,
         proposals,
+        proposalOverrides,
         workers: workerList,
         shiftCatalog: shifts,
         holidays: payload.holidays,

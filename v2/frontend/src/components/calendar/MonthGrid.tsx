@@ -1,10 +1,11 @@
 "use client";
 
 import { useMemo } from "react";
+import type { MouseEvent } from "react";
 import { buildMonthGrid } from "@/lib/calendar/month-grid";
 import { overlappingIds as getOverlappingIds } from "@/lib/calendar/overlap-detector";
 import type { CalendarAssignment, ShiftDef, Violation } from "@/types/optimizer";
-import type { Worker } from "@/types/models";
+import type { SlotOverride, Worker } from "@/types/models";
 import { WeekRow } from "./WeekRow";
 
 interface MonthGridProps {
@@ -15,11 +16,20 @@ interface MonthGridProps {
   assignments: CalendarAssignment[];
   workers: Worker[];
   shifts: ShiftDef[];
+  currentOverrides: SlotOverride[];
   violations: Violation[];
   slotToWorker?: Record<number, Worker>;
   maxHours: number;
   partialRange?: { desde: string; hasta: string };
   onSlotClick?: (assignment: CalendarAssignment) => void;
+  onAssignmentContextMenu?: (
+    event: MouseEvent<HTMLDivElement>,
+    payload: { assignment: CalendarAssignment; override?: SlotOverride }
+  ) => void;
+  onFreeSlotContextMenu?: (
+    event: MouseEvent<HTMLDivElement>,
+    payload: { date: string; slot: number; override?: SlotOverride; isSunday: boolean }
+  ) => void;
 }
 
 const DAY_HEADERS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
@@ -32,11 +42,14 @@ export function MonthGrid({
   assignments,
   workers,
   shifts,
+  currentOverrides,
   violations,
   slotToWorker = {},
   maxHours,
   partialRange,
   onSlotClick,
+  onAssignmentContextMenu,
+  onFreeSlotContextMenu,
 }: MonthGridProps) {
   const weeks = useMemo(
     () => buildMonthGrid(year, month, franjaPorDia, holidays),
@@ -94,9 +107,12 @@ export function MonthGrid({
           overlappingIds={overlapping}
           slotByRut={slotByRut}
           slotToWorker={slotToWorker}
+          currentOverrides={currentOverrides}
           maxHours={maxHours}
           partialRange={partialRange}
           onSlotClick={onSlotClick}
+          onAssignmentContextMenu={onAssignmentContextMenu}
+          onFreeSlotContextMenu={onFreeSlotContextMenu}
         />
       ))}
     </div>
