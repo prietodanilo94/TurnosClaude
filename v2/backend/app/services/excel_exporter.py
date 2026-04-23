@@ -49,11 +49,8 @@ def export_proposal_to_xlsx(dataset: ExportDataset) -> bytes:
     # Agrupar assignments por worker: {worker_id: {day_number: "HH:MM a HH:MM"}}
     by_worker: dict[str, dict[int, str]] = defaultdict(dict)
     for ra in dataset.resolved_assignments:
-        shift = dataset.shifts_by_id.get(ra.shift_id)
-        if shift is None:
-            continue
         day = date.fromisoformat(ra.date).day
-        by_worker[ra.worker_id][day] = f"{shift.hora_inicio} a {shift.hora_fin}"
+        by_worker[ra.worker_id][day] = f"{ra.hora_inicio} a {ra.hora_fin}"
 
     # Una fila por trabajador con al menos 1 turno en el mes
     row = 2

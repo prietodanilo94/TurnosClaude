@@ -17,6 +17,7 @@ from app.models.schemas import (
     BranchManager,
     Proposal,
     ShiftCatalog,
+    ShiftCatalogV2,
     Worker,
 )
 
@@ -100,6 +101,14 @@ async def get_shift_catalog() -> list[ShiftCatalog]:
     return [ShiftCatalog.model_validate(doc) for doc in r.json()["documents"]]
 
 
+async def get_shift_catalog_v2() -> list[ShiftCatalogV2]:
+    params = {"queries[]": [_qlimit(200)]}
+    async with httpx.AsyncClient() as client:
+        r = await client.get(_collection_url("shift_catalog_v2"), headers=_headers(), params=params)
+    r.raise_for_status()
+    return [ShiftCatalogV2.model_validate(doc) for doc in r.json()["documents"]]
+
+
 async def list_branch_managers_by_user(user_id: str) -> list[BranchManager]:
     """Retorna los branch_managers activos (asignado_hasta == null) del usuario."""
     params = {
@@ -127,7 +136,7 @@ async def create_audit_log(
         "accion": accion,
         "entidad": entidad,
         "entidad_id": entidad_id,
-        "metadata": metadata,
+        "metadata": json.dumps(metadata) if metadata is not None else None,
     }
     url = _collection_url("audit_log")
     async with httpx.AsyncClient() as client:

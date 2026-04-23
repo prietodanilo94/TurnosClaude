@@ -219,6 +219,29 @@ async function bootstrapBranches(): Promise<void> {
   await create("idx_codigo_unique", idxs, () => db.createIndex(DB, "branches", "idx_codigo_unique", IndexType.Unique, ["codigo_area"]));
 }
 
+// ——— colección: branch_type_config ————————————————————————————————————————————————
+
+async function bootstrapBranchTypeConfig(): Promise<void> {
+  console.log("\n[branch_type_config]");
+  await ensureCollection("branch_type_config", "Branch Type Config", [
+    Permission.read(Role.any()),
+    Permission.create(Role.label("admin")),
+    Permission.update(Role.label("admin")),
+    Permission.delete(Role.label("admin")),
+  ]);
+
+  const attrs = await getExistingAttrKeys("branch_type_config");
+  await create("nombre_display", attrs, () =>
+    db.createStringAttribute(DB, "branch_type_config", "nombre_display", 100, true)
+  );
+  await create("franja_por_dia", attrs, () =>
+    db.createStringAttribute(DB, "branch_type_config", "franja_por_dia", 8192, true)
+  );
+  await create("shifts_aplicables", attrs, () =>
+    db.createStringAttribute(DB, "branch_type_config", "shifts_aplicables", 100, false, undefined, true)
+  );
+}
+
 // ─── colección: workers ───────────────────────────────────────────────────────
 
 async function bootstrapWorkers(): Promise<void> {
@@ -254,6 +277,155 @@ async function bootstrapWorkers(): Promise<void> {
   const idxs = await getExistingIdxKeys("workers");
   await create("idx_rut_unique", idxs, () => db.createIndex(DB, "workers", "idx_rut_unique", IndexType.Unique, ["rut"]));
   await create("idx_branch", idxs, () => db.createIndex(DB, "workers", "idx_branch", IndexType.Key, ["branch_id"]));
+}
+
+// ——— colección: holidays ————————————————————————————————————————————————————————————
+
+async function bootstrapHolidays(): Promise<void> {
+  console.log("\n[holidays]");
+  await ensureCollection("holidays", "Holidays", [
+    Permission.read(Role.any()),
+    Permission.create(Role.label("admin")),
+    Permission.update(Role.label("admin")),
+    Permission.delete(Role.label("admin")),
+  ]);
+
+  const attrs = await getExistingAttrKeys("holidays");
+  await create("fecha", attrs, () => db.createDatetimeAttribute(DB, "holidays", "fecha", true));
+  await create("nombre", attrs, () => db.createStringAttribute(DB, "holidays", "nombre", 255, true));
+  await create("tipo", attrs, () => db.createEnumAttribute(DB, "holidays", "tipo", ["irrenunciable"], true));
+  await create("anio", attrs, () => db.createIntegerAttribute(DB, "holidays", "anio", true));
+
+  await sleep(2000);
+
+  const idxs = await getExistingIdxKeys("holidays");
+  await create("idx_fecha_unique", idxs, () =>
+    db.createIndex(DB, "holidays", "idx_fecha_unique", IndexType.Unique, ["fecha"])
+  );
+  await create("idx_anio", idxs, () =>
+    db.createIndex(DB, "holidays", "idx_anio", IndexType.Key, ["anio"])
+  );
+}
+
+// ——— colección: worker_constraints ————————————————————————————————————————————————
+
+async function bootstrapWorkerConstraints(): Promise<void> {
+  console.log("\n[worker_constraints]");
+  await ensureCollection("worker_constraints", "Worker Constraints", [
+    Permission.read(Role.label("admin")),
+    Permission.read(Role.label("jefesucursal")),
+    Permission.create(Role.label("admin")),
+    Permission.update(Role.label("admin")),
+    Permission.delete(Role.label("admin")),
+  ]);
+
+  const attrs = await getExistingAttrKeys("worker_constraints");
+  await create("worker_id", attrs, () => db.createStringAttribute(DB, "worker_constraints", "worker_id", 36, true));
+  await create("tipo", attrs, () =>
+    db.createEnumAttribute(
+      DB,
+      "worker_constraints",
+      "tipo",
+      ["dia_prohibido", "turno_prohibido", "vacaciones"],
+      true
+    )
+  );
+  await create("valor", attrs, () => db.createStringAttribute(DB, "worker_constraints", "valor", 100, false));
+  await create("fecha_desde", attrs, () => db.createDatetimeAttribute(DB, "worker_constraints", "fecha_desde", false));
+  await create("fecha_hasta", attrs, () => db.createDatetimeAttribute(DB, "worker_constraints", "fecha_hasta", false));
+  await create("notas", attrs, () => db.createStringAttribute(DB, "worker_constraints", "notas", 1000, false));
+  await create("creado_por", attrs, () => db.createStringAttribute(DB, "worker_constraints", "creado_por", 36, true));
+
+  await sleep(2000);
+
+  const idxs = await getExistingIdxKeys("worker_constraints");
+  await create("idx_worker_id", idxs, () =>
+    db.createIndex(DB, "worker_constraints", "idx_worker_id", IndexType.Key, ["worker_id"])
+  );
+  await create("idx_tipo", idxs, () =>
+    db.createIndex(DB, "worker_constraints", "idx_tipo", IndexType.Key, ["tipo"])
+  );
+}
+
+// ——— colección: proposals —————————————————————————————————————————————————————————
+
+async function bootstrapProposals(): Promise<void> {
+  console.log("\n[proposals]");
+  await ensureCollection("proposals", "Proposals", [
+    Permission.read(Role.label("admin")),
+    Permission.read(Role.label("jefesucursal")),
+    Permission.create(Role.label("admin")),
+    Permission.update(Role.label("admin")),
+    Permission.update(Role.label("jefesucursal")),
+    Permission.delete(Role.label("admin")),
+  ]);
+
+  const attrs = await getExistingAttrKeys("proposals");
+  await create("branch_id", attrs, () => db.createStringAttribute(DB, "proposals", "branch_id", 36, true));
+  await create("anio", attrs, () => db.createIntegerAttribute(DB, "proposals", "anio", true));
+  await create("mes", attrs, () => db.createIntegerAttribute(DB, "proposals", "mes", true, 1, 12));
+  await create("modo", attrs, () => db.createEnumAttribute(DB, "proposals", "modo", ["ilp", "greedy"], true));
+  await create("score", attrs, () => db.createFloatAttribute(DB, "proposals", "score", true));
+  await create("factible", attrs, () => db.createBooleanAttribute(DB, "proposals", "factible", true));
+  await create("asignaciones", attrs, () => db.createStringAttribute(DB, "proposals", "asignaciones", 65535, true));
+  await create("dotacion_sugerida", attrs, () => db.createIntegerAttribute(DB, "proposals", "dotacion_sugerida", true));
+  await create("parametros", attrs, () => db.createStringAttribute(DB, "proposals", "parametros", 4096, true));
+  await create("estado", attrs, () =>
+    db.createEnumAttribute(
+      DB,
+      "proposals",
+      "estado",
+      ["generada", "publicada", "seleccionada", "exportada", "descartada"],
+      true
+    )
+  );
+  await create("creada_por", attrs, () => db.createStringAttribute(DB, "proposals", "creada_por", 36, true));
+  await create("seleccionada_por", attrs, () => db.createStringAttribute(DB, "proposals", "seleccionada_por", 36, false));
+  await create("metrics", attrs, () => db.createStringAttribute(DB, "proposals", "metrics", 4096, false));
+  await create("publicada_por", attrs, () => db.createStringAttribute(DB, "proposals", "publicada_por", 36, false));
+  await create("publicada_en", attrs, () => db.createDatetimeAttribute(DB, "proposals", "publicada_en", false));
+
+  await sleep(2000);
+
+  const idxs = await getExistingIdxKeys("proposals");
+  await create("idx_branch_anio_mes", idxs, () =>
+    db.createIndex(DB, "proposals", "idx_branch_anio_mes", IndexType.Key, ["branch_id", "anio", "mes"])
+  );
+  await create("idx_estado", idxs, () =>
+    db.createIndex(DB, "proposals", "idx_estado", IndexType.Key, ["estado"])
+  );
+}
+
+// ——— colección: assignments ——————————————————————————————————————————————————————
+
+async function bootstrapAssignments(): Promise<void> {
+  console.log("\n[assignments]");
+  await ensureCollection("assignments", "Assignments", [
+    Permission.read(Role.label("admin")),
+    Permission.read(Role.label("jefesucursal")),
+    Permission.create(Role.label("admin")),
+    Permission.create(Role.label("jefesucursal")),
+    Permission.update(Role.label("admin")),
+    Permission.update(Role.label("jefesucursal")),
+    Permission.delete(Role.label("admin")),
+  ]);
+
+  const attrs = await getExistingAttrKeys("assignments");
+  await create("proposal_id", attrs, () => db.createStringAttribute(DB, "assignments", "proposal_id", 36, true));
+  await create("slot_numero", attrs, () => db.createIntegerAttribute(DB, "assignments", "slot_numero", true));
+  await create("worker_id", attrs, () => db.createStringAttribute(DB, "assignments", "worker_id", 36, false));
+  await create("asignado_por", attrs, () => db.createStringAttribute(DB, "assignments", "asignado_por", 36, false));
+  await create("asignado_en", attrs, () => db.createDatetimeAttribute(DB, "assignments", "asignado_en", false));
+
+  await sleep(2000);
+
+  const idxs = await getExistingIdxKeys("assignments");
+  await create("idx_proposal_id", idxs, () =>
+    db.createIndex(DB, "assignments", "idx_proposal_id", IndexType.Key, ["proposal_id"])
+  );
+  await create("idx_proposal_slot_unique", idxs, () =>
+    db.createIndex(DB, "assignments", "idx_proposal_slot_unique", IndexType.Unique, ["proposal_id", "slot_numero"])
+  );
 }
 
 // ─── colección: audit_log ─────────────────────────────────────────────────────
@@ -304,6 +476,115 @@ async function bootstrapShiftCatalogV2(): Promise<void> {
   await create("idx_grupo_rotacion", idxs, () => db.createIndex(DB, "shift_catalog_v2", "idx_grupo_rotacion", IndexType.Key, ["rotation_group"]));
 }
 
+// ——— permisos por rol ————————————————————————————————————————————————————————————
+
+const ADMIN = Role.label("admin");
+const JEFE = Role.label("jefesucursal");
+
+async function setCollectionPerms(
+  id: string,
+  name: string,
+  permissions: string[],
+  documentSecurity: boolean
+): Promise<void> {
+  await db.updateCollection(DB, id, name, permissions, documentSecurity);
+  console.log(`  ✓ ${id}`);
+}
+
+async function configurePermissions(): Promise<void> {
+  console.log("\n[permisos por rol]");
+
+  await setCollectionPerms("area_catalog", "Area Catalog", [
+    Permission.read(Role.any()),
+    Permission.create(ADMIN),
+    Permission.update(ADMIN),
+    Permission.delete(ADMIN),
+  ], false);
+
+  await setCollectionPerms("users", "Users", [
+    Permission.read(ADMIN),
+    Permission.create(ADMIN),
+    Permission.update(ADMIN),
+    Permission.delete(ADMIN),
+  ], true);
+
+  await setCollectionPerms("branch_managers", "Branch Managers", [
+    Permission.read(ADMIN),
+    Permission.read(JEFE),
+    Permission.create(ADMIN),
+    Permission.update(ADMIN),
+    Permission.delete(ADMIN),
+  ], false);
+
+  await setCollectionPerms("branches", "Branches", [
+    Permission.read(Role.users()),
+    Permission.create(ADMIN),
+    Permission.update(ADMIN),
+    Permission.delete(ADMIN),
+  ], false);
+
+  await setCollectionPerms("branch_type_config", "Branch Type Config", [
+    Permission.read(Role.any()),
+    Permission.create(ADMIN),
+    Permission.update(ADMIN),
+    Permission.delete(ADMIN),
+  ], false);
+
+  await setCollectionPerms("workers", "Workers", [
+    Permission.read(ADMIN),
+    Permission.read(JEFE),
+    Permission.create(ADMIN),
+    Permission.update(ADMIN),
+    Permission.delete(ADMIN),
+  ], false);
+
+  await setCollectionPerms("holidays", "Holidays", [
+    Permission.read(Role.any()),
+    Permission.create(ADMIN),
+    Permission.update(ADMIN),
+    Permission.delete(ADMIN),
+  ], false);
+
+  await setCollectionPerms("worker_constraints", "Worker Constraints", [
+    Permission.read(ADMIN),
+    Permission.read(JEFE),
+    Permission.create(ADMIN),
+    Permission.update(ADMIN),
+    Permission.delete(ADMIN),
+  ], false);
+
+  await setCollectionPerms("audit_log", "Audit Log", [
+    Permission.read(ADMIN),
+    Permission.create(ADMIN),
+  ], false);
+
+  await setCollectionPerms("shift_catalog_v2", "Shift Catalog v2", [
+    Permission.read(Role.any()),
+    Permission.create(ADMIN),
+    Permission.update(ADMIN),
+    Permission.delete(ADMIN),
+  ], false);
+
+  await setCollectionPerms("proposals", "Proposals", [
+    Permission.read(ADMIN),
+    Permission.read(JEFE),
+    Permission.create(ADMIN),
+    Permission.update(ADMIN),
+    Permission.update(JEFE),
+    Permission.delete(ADMIN),
+  ], false);
+
+  await setCollectionPerms("assignments", "Assignments", [
+    Permission.read(ADMIN),
+    Permission.read(JEFE),
+    Permission.create(ADMIN),
+    Permission.create(JEFE),
+    Permission.update(ADMIN),
+    Permission.update(JEFE),
+    Permission.delete(ADMIN),
+  ], false);
+}
+
 // ─── main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -318,9 +599,15 @@ async function main() {
   await bootstrapUsers();
   await bootstrapBranchManagers();
   await bootstrapBranches();
+  await bootstrapBranchTypeConfig();
   await bootstrapWorkers();
+  await bootstrapHolidays();
+  await bootstrapWorkerConstraints();
+  await bootstrapProposals();
+  await bootstrapAssignments();
   await bootstrapAuditLog();
   await bootstrapShiftCatalogV2();
+  await configurePermissions();
 
   console.log("\n=== bootstrap completado ===\n");
 }

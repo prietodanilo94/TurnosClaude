@@ -97,6 +97,12 @@ class AppwriteDoc(BaseModel):
     model_config = {"populate_by_name": True}
 
 
+def _maybe_parse_json(value: Any) -> Any:
+    if isinstance(value, str):
+        return _json.loads(value)
+    return value
+
+
 # ─── Colecciones ─────────────────────────────────────────────────────────────
 
 class User(AppwriteDoc):
@@ -120,6 +126,11 @@ class BranchTypeConfig(AppwriteDoc):
     franja_por_dia: Dict[DiaSemana, FranjaDia]
     shifts_aplicables: List[str]
 
+    @field_validator("franja_por_dia", mode="before")
+    @classmethod
+    def parse_franja_por_dia(cls, value: Any) -> Any:
+        return _maybe_parse_json(value)
+
 
 class ShiftCatalog(AppwriteDoc):
     nombre_display: str
@@ -128,6 +139,20 @@ class ShiftCatalog(AppwriteDoc):
     duracion_minutos: int
     descuenta_colacion: bool
     categoria: Categoria
+
+
+class ShiftCatalogV2(AppwriteDoc):
+    nombre_display: str
+    rotation_group: str
+    nombre_turno: str
+    horario_por_dia: Dict[str, HorarioDia]
+    descuenta_colacion: bool
+    dias_aplicables: List[str]
+
+    @field_validator("horario_por_dia", mode="before")
+    @classmethod
+    def parse_horario_por_dia(cls, value: Any) -> Any:
+        return _maybe_parse_json(value)
 
 
 class Worker(AppwriteDoc):
@@ -176,6 +201,12 @@ class Proposal(AppwriteDoc):
     estado: EstadoProposal
     creada_por: str
     seleccionada_por: Optional[str] = None
+    metrics: Optional[Dict[str, Any]] = None
+
+    @field_validator("asignaciones", "parametros", "metrics", mode="before")
+    @classmethod
+    def parse_json_fields(cls, value: Any) -> Any:
+        return _maybe_parse_json(value)
 
 
 class Assignment(AppwriteDoc):
