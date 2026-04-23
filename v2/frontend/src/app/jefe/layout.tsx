@@ -50,7 +50,7 @@ export default function JefeLayout({ children }: { children: React.ReactNode }) 
 
   async function handleLogout() {
     try {
-      await fetch("/api/auth/logout", {
+      await fetch("/auth/logout", {
         method: "POST",
       });
     } finally {
