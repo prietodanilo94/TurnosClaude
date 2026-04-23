@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { AppwriteException } from "appwrite";
-import { account } from "@/lib/auth/appwrite-client";
+import { syncAppwriteSession } from "@/lib/auth/appwrite-client";
 import { setRoleCookie } from "@/lib/auth/session";
 
 export default function LoginPage() {
@@ -19,34 +18,44 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      await account.createEmailPasswordSession(email, password);
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
 
-      // Usamos labels del usuario Auth para determinar el rol (evita un round-trip a la DB)
-      const authUser = await account.get();
-      const labels = authUser.labels ?? [];
+      const payload = await response.json().catch(() => null);
 
-      if (labels.includes("admin")) {
+      if (!response.ok) {
+        setError(
+          typeof payload?.message === "string"
+            ? payload.message
+            : "No fue posible iniciar sesión."
+        );
+        setLoading(false);
+        return;
+      }
+
+      syncAppwriteSession();
+
+      if (payload?.role === "admin") {
         setRoleCookie("admin");
         router.push("/admin");
-      } else if (labels.includes("jefesucursal")) {
+        return;
+      }
+
+      if (payload?.role === "jefesucursal") {
         setRoleCookie("jefesucursal");
         router.push("/jefe");
-      } else {
-        // Usuario sin rol asignado — logout preventivo
-        await account.deleteSession("current");
-        setError("Tu cuenta no tiene un rol asignado. Contactá al administrador.");
-        setLoading(false);
+        return;
       }
-    } catch (e) {
-      if (e instanceof AppwriteException) {
-        if (e.code === 401) {
-          setError("Email o contraseña incorrectos.");
-        } else {
-          setError(e.message);
-        }
-      } else {
-        setError("Error inesperado. Intentá de nuevo.");
-      }
+
+      setError("Tu cuenta no tiene un rol asignado. Contacta al administrador.");
+      setLoading(false);
+    } catch {
+      setError("Error inesperado. Intenta de nuevo.");
       setLoading(false);
     }
   }
@@ -55,7 +64,7 @@ export default function LoginPage() {
     <main className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="w-full max-w-sm bg-white rounded-xl shadow-sm border border-gray-200 p-8">
         <h1 className="text-xl font-semibold text-gray-900 mb-1">Shift Optimizer v2</h1>
-        <p className="text-sm text-gray-500 mb-6">Iniciá sesión para continuar</p>
+        <p className="text-sm text-gray-500 mb-6">Inicia sesión para continuar</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -98,7 +107,7 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-lg px-4 py-2 text-sm transition-colors cursor-pointer disabled:cursor-not-allowed"
           >
-            {loading ? "Iniciando sesión…" : "Iniciar sesión"}
+            {loading ? "Iniciando sesión..." : "Iniciar sesión"}
           </button>
         </form>
       </div>

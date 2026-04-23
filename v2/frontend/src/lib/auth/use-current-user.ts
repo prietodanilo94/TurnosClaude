@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Query } from "appwrite";
-import { account, databases } from "@/lib/auth/appwrite-client";
+import { account, databases, syncAppwriteSession } from "@/lib/auth/appwrite-client";
 import type { User, BranchManager } from "@/types/models";
 
 const DB_ID = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!;
@@ -29,6 +29,7 @@ export function useCurrentUser(): CurrentUser {
 
     async function load() {
       try {
+        syncAppwriteSession();
         const authUser = await account.get();
         if (cancelled) return;
 

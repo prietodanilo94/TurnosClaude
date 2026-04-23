@@ -3,8 +3,8 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { account } from "@/lib/auth/appwrite-client";
-import { clearRoleCookie } from "@/lib/auth/session";
+import { syncAppwriteSession } from "@/lib/auth/appwrite-client";
+import { clearAppwriteSessionCookie, clearRoleCookie } from "@/lib/auth/session";
 import { useCurrentUser } from "@/lib/auth/use-current-user";
 
 function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
@@ -36,9 +36,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   async function handleLogout() {
     try {
-      await account.deleteSession("current");
+      await fetch("/api/auth/logout", {
+        method: "POST",
+      });
     } finally {
+      clearAppwriteSessionCookie();
       clearRoleCookie();
+      syncAppwriteSession();
       router.push("/login");
     }
   }
@@ -46,7 +50,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <p className="text-sm text-gray-500">Cargando…</p>
+        <p className="text-sm text-gray-500">Cargando...</p>
       </div>
     );
   }

@@ -3,8 +3,8 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { account } from "@/lib/auth/appwrite-client";
-import { clearRoleCookie } from "@/lib/auth/session";
+import { syncAppwriteSession } from "@/lib/auth/appwrite-client";
+import { clearAppwriteSessionCookie, clearRoleCookie } from "@/lib/auth/session";
 import { useCurrentUser } from "@/lib/auth/use-current-user";
 import { JefeUserContext } from "@/lib/auth/jefe-user-context";
 
@@ -31,18 +31,15 @@ export default function JefeLayout({ children }: { children: React.ReactNode }) 
   const currentUser = useCurrentUser();
   const { user, isJefe, loading, error, authorizedBranchIds } = currentUser;
 
-  // Redirigir a login si no es jefe
   useEffect(() => {
     if (!loading && (error || !isJefe)) {
       router.replace("/login");
     }
   }, [loading, error, isJefe, router]);
 
-  // Verificar acceso a sucursal específica en /jefe/sucursales/[branchId]
   useEffect(() => {
     if (loading || !isJefe) return;
     const segments = pathname.split("/").filter(Boolean);
-    // Patrón: /jefe/sucursales/[branchId]
     if (segments[0] === "jefe" && segments[1] === "sucursales" && segments[2]) {
       const branchId = segments[2];
       if (!authorizedBranchIds.includes(branchId)) {
@@ -53,9 +50,13 @@ export default function JefeLayout({ children }: { children: React.ReactNode }) 
 
   async function handleLogout() {
     try {
-      await account.deleteSession("current");
+      await fetch("/api/auth/logout", {
+        method: "POST",
+      });
     } finally {
+      clearAppwriteSessionCookie();
       clearRoleCookie();
+      syncAppwriteSession();
       router.push("/login");
     }
   }
@@ -63,7 +64,7 @@ export default function JefeLayout({ children }: { children: React.ReactNode }) 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <p className="text-sm text-gray-500">Cargando…</p>
+        <p className="text-sm text-gray-500">Cargando...</p>
       </div>
     );
   }
