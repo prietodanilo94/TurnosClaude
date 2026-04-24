@@ -26,15 +26,19 @@ export interface LabAssignment {
   label: string;
   laborHours: number;
   isOff: boolean;
+  weekIndex: number;
 }
 
 export interface ProposalMetrics {
   averageHours: number;
   minFreeSundays: number;
   maxFreeSundays: number;
+  minCoverage: number;
+  coverageDeficitDays: string[];
   shiftCounts: Record<string, number>;
   coverageByDate: Record<string, number>;
   slotHours: Record<string, number>;
+  weeklyHoursBySlot: Record<string, number[]>;
 }
 
 export interface OptimizerProposal {
@@ -47,7 +51,7 @@ export interface OptimizerProposal {
 export interface OptimizerDiagnostic {
   categoryLabel: string;
   dotationAvailable: number;
-  minimumSuggested: number;
+  minimumSuggested: number | null;
   feasible: boolean;
   messages: string[];
   effectiveStart: string;

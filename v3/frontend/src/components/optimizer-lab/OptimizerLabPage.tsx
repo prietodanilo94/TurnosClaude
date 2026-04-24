@@ -359,6 +359,9 @@ export function OptimizerLabPage() {
                     <p className="mt-1 text-xs text-slate-500">
                       Domingos libres min {proposal.metrics.minFreeSundays}
                     </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Cobertura minima {proposal.metrics.minCoverage}
+                    </p>
                   </button>
                 ))}
               </div>
@@ -460,10 +463,27 @@ export function OptimizerLabPage() {
                     </p>
                   </div>
                   <div className="rounded-xl bg-slate-50 p-4">
+                    <p className="text-xs uppercase tracking-wide text-slate-500">Cobertura minima</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-900">
+                      {activeProposal.metrics.minCoverage}
+                    </p>
+                  </div>
+                  <div className="rounded-xl bg-slate-50 p-4">
                     <p className="text-xs uppercase tracking-wide text-slate-500">Score</p>
                     <p className="mt-1 text-sm font-semibold text-slate-900">{activeProposal.score}</p>
                   </div>
                 </div>
+
+                {activeProposal.metrics.coverageDeficitDays.length > 0 ? (
+                  <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                    <p className="font-semibold">Dias con cobertura insuficiente</p>
+                    <ul className="mt-2 space-y-1">
+                      {activeProposal.metrics.coverageDeficitDays.map((day) => (
+                        <li key={day}>- {day}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
               </section>
             ) : null}
           </div>

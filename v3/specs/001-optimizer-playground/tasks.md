@@ -56,4 +56,4 @@ Construir una primera vertical slice funcional de `v3` para validar el solver an
 
 - [x] Probar casos con dotacion suficiente
 - [x] Probar casos con dotacion insuficiente
-- [ ] Confirmar que la pantalla sirve como laboratorio real para decidir como seguir con el MVP
+- [x] Confirmar que la pantalla sirve como laboratorio real para decidir como seguir con el MVP
