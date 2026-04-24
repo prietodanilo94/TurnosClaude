@@ -22,7 +22,7 @@ En v1 hay 10 turnos fijos globales. En v2 los turnos están organizados por **ro
 
 | ID | nombre_turno | L–V | Sábado | Dom | H. lab. |
 |----|-------------|-----|--------|-----|---------|
-| `V_SA_APE` | apertura | 09:00–17:30 | — | — | 7.5h |
+| `V_SA_APE` | apertura | L–J 09:00–18:30 / V 09:00–18:00 | — | — | 42h semanales |
 | `V_SA_CIE` | cierre | 10:30–19:00 | — | — | 7.5h |
 | `V_SA_SAB` | sabado | — | 10:00–14:30 | — | 4.5h |
 

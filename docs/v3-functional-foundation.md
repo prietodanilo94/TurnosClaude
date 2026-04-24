@@ -319,15 +319,14 @@ Modo esperado:
 
 Horario de funcionamiento declarado:
 
-- lunes `09:00-18:30`
-- martes a viernes `10:00-18:30`
-- sábado `10:30-14:00`
+- lunes a viernes `09:00-19:00`
+- sábado `10:00-14:30`
 
 Turnos operativos actuales:
 
 - Apertura
-  - lunes a viernes `09:00-17:30`
-  - sábado `10:00-14:30`
+  - lunes a jueves `09:00-18:30`
+  - viernes `09:00-18:00`
   - domingo libre
   - `42h`
 - Cierre

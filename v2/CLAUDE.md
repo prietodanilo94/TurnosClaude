@@ -71,11 +71,13 @@ Franjas del local: L–V 09:00–19:00 · Sáb 10:00–14:00 · Dom cerrado.
 
 | ID | Nombre | Días | Inicio | Fin | H. labor | Colación |
 |----|--------|------|--------|-----|----------|---------|
-| `V_SA_APE` | Apertura | L–V | 09:00 | 17:30 | 7.5h | 1h desc. |
+| `V_SA_APE` | Apertura | L–J / V | 09:00 | 18:30 / 18:00 | 8.5h / 8h | 1h desc. |
 | `V_SA_CIE` | Cierre | L–V | 10:30 | 19:00 | 7.5h | 1h desc. |
 | `V_SA_SAB` | Sábado | Sáb | 10:00 | 14:30 | 4.5h | sin desc. |
-
-Semana tipo: 5 × 7.5h + 4.5h = **42h** ✓
+  
+ Semana tipo corregida:
+ - apertura = L–J `09:00-18:30` + V `09:00-18:00` = **42h**
+ - cierre = L–V `10:30-19:00` + Sáb `10:00-14:30` = **42h**
 
 ### Ventas — Mall sin domingo (Autopark, Mall general)
 
