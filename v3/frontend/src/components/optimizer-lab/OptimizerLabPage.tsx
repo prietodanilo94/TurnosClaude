@@ -1,7 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { LabDay, OptimizerLabInput, OptimizerLabResponse } from "@/lib/optimizer-lab/types";
+import type {
+  LabAssignment,
+  LabDay,
+  OptimizerLabInput,
+  OptimizerLabResponse,
+} from "@/lib/optimizer-lab/types";
 
 const today = new Date();
 
@@ -22,17 +27,32 @@ function weekdayShortLabel(day: LabDay) {
   return `${day.weekday.slice(0, 2).toUpperCase()} ${day.date.slice(-2)}`;
 }
 
-function buildRowMap(result: OptimizerLabResponse | null, proposalId: string | null) {
-  if (!result || !proposalId) return new Map<string, string>();
+function buildAssignmentMap(result: OptimizerLabResponse | null, proposalId: string | null) {
+  if (!result || !proposalId) return new Map<string, LabAssignment>();
   const proposal = result.proposals.find((item) => item.id === proposalId);
-  if (!proposal) return new Map<string, string>();
+  if (!proposal) return new Map<string, LabAssignment>();
 
   return new Map(
     proposal.assignments.map((assignment) => [
       `${assignment.slotNumber}-${assignment.date}`,
-      assignment.label,
+      assignment,
     ])
   );
+}
+
+function buildWeeks(days: LabDay[]) {
+  const weeks: LabDay[][] = [];
+  for (let index = 0; index < days.length; index += 7) {
+    weeks.push(days.slice(index, index + 7));
+  }
+  return weeks;
+}
+
+function weekRangeLabel(week: LabDay[]) {
+  const first = week[0];
+  const last = week[week.length - 1];
+  if (!first || !last) return "";
+  return `${first.date.slice(5)} -> ${last.date.slice(5)}`;
 }
 
 export function OptimizerLabPage() {
@@ -42,10 +62,11 @@ export function OptimizerLabPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const rowMap = useMemo(
-    () => buildRowMap(result, activeProposalId),
+  const assignmentMap = useMemo(
+    () => buildAssignmentMap(result, activeProposalId),
     [result, activeProposalId]
   );
+  const effectiveWeeks = useMemo(() => buildWeeks(result?.effectiveDays ?? []), [result]);
 
   async function handleGenerate(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -391,9 +412,10 @@ export function OptimizerLabPage() {
             <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-sm font-semibold text-slate-900">Grilla mensual</h2>
+                  <h2 className="text-sm font-semibold text-slate-900">Grilla semanal extendida</h2>
                   <p className="mt-1 text-xs text-slate-500">
-                    Vista simplificada por slots anonimos, alineada a la esencia de v1/v2.
+                    Vista por semanas completas. Los dias fuera del mes quedan atenuados y cada
+                    bloque semanal muestra sus horas laborales por slot.
                   </p>
                 </div>
                 {activeProposal ? (
@@ -411,17 +433,44 @@ export function OptimizerLabPage() {
                   <table className="min-w-full border-separate border-spacing-0">
                     <thead>
                       <tr>
-                        <th className="sticky left-0 z-10 border-b border-slate-200 bg-white px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <th
+                          rowSpan={2}
+                          className="sticky left-0 z-20 border-b border-slate-200 bg-white px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500"
+                        >
                           Slot
                         </th>
-                        {result.visibleDays.map((day) => (
+                        {effectiveWeeks.map((week, weekIndex) => (
                           <th
-                            key={day.date}
-                            className="border-b border-slate-200 px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide text-slate-500"
+                            key={`week-${weekIndex}`}
+                            colSpan={week.length + 1}
+                            className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-center text-[11px] font-semibold uppercase tracking-wide text-slate-500"
                           >
-                            {weekdayShortLabel(day)}
+                            Semana {weekIndex + 1}
+                            <span className="ml-2 font-normal normal-case text-slate-400">
+                              {weekRangeLabel(week)}
+                            </span>
                           </th>
                         ))}
+                      </tr>
+                      <tr>
+                        {effectiveWeeks.flatMap((week, weekIndex) => [
+                          ...week.map((day) => (
+                            <th
+                              key={day.date}
+                              className={`border-b border-slate-200 px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide ${
+                                day.inVisibleMonth ? "text-slate-500" : "bg-slate-50 text-slate-300"
+                              }`}
+                            >
+                              {weekdayShortLabel(day)}
+                            </th>
+                          )),
+                          <th
+                            key={`week-total-${weekIndex}`}
+                            className="border-b border-slate-200 bg-emerald-50 px-3 py-2 text-center text-[11px] font-semibold uppercase tracking-wide text-emerald-700"
+                          >
+                            Hrs
+                          </th>,
+                        ])}
                       </tr>
                     </thead>
                     <tbody>
@@ -430,25 +479,39 @@ export function OptimizerLabPage() {
                           <td className="sticky left-0 z-10 border-b border-slate-100 bg-white px-3 py-2 text-sm font-medium text-slate-900">
                             Trabajador {slot}
                           </td>
-                          {result.visibleDays.map((day) => {
-                            const label = rowMap.get(`${slot}-${day.date}`) ?? "-";
-                            const classes =
-                              label === "APE"
-                                ? "bg-sky-50 text-sky-700"
-                                : label === "CIE"
-                                ? "bg-amber-50 text-amber-700"
-                                : label === "COM"
-                                ? "bg-emerald-50 text-emerald-700"
-                                : "bg-slate-50 text-slate-500";
-                            return (
-                              <td
-                                key={`${slot}-${day.date}`}
-                                className={`border-b border-slate-100 px-3 py-2 text-center text-xs font-semibold ${classes}`}
-                              >
-                                {label}
-                              </td>
-                            );
-                          })}
+                          {effectiveWeeks.flatMap((week, weekIndex) => [
+                            ...week.map((day) => {
+                              const assignment = assignmentMap.get(`${slot}-${day.date}`);
+                              const label = assignment?.label ?? "-";
+                              const hours = assignment?.laborHours ?? 0;
+                              const classes =
+                                label === "APE"
+                                  ? "bg-sky-50 text-sky-700"
+                                  : label === "CIE"
+                                  ? "bg-amber-50 text-amber-700"
+                                  : label === "COM"
+                                  ? "bg-emerald-50 text-emerald-700"
+                                  : "bg-slate-50 text-slate-500";
+
+                              return (
+                                <td
+                                  key={`${slot}-${day.date}`}
+                                  className={`border-b border-slate-100 px-3 py-2 text-center text-xs font-semibold ${classes} ${
+                                    day.inVisibleMonth ? "" : "opacity-55"
+                                  }`}
+                                >
+                                  <div>{label}</div>
+                                  <div className="mt-1 text-[10px] font-normal">{hours}h</div>
+                                </td>
+                              );
+                            }),
+                            <td
+                              key={`slot-${slot}-week-${weekIndex}`}
+                              className="border-b border-slate-100 bg-emerald-50 px-3 py-2 text-center text-xs font-semibold text-emerald-800"
+                            >
+                              {activeProposal.metrics.weeklyHoursBySlot[String(slot)]?.[weekIndex] ?? 0}h
+                            </td>,
+                          ])}
                         </tr>
                       ))}
                     </tbody>
@@ -492,6 +555,24 @@ export function OptimizerLabPage() {
                   <div className="rounded-xl bg-slate-50 p-4">
                     <p className="text-xs uppercase tracking-wide text-slate-500">Score</p>
                     <p className="mt-1 text-sm font-semibold text-slate-900">{activeProposal.score}</p>
+                  </div>
+                </div>
+
+                <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+                  <p className="font-semibold">Horas semanales por slot</p>
+                  <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                    {Array.from({ length: result?.input.dotation ?? 0 }, (_, index) => index + 1).map((slot) => (
+                      <div key={`weekly-hours-${slot}`} className="rounded-lg bg-white px-3 py-2">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          Trabajador {slot}
+                        </p>
+                        <p className="mt-1 text-sm text-slate-700">
+                          {(activeProposal.metrics.weeklyHoursBySlot[String(slot)] ?? [])
+                            .map((hours, weekIndex) => `S${weekIndex + 1}: ${hours}h`)
+                            .join(" | ")}
+                        </p>
+                      </div>
+                    ))}
                   </div>
                 </div>
 

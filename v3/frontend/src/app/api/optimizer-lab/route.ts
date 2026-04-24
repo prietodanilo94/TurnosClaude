@@ -313,9 +313,7 @@ function adaptCpSatResponse(
     return {
       id: proposal.id || `cp-sat-${index + 1}`,
       score: proposal.score,
-      assignments: assignments.filter((assignment) =>
-        visibleDays.some((day) => day.date === assignment.date)
-      ),
+      assignments,
       metrics,
     };
   });

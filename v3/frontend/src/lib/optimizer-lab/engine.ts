@@ -549,8 +549,8 @@ function buildAttempt(
   }
 
   const visibleDateSet = new Set(visibleDays.map((day) => day.date));
-  const visibleAssignments = assignments.filter((assignment) => visibleDateSet.has(assignment.date));
-  const hash = visibleAssignments
+  const hash = assignments
+    .filter((assignment) => visibleDateSet.has(assignment.date))
     .map((assignment) => `${assignment.slotNumber}:${assignment.date}:${assignment.shiftId}`)
     .join("|");
 
@@ -560,7 +560,7 @@ function buildAttempt(
     proposal: {
       id: `prop-${attemptIndex + 1}`,
       score: computeScore(metrics),
-      assignments: visibleAssignments,
+      assignments,
       metrics,
     },
   };
