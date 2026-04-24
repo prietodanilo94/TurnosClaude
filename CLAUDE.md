@@ -279,6 +279,14 @@ Si detectas una contradicción entre dos specs o entre una spec y `docs/`, **det
   - Deploy: `cd /opt/shift-optimizer && git pull && docker compose up -d --build`
   - Update 2026-04-23: `turnos2.dpmake.cl/admin/sucursales` quedo operativo despues de `git pull` + rebuild forzado `docker compose build --no-cache frontend && docker compose up -d frontend`
 
+### Update 2026-04-24 (sesión actual)
+- Se creo `docs/mall-turnos-analisis-completo.md`: analisis completo de factibilidad para sucursal mall 7 dias (10:00-20:00). Cubre tipos de turno (APE, CIE, COM), esquemas de asignacion (5 variantes), analisis matematico por dotacion de 2 a 12 trabajadores con plantillas semanales reales, distribucion dominical y analisis del problema de dias consecutivos.
+- Se identifico la causa raiz del bug de consecutivos en el solver: `_add_weekly_constraints` en `v2/backend/app/optimizer/ilp.py` limitaba dias por semana ISO pero no en ventana deslizante, permitiendo rachas de 7-9 dias al cruzar el limite entre semanas.
+- Se corrigio el bug en `v2/backend/app/optimizer/ilp.py`: nueva funcion `_add_consecutive_constraints` que aplica la restriccion en ventana deslizante de `(dias_max+1)` dias calendario. Para cada ventana, la suma de `worked[worker, date]` variables <= `dias_maximos`, eliminando el problema de cruce de semanas.
+- Se agrego `test_vm7_consecutivos_cruce_semanas` en `v2/backend/tests/test_optimizer_vm7.py`: usa 3 semanas (21 dias), 4 workers, `dias_maximos=5`, y verifica via `_max_consecutive()` que ninguna racha supera el limite incluyendo el cruce de semana.
+- Se agrego `scripts/barrido-consecutivos.ts`: script de validacion que llama al playground de v3 (modo cp_sat) para N=4..12 y reporta max consecutivos por propuesta. Correr con `npx tsx scripts/barrido-consecutivos.ts` despues de sincronizar el servidor.
+- Servidor pendiente de sincronizacion: `ssh antigravity` → `cd /opt/shift-optimizer && git pull && cd v2 && docker compose up -d --build optimizer` → `docker exec v2-optimizer-1 python -m pytest tests/test_optimizer_vm7.py -v`.
+
 ### Update 2026-04-24
 - Se agrego `docs/v3-functional-foundation.md` como documento funcional inicial de `v3`: define roles, tipos de sucursal, modos de generacion, reglas de continuidad semanal, slots anonimos, alcance MVP e informacion faltante antes del diseno tecnico.
 - Se refino `docs/v3-functional-foundation.md` con decisiones nuevas: clasificacion inicial desde Excel solo una vez, dotacion = trabajadores activos, reparto balanceado de slots en rotativos, solver solo para sucursales con operacion dominical y diagnostico obligatorio cuando no haya solucion factible.
