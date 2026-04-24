@@ -570,7 +570,7 @@ El sistema debe permitir al menos:
 - exportación operativa principal igual a `v1/v2`
 - exportación alternativa para uso de sucursal o jefatura igual a `v1/v2`
 
-El detalle exacto de ambos formatos se definirá después, pero la existencia de dos salidas ya se considera parte del producto.
+Los formatos base ya existen en `v1/v2` y deben reutilizarse como referencia funcional de `v3`.
 
 ---
 
@@ -623,14 +623,17 @@ Para cerrar este documento y pasar al diseño técnico, aún falta precisar:
 
 ### 20.1. Catálogo exacto de tipos de sucursal
 
-Falta confirmar si la lista actual es definitiva o si existen más tipos reales que deban entrar desde el día 1.
+Decisión cerrada:
+
+- el catálogo actual de tipos de sucursal se considera completo para `v3`
 
 ### 20.2. Plantilla de 4 semanas
 
-Falta precisar si existirá:
+Decisión cerrada:
 
-- una sola plantilla base de 4 semanas
-- o varias plantillas de 4 semanas según tipo de sucursal
+- existe una sola plantilla base de 4 semanas hasta ahora
+- esa plantilla funciona como alternativa a no usar solver
+- pueden existir más plantillas en el futuro, pero no forman parte de la definición inicial
 
 ### 20.3. Restricciones individuales del MVP
 
@@ -638,7 +641,10 @@ Se toma como base usar las mismas restricciones de `v1/v2`, pero aún falta enum
 
 ### 20.4. Exportaciones
 
-Se toma como base usar los dos formatos de `v1/v2`, pero aún falta documentar qué archivo o formato corresponde a cada salida dentro de `v3`.
+Decisión cerrada:
+
+- `v3` reutiliza los dos formatos de exportación ya existentes en `v1/v2`
+- el detalle exacto se documentará en diseño técnico tomando esas implementaciones como fuente funcional
 
 ### 20.5. Gestión de continuidad
 
@@ -657,4 +663,4 @@ Con este documento ya se puede pasar a la siguiente etapa:
 
 - diseño técnico pre-construcción de `v3`
 
-Antes de eso, conviene cerrar la información faltante del capítulo 20.
+Antes de eso, conviene solo formalizar técnicamente las reglas que ya quedaron cerradas en este documento.
