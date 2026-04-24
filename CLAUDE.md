@@ -278,3 +278,6 @@ Si detectas una contradicción entre dos specs o entre una spec y `docs/`, **det
   - Repo en servidor: `/opt/shift-optimizer`
   - Deploy: `cd /opt/shift-optimizer && git pull && docker compose up -d --build`
   - Update 2026-04-23: `turnos2.dpmake.cl/admin/sucursales` quedo operativo despues de `git pull` + rebuild forzado `docker compose build --no-cache frontend && docker compose up -d frontend`
+
+### Update 2026-04-24
+- Se agrego `docs/v3-functional-foundation.md` como documento funcional inicial de `v3`: define roles, tipos de sucursal, modos de generacion, reglas de continuidad semanal, slots anonimos, alcance MVP e informacion faltante antes del diseno tecnico.

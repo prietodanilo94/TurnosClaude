@@ -406,3 +406,5 @@ Nota 2026-04-23:
 - GitHub: mismo repo `github.com/prietodanilo94/TurnosClaude`, subcarpeta `v2/`
 - Repo en servidor: `/opt/shift-optimizer/v2`
 - Deploy: `cd /opt/shift-optimizer && git pull && cd v2 && npm install --include=dev && npm run bootstrap:appwrite && docker compose up -d --build`
+
+> Update 2026-04-24: se agrego `docs/v3-functional-foundation.md` en la raiz del repo como base funcional de `v3`. No cambia el comportamiento de `v2`, pero consolida las decisiones de producto ya levantadas desde `v2` para pasar luego a diseno tecnico de una nueva version sin Appwrite como centro obligatorio.
