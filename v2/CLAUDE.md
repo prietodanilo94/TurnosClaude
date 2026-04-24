@@ -88,7 +88,19 @@ Franja: L–S 10:00–20:00.
 | `V_ML_APE` | Apertura | L–S | 10:00 | 18:00 | 7h | 1h desc. |
 | `V_ML_CIE` | Cierre | L–S | 12:00 | 20:00 | 7h | 1h desc. |
 
-> Autopark tiene variante de cierre: L–V 11:00–19:00 / Sáb 12:00–19:00.
+Autopark se trata como caso especial:
+
+| ID | Nombre | Días | Inicio | Fin | H. labor | Colación |
+|----|--------|------|--------|-----|----------|---------|
+| `V_AP_APE` | Turno 1 | M–V | 09:30 | 19:00 | 8.5h | 1h desc. |
+| `V_AP_APE` | Turno 1 | Sáb | 10:00 | 19:00 | 8h | 1h desc. |
+| `V_AP_CIE` | Turno 2 | L–M–X y V | 09:30 | 19:00 | 8.5h | 1h desc. |
+| `V_AP_CIE` | Turno 2 | Sáb | 10:00 | 19:00 | 8h | 1h desc. |
+
+Semana tipo Autopark:
+- turno 1 = martes a viernes `09:30-19:00` + sábado `10:00-19:00` = **42h**
+- turno 2 = lunes a miércoles `09:30-19:00` + viernes `09:30-19:00` + sábado `10:00-19:00` = **42h**
+- se acepta entrada antes de apertura formal de sucursal (`10:00`) y no se considera infracción en este caso
 
 ### Ventas — Mall 7 días (Movicenter, Tobalaba, Vespucio, Arauco, Egaña, Sur)
 

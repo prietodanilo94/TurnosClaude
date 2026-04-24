@@ -39,8 +39,10 @@ En v1 hay 10 turnos fijos globales. En v2 los turnos están organizados por **ro
 
 | ID | nombre_turno | L–V | Sábado | Dom | H. lab. |
 |----|-------------|-----|--------|-----|---------|
-| `V_AP_APE` | apertura | 10:00–18:00 | 10:00–18:00 | — | 7h |
-| `V_AP_CIE` | cierre | 11:00–19:00 | 12:00–19:00 | — | 7h |
+| `V_AP_APE` | turno_1 | M–V 09:30–19:00 | 10:00–19:00 | — | 42h |
+| `V_AP_CIE` | turno_2 | L–M–X y V 09:30–19:00 | 10:00–19:00 | — | 42h |
+
+> En Autopark se acepta que algunos turnos comiencen antes de la apertura formal de sucursal (`10:00`) y eso no se considera infraccion en este caso.
 
 ### `V_M7` — Ventas Mall 7 días (con domingo)
 

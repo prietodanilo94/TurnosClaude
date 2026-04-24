@@ -344,18 +344,28 @@ Modo esperado:
 Horario de funcionamiento:
 
 - lunes a sábado `10:00-19:00`
+- domingo cerrado
 
 Turnos:
 
-- Apertura
-  - lunes a sábado `10:00-18:00`
+- Turno 1
+  - lunes libre
+  - martes a viernes `09:30-19:00`
+  - sábado `10:00-19:00`
   - domingo libre
   - `42h`
-- Cierre
-  - lunes a viernes `11:00-19:00`
-  - sábado `12:00-19:00`
+- Turno 2
+  - lunes a miércoles `09:30-19:00`
+  - jueves libre
+  - viernes `09:30-19:00`
+  - sábado `10:00-19:00`
   - domingo libre
   - `42h`
+
+Nota operativa:
+
+- para este caso se acepta que el turno comience antes de la apertura formal de la sucursal
+- el inicio anticipado no debe tratarse como infracción de cobertura
 
 Modo esperado:
 
