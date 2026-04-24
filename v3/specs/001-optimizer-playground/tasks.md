@@ -59,3 +59,5 @@ Construir una primera vertical slice funcional de `v3` para validar el solver an
 - [x] Probar casos con dotacion suficiente
 - [x] Probar casos con dotacion insuficiente
 - [x] Confirmar que la pantalla sirve como laboratorio real para decidir como seguir con el MVP
+- [x] Publicar el playground en una URL accesible desde servidor (`turnos3.dpmake.cl`)
+- [x] Validar en entorno publico ambos modos de calculo desde la misma interfaz (`heuristic` y `cp_sat`)
