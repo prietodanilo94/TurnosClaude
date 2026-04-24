@@ -28,6 +28,7 @@ El usuario `admin` puede:
 - ver todas las sucursales
 - crear, editar y corregir sucursales
 - modificar el tipo de sucursal
+- definir o corregir el modo de generación de una sucursal
 - generar calendarios
 - recalcular
 - editar manualmente turnos y libres
@@ -68,7 +69,30 @@ La generación del calendario no parte desde personas reales. Parte desde `slots
 
 ---
 
-## 4. Unidad real de cálculo
+## 4. Clasificación inicial de sucursal
+
+Cuando una sucursal ingresa por primera vez desde Excel y todavía no tiene configuración funcional, el sistema debe pedir clasificación al `admin`.
+
+En esa primera clasificación se debe definir al menos:
+
+- tipo de sucursal
+- modo de generación
+
+Una vez guardado:
+
+- la clasificación queda persistida
+- las siguientes cargas reutilizan esa configuración
+- no se vuelve a preguntar automáticamente
+
+Si la sucursal ya existe y tiene tipo definido, el sistema debe conservarlo.
+
+Si la sucursal existe pero no tiene tipo o modo de generación definido, se debe obligar a completarlo antes de usarla.
+
+El `jefe_sucursal` nunca clasifica ni reclasifica sucursales.
+
+---
+
+## 5. Unidad real de cálculo
 
 La unidad real de cálculo no es el mes puro. Es la semana completa lunes-domingo.
 
@@ -95,7 +119,7 @@ Esto aplica tanto a sucursales rotativas como a sucursales con solver.
 
 ---
 
-## 5. Modelo general de generación
+## 6. Modelo general de generación
 
 El calendario siempre se genera primero como una propuesta de `slots anónimos`.
 
@@ -120,7 +144,7 @@ Esta regla se mantiene para todos los tipos de sucursal.
 
 ---
 
-## 6. Modos de generación por sucursal
+## 7. Modos de generación por sucursal
 
 Cada sucursal debe tener un modo de generación explícito.
 
@@ -143,6 +167,12 @@ La imagen de referencia entregada por negocio se toma como una plantilla válida
 
 Aplica un modelo de optimización para sucursales donde la plantilla fija no resuelve bien el problema.
 
+Regla acordada:
+
+- el solver no se usa para sucursales rotativas normales
+- el solver se usa para sucursales cuya operación incluye domingos
+- esta condición se define al clasificar la sucursal, no por una lista rígida hardcodeada de nombres
+
 ### 6.4. Selección o cálculo
 
 Para sucursales rotativas, idealmente debe existir la posibilidad de:
@@ -154,7 +184,7 @@ Esto permitirá comparar entre patrón histórico y generación automática.
 
 ---
 
-## 7. Tipos de sucursal definidos hoy
+## 8. Tipos de sucursal definidos hoy
 
 ### 7.1. Sucursales rotativas
 
@@ -169,22 +199,21 @@ Estas sucursales se consideran de turno fijo o rotativo, no necesariamente de so
 - Ventas Standalone
 - Ventas Mall Autopark
 
-### 7.2. Sucursales con problema de optimización
+### 8.2. Sucursales con problema de optimización
 
-Estas sucursales se consideran solver-first:
+Estas sucursales se consideran solver-first cuando su clasificación indique operación dominical.
 
-- Ventas Mall Movicenter
-- Ventas Mall Tobalaba
-- Ventas Mall Vespucio
-- Ventas Mall Arauco
-- Ventas Mall Egaña
-- Ventas Mall Sur
+Por ahora se toma como categoría funcional:
 
-En ellas el sistema debe buscar una solución basada en dotación y restricciones.
+- sucursales de ventas que trabajan domingo
+
+La pertenencia exacta a esta categoría queda determinada al clasificar la sucursal al momento de la carga.
+
+En ellas el sistema debe buscar una solución basada en dotación y restricciones, y si no existe solución factible debe devolver diagnóstico de insuficiencia en vez de aprobar automáticamente un calendario inviable.
 
 ---
 
-## 8. Catálogo funcional de turnos actuales
+## 9. Catálogo funcional de turnos actuales
 
 Este bloque resume el negocio ya explicitado y debe convertirse después en plantilla formal.
 
@@ -361,7 +390,38 @@ Este es el núcleo de optimización principal del negocio.
 
 ---
 
-## 9. Restricciones del negocio
+## 10. Regla funcional de dotación
+
+La dotación de una sucursal se define, para efectos del calendario, como la cantidad de trabajadores activos asociados a esa sucursal.
+
+Regla base:
+
+- cantidad de trabajadores activos = cantidad de slots anónimos a generar
+
+Ejemplo:
+
+- 5 trabajadores activos = 5 slots
+- 9 trabajadores activos = 9 slots
+
+### 10.1. Reparto en plantillas rotativas
+
+Cuando una sucursal usa una plantilla con más de una fase o variante, los slots deben repartirse lo más parejo posible entre las fases disponibles.
+
+Regla sugerida:
+
+- la diferencia máxima entre grupos no debe superar `1`
+
+Ejemplos:
+
+- 8 slots con patrón A/B → `4` y `4`
+- 9 slots con patrón A/B → `5` y `4`
+- 10 slots con patrón de 4 fases → `3`, `3`, `2`, `2`
+
+Esta regla aplica como criterio de generación inicial para el MVP.
+
+---
+
+## 11. Restricciones del negocio
 
 Las restricciones afectan a todo el sistema, no solo al solver.
 
@@ -388,7 +448,7 @@ Se tratarán como ajuste manual posterior porque negocio indica que ocurrirá po
 
 ---
 
-## 10. Edición manual
+## 12. Edición manual
 
 Después de generar una propuesta, debe existir edición manual.
 
@@ -404,7 +464,31 @@ Los ajustes manuales aplican tanto a calendarios de plantilla como a calendarios
 
 ---
 
-## 11. Relación entre dotación y calendario
+## 13. Plantilla de 4 semanas
+
+La plantilla de 4 semanas no debe existir solo como imagen de referencia. Debe formalizarse como dato estructurado del sistema.
+
+Formalizarla significa guardarla como una plantilla seleccionable y reutilizable, con:
+
+- nombre
+- tipo de sucursal aplicable
+- longitud del ciclo: `4 semanas`
+- fases del ciclo
+- horario por día de cada fase
+- días libres explícitos
+
+Esto permitirá:
+
+- seleccionarla al generar
+- calcular sobre ella
+- proyectarla a meses futuros
+- mantener consistencia sin depender de una imagen manual
+
+La imagen entregada por negocio se considera el primer insumo funcional para esta plantilla.
+
+---
+
+## 14. Relación entre dotación y calendario
 
 Este es uno de los problemas centrales de `v3`.
 
@@ -428,9 +512,9 @@ Este punto debe cerrarse en el diseño funcional detallado del generador.
 
 ---
 
-## 12. Flujo principal de usuario
+## 15. Flujo principal de usuario
 
-### 12.1. Flujo admin
+### 15.1. Flujo admin
 
 1. inicia sesión
 2. ve todas las sucursales
@@ -442,7 +526,7 @@ Este punto debe cerrarse en el diseño funcional detallado del generador.
 8. asigna trabajadores reales a los slots
 9. exporta
 
-### 12.2. Flujo jefe de sucursal
+### 15.2. Flujo jefe de sucursal
 
 1. inicia sesión
 2. ve solo sus sucursales
@@ -454,9 +538,9 @@ Este punto debe cerrarse en el diseño funcional detallado del generador.
 
 ---
 
-## 13. Acciones principales del producto
+## 16. Acciones principales del producto
 
-### 13.1. Generar por mes
+### 16.1. Generar por mes
 
 Debe existir un botón para generar por mes.
 
@@ -467,7 +551,7 @@ Internamente:
 - incorpora contexto previo o siguiente si hace falta
 - devuelve la propuesta visible para ese mes
 
-### 13.2. Proyección hasta fin de año
+### 16.2. Proyección hasta fin de año
 
 Debe existir una acción futura para proyectar hasta fin de año.
 
@@ -479,21 +563,22 @@ No forma parte del MVP inicial, pero queda declarada como objetivo posterior del
 
 ---
 
-## 14. Salidas del sistema
+## 17. Salidas del sistema
 
 El sistema debe permitir al menos:
 
-- exportación operativa principal
-- exportación alternativa para uso de sucursal o jefatura
+- exportación operativa principal igual a `v1/v2`
+- exportación alternativa para uso de sucursal o jefatura igual a `v1/v2`
 
 El detalle exacto de ambos formatos se definirá después, pero la existencia de dos salidas ya se considera parte del producto.
 
 ---
 
-## 15. Decisiones ya acordadas
+## 18. Decisiones ya acordadas
 
 - el tipo de sucursal lo edita solo admin
 - jefe de sucursal lo ve hardcodeado o en solo lectura
+- la primera vez que una sucursal entra desde Excel se clasifica y esa decisión queda guardada
 - la relación estructural es sucursal-trabajadores, no trabajador-trabajador
 - los slots siempre son anónimos primero
 - la asignación de personas reales siempre viene después
@@ -502,11 +587,14 @@ El detalle exacto de ambos formatos se definirá después, pero la existencia de
 - la preferencia rara, como dejar a alguien siempre en apertura, se resuelve como ajuste manual posterior
 - el cálculo real debe considerar semanas completas y continuidad con meses adyacentes
 - debe existir opción de trabajar con plantillas rotativas de 4 semanas
-- también se quiere experimentar con solver sobre casos rotativos para comparar resultados
+- el solver solo aplica a sucursales con operación dominical
+- si el solver no encuentra solución factible, debe devolver diagnóstico y no aprobar automáticamente una solución inviable
+- la dotación base de generación es la cantidad de trabajadores activos de la sucursal
+- el reparto de slots entre fases rotativas debe ser lo más parejo posible
 
 ---
 
-## 16. Alcance sugerido para MVP
+## 19. Alcance sugerido para MVP
 
 El MVP recomendado de `v3` debería incluir:
 
@@ -529,60 +617,44 @@ No es necesario en el primer MVP:
 
 ---
 
-## 17. Información aún faltante
+## 20. Información aún faltante
 
 Para cerrar este documento y pasar al diseño técnico, aún falta precisar:
 
-### 17.1. Catálogo exacto de tipos de sucursal
+### 20.1. Catálogo exacto de tipos de sucursal
 
 Falta confirmar si la lista actual es definitiva o si existen más tipos reales que deban entrar desde el día 1.
 
-### 17.2. Regla de dotación para plantillas rotativas
+### 20.2. Plantilla de 4 semanas
 
-Falta definir exactamente cómo se transforma la dotación de una sucursal en cantidad y mezcla de slots dentro de una plantilla rotativa.
+Falta precisar si existirá:
 
-### 17.3. Plantilla de 4 semanas
+- una sola plantilla base de 4 semanas
+- o varias plantillas de 4 semanas según tipo de sucursal
 
-Falta formalizar la plantilla de 4 semanas como estructura de datos:
+### 20.3. Restricciones individuales del MVP
 
-- si es una sola plantilla base
-- si habrá varias
-- si depende del tipo de sucursal
+Se toma como base usar las mismas restricciones de `v1/v2`, pero aún falta enumerarlas formalmente en el documento técnico con su comportamiento exacto.
 
-### 17.4. Restricciones individuales del MVP
+### 20.4. Exportaciones
 
-Falta decidir cuáles entran sí o sí en la primera versión:
+Se toma como base usar los dos formatos de `v1/v2`, pero aún falta documentar qué archivo o formato corresponde a cada salida dentro de `v3`.
 
-- vacaciones
-- días no disponibles
-- turno no permitido
-- otras
+### 20.5. Gestión de continuidad
 
-### 17.5. Exportaciones
+La regla general ya está definida, pero aún falta transformarla en reglas operativas detalladas para diseño técnico:
 
-Falta definir exactamente cuáles son los dos formatos de exportación esperados y qué columnas o presentación debe tener cada uno.
-
-### 17.6. Gestión de continuidad
-
-Falta decidir qué pasa cuando ya existe un mes anterior parcialmente generado o aprobado:
-
-- si el sistema debe bloquear inconsistencias
-- si debe recalcular
-- si debe pedir confirmación
-
-### 17.7. Uso del solver en rotativos
-
-Falta decidir si el solver en sucursales rotativas será:
-
-- una herramienta experimental de comparación
-- o una alternativa oficial de generación
+- qué datos arrastran contexto semanal
+- cuándo se recalcula
+- cuándo se bloquea
+- cuándo solo se advierte
 
 ---
 
-## 18. Próximo paso recomendado
+## 21. Próximo paso recomendado
 
 Con este documento ya se puede pasar a la siguiente etapa:
 
 - diseño técnico pre-construcción de `v3`
 
-Antes de eso, conviene cerrar la información faltante del capítulo 17.
+Antes de eso, conviene cerrar la información faltante del capítulo 20.

@@ -281,3 +281,4 @@ Si detectas una contradicción entre dos specs o entre una spec y `docs/`, **det
 
 ### Update 2026-04-24
 - Se agrego `docs/v3-functional-foundation.md` como documento funcional inicial de `v3`: define roles, tipos de sucursal, modos de generacion, reglas de continuidad semanal, slots anonimos, alcance MVP e informacion faltante antes del diseno tecnico.
+- Se refino `docs/v3-functional-foundation.md` con decisiones nuevas: clasificacion inicial desde Excel solo una vez, dotacion = trabajadores activos, reparto balanceado de slots en rotativos, solver solo para sucursales con operacion dominical y diagnostico obligatorio cuando no haya solucion factible.
