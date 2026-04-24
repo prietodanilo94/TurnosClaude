@@ -295,3 +295,6 @@ Si detectas una contradicción entre dos specs o entre una spec y `docs/`, **det
 - `v3/frontend/src/lib/optimizer-lab/types.ts` y `v3/frontend/src/components/optimizer-lab/OptimizerLabPage.tsx` ahora exponen metricas mas utiles del solver (`minCoverage`, `coverageDeficitDays`, `weeklyHoursBySlot`) para revisar calidad real de cada propuesta en la UI.
 - Se agrego `v3/frontend/src/lib/optimizer-lab/engine.test.ts` con 3 pruebas del solver del playground: insuficiencia de dotacion, factibilidad con 42h exactas por semana extendida e imposibilidad cuando se exigen demasiados domingos libres.
 - Verificacion actual de `v3`: `tsc --noEmit`, `vitest run src/lib/optimizer-lab/engine.test.ts` y `next build` pasan sobre `v3/frontend`.
+- `v3/frontend/src/components/optimizer-lab/OptimizerLabPage.tsx` ahora permite elegir el modo de calculo en la misma pantalla: `Heuristico` o `OR-Tools CP-SAT`.
+- `v3/frontend/src/app/api/optimizer-lab/route.ts` despacha ambos modos: el heuristico sigue resolviendose en TypeScript y el modo `cp_sat` llama al optimizer exacto por HTTP usando `V3_CP_SAT_OPTIMIZER_BASE_URL` o, por defecto, `http://127.0.0.1:8022/api`.
+- La misma interfaz del playground ya puede calcular de una forma u otra segun el modo elegido; si el backend exacto no esta disponible, la UI devuelve un diagnostico explicito en vez de fallar silenciosamente.

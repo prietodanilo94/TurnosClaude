@@ -24,6 +24,7 @@ Construir una primera vertical slice funcional de `v3` para validar el solver an
 - [x] Selector de mes
 - [x] Selector o input de dotacion
 - [x] Inputs de parametros del solver
+- [x] Selector de modo de solver en la misma interfaz
 - [x] Boton `Generar`
 
 ### 4. Contrato backend -> optimizer
@@ -38,6 +39,7 @@ Construir una primera vertical slice funcional de `v3` para validar el solver an
 - [x] Manejar respuesta factible
 - [x] Manejar respuesta infactible
 - [x] Mostrar dotacion minima sugerida cuando exista
+- [x] Permitir calcular desde la misma interfaz en modo heuristico o exacto (`cp_sat`) cuando el backend este disponible
 
 ### 6. Resultado visual
 

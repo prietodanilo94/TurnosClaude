@@ -661,6 +661,7 @@ export function runOptimizerLab(input: OptimizerLabInput): OptimizerLabResponse 
 
   const diagnostic: OptimizerDiagnostic = {
     categoryLabel: "Ventas Mall Dominical",
+    solverMode: input.solverMode,
     dotationAvailable: input.dotation,
     minimumSuggested,
     feasible: proposals.length > 0,

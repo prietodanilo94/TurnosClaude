@@ -1,7 +1,9 @@
 export type OptimizerLabCategory = "ventas_mall_dominical";
+export type OptimizerSolverMode = "heuristic" | "cp_sat";
 
 export interface OptimizerLabInput {
   category: OptimizerLabCategory;
+  solverMode: OptimizerSolverMode;
   year: number;
   month: number;
   dotation: number;
@@ -50,6 +52,7 @@ export interface OptimizerProposal {
 
 export interface OptimizerDiagnostic {
   categoryLabel: string;
+  solverMode: OptimizerSolverMode;
   dotationAvailable: number;
   minimumSuggested: number | null;
   feasible: boolean;

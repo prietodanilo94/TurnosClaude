@@ -7,6 +7,7 @@ const today = new Date();
 
 const initialForm: OptimizerLabInput = {
   category: "ventas_mall_dominical",
+  solverMode: "heuristic",
   year: today.getFullYear(),
   month: today.getMonth() + 1,
   dotation: 4,
@@ -117,6 +118,23 @@ export function OptimizerLabPage() {
                   className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
                 >
                   <option value="ventas_mall_dominical">Ventas Mall Dominical</option>
+                </select>
+              </label>
+
+              <label className="block text-sm">
+                <span className="mb-1 block font-medium text-slate-700">Modo de solver</span>
+                <select
+                  value={form.solverMode}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      solverMode: event.target.value as OptimizerLabInput["solverMode"],
+                    }))
+                  }
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                >
+                  <option value="heuristic">Heuristico</option>
+                  <option value="cp_sat">OR-Tools CP-SAT</option>
                 </select>
               </label>
 
@@ -290,6 +308,9 @@ export function OptimizerLabPage() {
                   <p className="text-xs uppercase tracking-wide text-slate-500">Categoria</p>
                   <p className="mt-1 text-sm font-semibold text-slate-900">
                     {result?.diagnostic.categoryLabel ?? "-"}
+                  </p>
+                  <p className="mt-2 text-xs text-slate-500">
+                    {result?.diagnostic.solverMode === "cp_sat" ? "OR-Tools CP-SAT" : "Heuristico"}
                   </p>
                 </div>
                 <div className="rounded-xl bg-slate-50 p-4">

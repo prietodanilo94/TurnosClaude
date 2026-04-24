@@ -4,6 +4,7 @@ import type { OptimizerLabInput } from "./types";
 
 const baseInput: OptimizerLabInput = {
   category: "ventas_mall_dominical",
+  solverMode: "heuristic",
   year: 2026,
   month: 4,
   dotation: 4,
