@@ -1,0 +1,63 @@
+export type OptimizerLabCategory = "ventas_mall_dominical";
+
+export interface OptimizerLabInput {
+  category: OptimizerLabCategory;
+  year: number;
+  month: number;
+  dotation: number;
+  weeklyHoursTarget: number;
+  maxConsecutiveDays: number;
+  minFreeSundays: number;
+  numProposals: number;
+  timeLimitSeconds: number;
+}
+
+export interface LabDay {
+  date: string;
+  weekday: string;
+  inVisibleMonth: boolean;
+  isSunday: boolean;
+}
+
+export interface LabAssignment {
+  slotNumber: number;
+  date: string;
+  shiftId: "V_M7_APE" | "V_M7_CIE" | "V_M7_COM" | "OFF";
+  label: string;
+  laborHours: number;
+  isOff: boolean;
+}
+
+export interface ProposalMetrics {
+  averageHours: number;
+  minFreeSundays: number;
+  maxFreeSundays: number;
+  shiftCounts: Record<string, number>;
+  coverageByDate: Record<string, number>;
+  slotHours: Record<string, number>;
+}
+
+export interface OptimizerProposal {
+  id: string;
+  score: number;
+  assignments: LabAssignment[];
+  metrics: ProposalMetrics;
+}
+
+export interface OptimizerDiagnostic {
+  categoryLabel: string;
+  dotationAvailable: number;
+  minimumSuggested: number;
+  feasible: boolean;
+  messages: string[];
+  effectiveStart: string;
+  effectiveEnd: string;
+}
+
+export interface OptimizerLabResponse {
+  input: OptimizerLabInput;
+  visibleDays: LabDay[];
+  effectiveDays: LabDay[];
+  diagnostic: OptimizerDiagnostic;
+  proposals: OptimizerProposal[];
+}

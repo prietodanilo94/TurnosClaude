@@ -1,43 +1,43 @@
-# Spec 001 — Optimizer Playground
+# Spec 001 - Optimizer Playground
 
 ## Objetivo
 
-Construir la primera vertical slice de `v3` como una página de laboratorio del optimizador.
+Construir la primera vertical slice de `v3` como una pagina de laboratorio del optimizador.
 
-La idea no es partir por todo el producto. La idea es validar primero el corazón del problema:
+La idea no es partir por todo el producto. La idea es validar primero el corazon del problema:
 
-- cómo responde el solver según la dotación
-- cuándo una sucursal dominical es factible o infactible
-- qué propuestas devuelve
-- qué diagnóstico entrega cuando no alcanza la dotación
+- como responde el solver segun la dotacion
+- cuando una sucursal dominical es factible o infactible
+- que propuestas devuelve
+- que diagnostico entrega cuando no alcanza la dotacion
 
-Esta pantalla servirá como herramienta de validación técnica y de negocio antes de construir el flujo completo de importación, clasificación, calendario y exportación.
+Esta pantalla servira como herramienta de validacion tecnica y de negocio antes de construir el flujo completo de importacion, clasificacion, calendario y exportacion.
 
 ## Alcance funcional
 
-Página interna tipo laboratorio, visualmente alineada con la esencia de `v1/v2`, donde el usuario pueda:
+Pagina interna tipo laboratorio, visualmente alineada con la esencia de `v1/v2`, donde el usuario pueda:
 
-1. seleccionar un tipo o categoría de sucursal dominical
-2. seleccionar mes y año
-3. indicar dotación
-4. configurar parámetros del solver
+1. seleccionar un tipo o categoria de sucursal dominical
+2. seleccionar mes y ano
+3. indicar dotacion
+4. configurar parametros del solver
 5. generar propuestas
-6. ver diagnóstico de factibilidad
-7. ver los slots anónimos resultantes
+6. ver diagnostico de factibilidad
+7. ver los slots anonimos resultantes
 8. revisar horas, domingos, cobertura y score
 
-## Qué resuelve esta spec
+## Que resuelve esta spec
 
 Resuelve la pregunta:
 
-> “Si tengo esta categoría de sucursal, este mes y esta dotación, ¿el solver encuentra una solución útil o no?”
+> "Si tengo esta categoria de sucursal, este mes y esta dotacion, el solver encuentra una solucion util o no?"
 
-## Qué no resuelve aún
+## Que no resuelve aun
 
 - no reemplaza el flujo completo del producto
-- no necesita importación Excel todavía
-- no necesita asignación de trabajadores reales todavía
-- no necesita exportación todavía
+- no necesita importacion Excel todavia
+- no necesita asignacion de trabajadores reales todavia
+- no necesita exportacion todavia
 - no necesita persistir como calendario productivo final
 
 ## Ruta propuesta
@@ -46,60 +46,60 @@ Ruta inicial sugerida:
 
 - `/admin/optimizer-lab`
 
-Si todavía no existe auth de `v3`, puede construirse primero como ruta protegida mínima o incluso modo técnico temporal. La intención final es que quede dentro del panel admin.
+Si todavia no existe auth de `v3`, puede construirse primero como ruta protegida minima o incluso modo tecnico temporal. La intencion final es que quede dentro del panel admin.
 
-## Inputs mínimos
+## Inputs minimos
 
-### Categoría de sucursal
+### Categoria de sucursal
 
-El playground debe permitir elegir una categoría dominical de prueba.
+El playground debe permitir elegir una categoria dominical de prueba.
 
-Por ahora puede trabajar con una categoría funcional como:
+Por ahora puede trabajar con una categoria funcional como:
 
 - `ventas_mall_dominical`
 
-Después podrá refinarse por tipo exacto de sucursal.
+Despues podra refinarse por tipo exacto de sucursal.
 
-### Período
+### Periodo
 
 - `year`
 - `month`
 
-### Dotación
+### Dotacion
 
-Número entero de slots anónimos a generar.
+Numero entero de slots anonimos a generar.
 
-Este valor representa la cantidad de trabajadores activos hipotéticos para la prueba.
+Este valor representa la cantidad de trabajadores activos hipoteticos para la prueba.
 
-### Parámetros del solver
+### Parametros del solver
 
 Exponer al menos:
 
 - horas semanales objetivo
-- máximo días consecutivos
-- domingos libres mínimos
-- número de propuestas
-- límite de tiempo
+- maximo dias consecutivos
+- domingos libres minimos
+- numero de propuestas
+- limite de tiempo
 
 ## Datos base de la prueba
 
 El playground debe usar:
 
-- catálogo de turnos dominicales vigente
+- catalogo de turnos dominicales vigente
 - reglas laborales heredadas de `v1/v2`
 - semanas completas extendidas
 - feriados del mes si ya existen en seed o fixture
 
-Para esta spec se permiten fixtures o seeds controlados en vez de depender de la importación real.
+Para esta spec se permiten fixtures o seeds controlados en vez de depender de la importacion real.
 
 ## Salida esperada
 
-La página debe mostrar:
+La pagina debe mostrar:
 
-### Diagnóstico
+### Diagnostico
 
-- dotación disponible
-- dotación mínima sugerida
+- dotacion disponible
+- dotacion minima sugerida
 - factible / infactible
 - mensajes del solver
 
@@ -117,52 +117,52 @@ Lista de propuestas encontradas con:
 Una grilla tipo calendario, similar en esencia a `v1/v2`, mostrando:
 
 - filas por `Trabajador 1..N`
-- días del mes
+- dias del mes
 - turnos asignados
 - libres
 
-### Métricas
+### Metricas
 
 Al menos:
 
 - horas por slot
 - domingos trabajados / libres
-- cobertura por día
+- cobertura por dia
 - cantidad de turnos de cada tipo
 
 ## Reglas clave
 
 ### R1. Solver only
 
-Esta pantalla está pensada principalmente para sucursales con operación dominical.
+Esta pantalla esta pensada principalmente para sucursales con operacion dominical.
 
-No intenta resolver todavía el flujo completo de plantillas rotativas.
+No intenta resolver todavia el flujo completo de plantillas rotativas.
 
-### R2. Diagnóstico obligatorio
+### R2. Diagnostico obligatorio
 
-Si el solver no encuentra solución factible:
+Si el solver no encuentra solucion factible:
 
-- no debe “simular éxito”
-- debe mostrar diagnóstico explícito
-- debe sugerir dotación mínima si está disponible
+- no debe simular exito
+- debe mostrar diagnostico explicito
+- debe sugerir dotacion minima si esta disponible
 
-### R3. Slots anónimos
+### R3. Slots anonimos
 
-La salida siempre se muestra por slots anónimos.
+La salida siempre se muestra por slots anonimos.
 
-No hay trabajadores reales todavía.
+No hay trabajadores reales todavia.
 
 ### R4. UI familiar
 
-La UI debe sentirse como una versión simplificada del calendario de `v1/v2`, no como una herramienta completamente distinta.
+La UI debe sentirse como una version simplificada del calendario de `v1/v2`, no como una herramienta completamente distinta.
 
-## Criterios de aceptación
+## Criterios de aceptacion
 
-- [ ] Existe una ruta de playground del optimizador en `v3`
-- [ ] Permite elegir mes, año y dotación
-- [ ] Permite correr el solver sin depender todavía de importación Excel
-- [ ] Muestra claramente si el problema es factible o infactible
-- [ ] Muestra diagnóstico de insuficiencia cuando no hay solución
-- [ ] Muestra al menos una grilla de resultado por slots anónimos
-- [ ] El estilo general de la página mantiene la esencia de `v1/v2`
+- [x] Existe una ruta de playground del optimizador en `v3`
+- [x] Permite elegir mes, ano y dotacion
+- [x] Permite correr el solver sin depender todavia de importacion Excel
+- [x] Muestra claramente si el problema es factible o infactible
+- [x] Muestra diagnostico de insuficiencia cuando no hay solucion
+- [x] Muestra al menos una grilla de resultado por slots anonimos
+- [x] El estilo general de la pagina mantiene la esencia de `v1/v2`
 - [ ] La vertical slice sirve para conversar contigo sobre calidad real del solver antes de seguir con el resto del MVP
