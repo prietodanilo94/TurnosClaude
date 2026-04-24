@@ -6,7 +6,5 @@ services:
     ports:
       - "127.0.0.1:3013:3000"
     environment:
-      - V3_CP_SAT_OPTIMIZER_BASE_URL=${V3_CP_SAT_OPTIMIZER_BASE_URL:-http://host.docker.internal:8022/api}
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - V3_CP_SAT_OPTIMIZER_BASE_URL=${V3_CP_SAT_OPTIMIZER_BASE_URL:-https://turnos2.dpmake.cl/api}
     restart: unless-stopped
