@@ -18,9 +18,9 @@ ENV HOSTNAME=0.0.0.0
 RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
 
 COPY --from=builder --chown=nextjs:nodejs /app/frontend/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/frontend/.next/static /app/v3/frontend/.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/frontend/.next/static /app/frontend/.next/static
 
-WORKDIR /app/v3/frontend
+WORKDIR /app/frontend
 USER nextjs
 
 EXPOSE 3000
