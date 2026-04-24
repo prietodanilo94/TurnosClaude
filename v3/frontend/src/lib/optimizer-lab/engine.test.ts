@@ -48,6 +48,52 @@ describe("runOptimizerLab", () => {
     });
   });
 
+  it("ninguna propuesta tiene racha de dias consecutivos superior al limite configurado", () => {
+    const diasMax = 5;
+    const result = runOptimizerLab({
+      ...baseInput,
+      dotation: 6,
+      maxConsecutiveDays: diasMax,
+      numProposals: 3,
+    });
+
+    expect(result.diagnostic.feasible).toBe(true);
+    expect(result.proposals.length).toBeGreaterThan(0);
+
+    result.proposals.forEach((proposal) => {
+      const slots = [...new Set(proposal.assignments.map((a) => a.slotNumber))];
+
+      slots.forEach((slot) => {
+        const sorted = proposal.assignments
+          .filter((a) => a.slotNumber === slot)
+          .sort((a, b) => a.date.localeCompare(b.date));
+
+        let maxRun = 0;
+        let curRun = 0;
+        let prevDate: string | null = null;
+
+        for (const a of sorted) {
+          if (!a.isOff) {
+            if (prevDate !== null) {
+              const diffDays = Math.round(
+                (new Date(a.date).getTime() - new Date(prevDate).getTime()) / 86400000
+              );
+              curRun = diffDays === 1 ? curRun + 1 : 1;
+            } else {
+              curRun = 1;
+            }
+            maxRun = Math.max(maxRun, curRun);
+          } else {
+            curRun = 0;
+          }
+          prevDate = a.date;
+        }
+
+        expect(maxRun).toBeLessThanOrEqual(diasMax);
+      });
+    });
+  });
+
   it("rechaza configuraciones que dejan todos los domingos libres sin capacidad de cobertura", () => {
     const result = runOptimizerLab({
       ...baseInput,

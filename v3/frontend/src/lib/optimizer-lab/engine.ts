@@ -548,6 +548,45 @@ function buildAttempt(
     };
   }
 
+  // Verificar días consecutivos en ventana deslizante cross-semana.
+  // buildCandidatePatterns solo valida dentro de cada semana; el cruce entre
+  // semana N y semana N+1 puede generar rachas > maxConsecutiveDays si el día
+  // libre cambia entre semanas (p. ej. libre el domingo en semana N y libre el
+  // miércoles en semana N+1 crea 6+3 = 9 días seguidos al cruzar la frontera).
+  for (let slot = 1; slot <= input.dotation; slot += 1) {
+    const slotDates = assignments
+      .filter((a) => a.slotNumber === slot)
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    let maxRun = 0;
+    let curRun = 0;
+    let prevDate: string | null = null;
+
+    for (const a of slotDates) {
+      if (!a.isOff) {
+        if (prevDate !== null) {
+          const prev = new Date(prevDate).getTime();
+          const curr = new Date(a.date).getTime();
+          const diffDays = Math.round((curr - prev) / 86400000);
+          curRun = diffDays === 1 ? curRun + 1 : 1;
+        } else {
+          curRun = 1;
+        }
+        maxRun = Math.max(maxRun, curRun);
+      } else {
+        curRun = 0;
+      }
+      prevDate = a.date;
+    }
+
+    if (maxRun > input.maxConsecutiveDays) {
+      return {
+        feasible: false,
+        reason: `Slot ${slot}: racha de ${maxRun} dias consecutivos supera el limite de ${input.maxConsecutiveDays}.`,
+      };
+    }
+  }
+
   const visibleDateSet = new Set(visibleDays.map((day) => day.date));
   const hash = assignments
     .filter((assignment) => visibleDateSet.has(assignment.date))
