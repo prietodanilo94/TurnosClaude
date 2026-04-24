@@ -55,11 +55,14 @@ export async function POST(request: NextRequest) {
   });
 
   const sessionPayload = await sessionResponse.json().catch(() => null);
-  const sessionSecret =
-    (typeof sessionPayload?.secret === "string" ? sessionPayload.secret : null) ??
-    getSessionSecret(sessionResponse.headers.get("x-fallback-cookies"));
-
-  console.log("[auth/login] session status:", sessionResponse.status, "| secret value:", JSON.stringify(sessionPayload?.secret), "| fallback-cookies:", sessionResponse.headers.get("x-fallback-cookies"));
+  const payloadSecret =
+    typeof sessionPayload?.secret === "string" && sessionPayload.secret.trim().length > 0
+      ? sessionPayload.secret
+      : null;
+  const fallbackSecret = getSessionSecret(
+    sessionResponse.headers.get("x-fallback-cookies")
+  );
+  const sessionSecret = payloadSecret || fallbackSecret;
 
   if (!sessionResponse.ok || !sessionSecret) {
     const message =
@@ -67,7 +70,6 @@ export async function POST(request: NextRequest) {
         ? sessionPayload.message
         : "No fue posible iniciar sesión.";
     const status = sessionResponse.status === 401 ? 401 : 400;
-    console.log("[auth/login] error:", message);
     return NextResponse.json({ message }, { status });
   }
 

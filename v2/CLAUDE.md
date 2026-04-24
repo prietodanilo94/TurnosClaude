@@ -272,6 +272,7 @@ Si detectas una contradicción entre dos specs o entre una spec y `v2/docs/`, **
 
 ## Estado actual del proyecto
 
+> Update 2026-04-24: se corrigio el bug que seguia rompiendo `/login` en `turnos2`: Appwrite devolvia `201` pero `secret: ""` en el body, y la route server-side estaba tomando ese string vacio antes que el valor correcto de `x-fallback-cookies`. `v2/frontend/src/app/auth/login/route.ts` ahora toma `payloadSecret` solo si viene no vacio y si no usa `fallbackSecret`; con eso la cookie `appwrite_session` vuelve a emitirse correctamente.
 > Update 2026-04-23: se detecto la causa real del bloqueo de login en `turnos2`: Appwrite devolvia `general_unknown_origin` para `turnos2.dpmake.cl` al intentar `POST /account/sessions/email` desde navegador. Como workaround operativo se agregaron `v2/frontend/src/app/auth/login/route.ts` y `logout/route.ts` para crear/cerrar la sesion desde servidor, persistir `appwrite_session` en cookie propia y sincronizar el SDK web con `client.setSession(...)` en `appwrite-client.ts`; `useCurrentUser`, `login/page.tsx`, `admin/layout.tsx` y `jefe/layout.tsx` ya consumen ese flujo.
 > Update 2026-04-23: spec 004 en progreso; backend optimizer scaffolded, suite `tests/test_optimizer_vm7.py` en verde, indexacion ILP alineada con `weeks` 0-based y JWT Appwrite en v2 ajustado a `X-Appwrite-JWT`.
 > Update 2026-04-23: v2 ya tiene `frontend/Dockerfile`, `backend/Dockerfile` y `v2/docker-compose.yml`; el deploy documentado ahora existe como configuracion real del repo.
