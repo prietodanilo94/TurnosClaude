@@ -1,4 +1,4 @@
-# Análisis completo de turnos — Sucursal Mall 7 días
++# Análisis completo de turnos — Sucursal Mall 7 días
 
 > Documento de diseño y factibilidad. Parte desde cero sin asumir el catálogo existente.
 > Versión: 2026-04-24
