@@ -56,6 +56,45 @@ def _make_workers(n=3):
     ]
 
 
+def _max_consecutive(assignments, worker_rut: str, all_dates: list[str]) -> int:
+    """Racha más larga de días trabajados consecutivos para un worker."""
+    worked_set = {a.date for a in assignments if a.worker_rut == worker_rut}
+    max_run = cur_run = 0
+    for date in sorted(all_dates):
+        if date in worked_set:
+            cur_run += 1
+            max_run = max(max_run, cur_run)
+        else:
+            cur_run = 0
+    return max_run
+
+
+def _make_month(year=2026, month=5, n_weeks=4) -> tuple:
+    """Construye n_weeks semanas completas de días abiertos (lun-dom)."""
+    days: list[DayInfo] = []
+    weeks: list[list[int]] = []
+    day_idx = 0
+    start = datetime.date(year, month, 4)  # 4 mayo 2026 = lunes
+    for w in range(n_weeks):
+        week_indices = []
+        for i in range(7):
+            dt = start + datetime.timedelta(days=w * 7 + i)
+            days.append(DayInfo(
+                date=dt.isoformat(),
+                day_index=day_idx,
+                weekday=_WEEKDAYS[dt.weekday()],
+                iso_week=w + 1,
+                abierto=True,
+                apertura_min=10 * 60,
+                cierre_min=20 * 60,
+                es_feriado=False,
+            ))
+            week_indices.append(day_idx)
+            day_idx += 1
+        weeks.append(week_indices)
+    return days, weeks
+
+
 _BASE_PARAMS = {
     "horas_semanales_max": 42,
     "horas_semanales_min": 42,
@@ -239,6 +278,47 @@ def test_non_vm7_sin_restriccion_5_dias():
         worker_days[a.worker_rut] = worker_days.get(a.worker_rut, 0) + 1
     for rut, dias in worker_days.items():
         assert dias <= 6, f"{rut} trabajó {dias} días, superó el max general"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Test 7 — Consecutivos: ventana deslizante cross-semana
+# ──────────────────────────────────────────────────────────────────────────────
+
+def test_vm7_consecutivos_cruce_semanas():
+    """
+    Verifica que ningún worker supere dias_maximos_consecutivos en ventana
+    deslizante, incluyendo el cruce entre semanas ISO.
+    Sin la restricción de ventana deslizante, el solver podía generar rachas
+    de 7-9 días cuando el día libre cambiaba entre semanas.
+    """
+    dias_max = 5
+    n_weeks = 3
+    days, weeks = _make_month(n_weeks=n_weeks)
+    all_dates = [d.date for d in days]
+
+    inp = SolverInput(
+        rotation_group="V_M7",
+        workers=_make_workers(4),
+        days=days,
+        shifts=_vm7_shifts(),
+        weeks=weeks,
+        complete_week_flags=[True] * n_weeks,
+        open_sundays=n_weeks,
+        parametros={
+            **_BASE_PARAMS,
+            "dias_maximos_consecutivos": dias_max,
+            "domingos_libres_minimos": 1,
+            "time_limit_seconds": 30,
+        },
+    )
+    out = solve_ilp(inp)
+    assert out.factible, out.mensajes
+
+    for worker in inp.workers:
+        racha = _max_consecutive(out.asignaciones, worker.rut, all_dates)
+        assert racha <= dias_max, (
+            f"Worker {worker.rut}: racha de {racha} días seguidos, máximo es {dias_max}"
+        )
 
 
 # ──────────────────────────────────────────────────────────────────────────────

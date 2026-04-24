@@ -261,6 +261,70 @@ def _add_sunday_constraints(
         model.Add(cp_model.LinearExpr.Sum(sunday_work) <= max_worked_sundays)
 
 
+def _add_consecutive_constraints(
+    model: cp_model.CpModel,
+    inp: SolverInput,
+    worked: Mapping[WorkerDayKey, cp_model.IntVar],
+    partial_context: Optional[PartialContext] = None,
+) -> None:
+    """
+    Restricción real de días consecutivos usando ventana deslizante de (dias_max+1) días.
+
+    Para cada ventana de (dias_maximos+1) días calendario consecutivos, el trabajador
+    puede trabajar como máximo dias_maximos de ellos. Esto garantiza que en ningún
+    punto del mes haya una racha de más de dias_maximos días seguidos, incluyendo
+    los cruces entre semanas ISO.
+
+    Reemplaza el enfoque anterior (suma por semana ISO) que no capturaba los cruces.
+    """
+    dias_maximos = int(inp.parametros["dias_maximos_consecutivos"])
+    window_size = dias_maximos + 1  # e.g. 7 para max 6 consecutivos
+
+    # Fechas trabajadas fijas (asignaciones fuera del rango parcial)
+    fixed_worked_dates: Dict[str, set] = {}
+    if partial_context is not None:
+        for assignment in partial_context.fixed_assignments:
+            if assignment.date not in partial_context.range_dates:
+                rut = assignment.worker_rut
+                if rut not in fixed_worked_dates:
+                    fixed_worked_dates[rut] = set()
+                fixed_worked_dates[rut].add(assignment.date)
+
+    all_open_days = sorted(
+        [d for d in inp.days if d.abierto],
+        key=lambda d: d.date,
+    )
+
+    if len(all_open_days) < window_size:
+        return
+
+    for worker in inp.workers:
+        worker_fixed = fixed_worked_dates.get(worker.rut, set())
+
+        for start_idx, start_day in enumerate(all_open_days):
+            start_date = datetime.date.fromisoformat(start_day.date)
+            end_date = start_date + datetime.timedelta(days=window_size - 1)
+
+            window_vars: List[cp_model.IntVar] = []
+            window_fixed = 0
+
+            for day in all_open_days[start_idx:]:
+                day_date = datetime.date.fromisoformat(day.date)
+                if day_date > end_date:
+                    break
+                key = (worker.rut, day.date)
+                if key in worked:
+                    window_vars.append(worked[key])
+                elif day.date in worker_fixed:
+                    window_fixed += 1
+
+            if not window_vars:
+                continue
+
+            budget = max(0, dias_maximos - window_fixed)
+            model.Add(cp_model.LinearExpr.Sum(window_vars) <= budget)
+
+
 def _add_rest_constraints(
     model: cp_model.CpModel,
     open_days: List[DayInfo],
@@ -334,6 +398,7 @@ def solve_ilp(
 
     _add_weekly_constraints(model, inp, x, worked, partial_context=partial_context)
     _add_sunday_constraints(model, inp, worked)
+    _add_consecutive_constraints(model, inp, worked, partial_context=partial_context)
 
     if inp.parametros.get("descanso_entre_jornadas", False):
         _add_rest_constraints(model, open_days, inp.workers, inp.shifts, x)
