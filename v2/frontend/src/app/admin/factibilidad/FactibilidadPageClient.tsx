@@ -231,6 +231,87 @@ function weekHoursSummary(
   };
 }
 
+function workerPeriodSummary(
+  worker: FactibilityWorkerTemplate,
+  cells: FactibilityCoverageCell[],
+  sundayLimit: number
+) {
+  let workedDays = 0;
+  let apeDays = 0;
+  let cieDays = 0;
+
+  for (const cell of cells) {
+    const isOff = worker.offDays[cell.cycleWeekIndex] === cell.day;
+    if (isOff) continue;
+    workedDays += 1;
+    if (worker.weeklyRoles[cell.cycleWeekIndex] === "APE") apeDays += 1;
+    if (worker.weeklyRoles[cell.cycleWeekIndex] === "CIE") cieDays += 1;
+  }
+
+  const laborHours = workedDays * LABOR_HOURS_PER_DAY;
+  const presenceHours = workedDays * PRESENCE_HOURS_PER_DAY;
+  const sundayWork = cells.filter(
+    (cell) => cell.day === "domingo" && worker.offDays[cell.cycleWeekIndex] !== cell.day
+  ).length;
+
+  return {
+    workerId: worker.id,
+    label: worker.label,
+    group: worker.group,
+    workedDays,
+    offDays: cells.length - workedDays,
+    apeDays,
+    cieDays,
+    laborHours,
+    presenceHours,
+    sundayWork,
+    sundayLimit,
+  };
+}
+
+function roleWindow(role: "APE" | "CIE") {
+  return role === "APE" ? { start: 10, end: 18 } : { start: 12, end: 20 };
+}
+
+function dayPresenceSummary(cell: FactibilityCoverageCell, workers: FactibilityWorkerTemplate[]) {
+  const assignments = workers
+    .map((worker) => {
+      const isOff = worker.offDays[cell.cycleWeekIndex] === cell.day;
+      if (isOff) {
+        return {
+          workerId: worker.id,
+          label: worker.label,
+          group: worker.group,
+          status: "off" as const,
+        };
+      }
+
+      const role = worker.weeklyRoles[cell.cycleWeekIndex];
+      return {
+        workerId: worker.id,
+        label: worker.label,
+        group: worker.group,
+        status: "working" as const,
+        role,
+        ...roleWindow(role),
+      };
+    })
+    .sort((left, right) => {
+      if (left.status === "off" && right.status === "working") return 1;
+      if (left.status === "working" && right.status === "off") return -1;
+      if (left.status === "working" && right.status === "working") {
+        if (left.start !== right.start) return left.start - right.start;
+      }
+      return left.label.localeCompare(right.label);
+    });
+
+  return {
+    assignments,
+    overlapHours: 6,
+    overlapPeople: cell.totalOnDuty,
+  };
+}
+
 export function FactibilidadPageClient() {
   const scenarios = useMemo(() => getFactibilityScenarios(), []);
   const [headcount, setHeadcount] = useState(6);
@@ -318,6 +399,33 @@ export function FactibilidadPageClient() {
   const workerErrorIds = new Set(errors.map((item) => item.workerId).filter(Boolean));
   const statusMessage = buildStatusMessage(analysis.feasible);
   const recommendation = buildRecommendation(selectedOption, analysis, viewMode);
+  const periodCells = analysis.coverageCells.filter((cell) => cell.inMonth);
+  const summaryScopeLabel = viewMode === "month" ? "Resumen del mes" : "Resumen del ciclo visible";
+  const periodWorkerSummary = workers.map((worker) =>
+    workerPeriodSummary(worker, periodCells, analysis.maxAllowedWorkedSundays)
+  );
+  const periodLaborHours = periodWorkerSummary.reduce((sum, worker) => sum + worker.laborHours, 0);
+  const periodPresenceHours = periodWorkerSummary.reduce(
+    (sum, worker) => sum + worker.presenceHours,
+    0
+  );
+  const selectableCells = analysis.coverageCells.filter((cell) => cell.inMonth);
+  const [selectedDate, setSelectedDate] = useState<string>("");
+
+  useEffect(() => {
+    if (selectableCells.length === 0) {
+      setSelectedDate("");
+      return;
+    }
+    if (!selectableCells.some((cell) => cell.date === selectedDate)) {
+      setSelectedDate(selectableCells[0].date);
+    }
+  }, [selectableCells, selectedDate]);
+
+  const selectedDayCell = selectableCells.find((cell) => cell.date === selectedDate) ?? selectableCells[0];
+  const selectedDaySummary = selectedDayCell
+    ? dayPresenceSummary(selectedDayCell, workers)
+    : null;
 
   return (
     <div className="min-h-screen bg-slate-100">
@@ -597,6 +705,79 @@ export function FactibilidadPageClient() {
           </div>
         </section>
 
+        <section className="rounded-[24px] bg-white p-5 shadow-sm ring-1 ring-slate-200">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">{summaryScopeLabel}</h2>
+              <p className="mt-1 text-sm leading-6 text-slate-600">
+                Muestra cuántos días trabaja cada persona en el período visible y cuántas horas
+                laborales y de presencia acumula.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2 text-sm">
+              <span className="rounded-full bg-sky-100 px-3 py-1.5 font-semibold text-sky-800">
+                Horas laborales equipo: {periodLaborHours}h
+              </span>
+              <span className="rounded-full bg-slate-100 px-3 py-1.5 font-semibold text-slate-700">
+                Presencia total equipo: {periodPresenceHours}h
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {periodWorkerSummary.map((worker) => (
+              <div key={worker.workerId} className="rounded-[22px] border border-slate-200 bg-slate-50 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="font-medium text-slate-900">{worker.label}</div>
+                    <div className="text-xs text-slate-500">{worker.group}</div>
+                  </div>
+                  <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                    {worker.laborHours}h lab
+                  </span>
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                  <div className="rounded-2xl bg-white px-3 py-3">
+                    <div className="text-xs uppercase tracking-wide text-slate-500">Dias trabajados</div>
+                    <div className="mt-1 text-lg font-semibold text-slate-900">{worker.workedDays}</div>
+                  </div>
+                  <div className="rounded-2xl bg-white px-3 py-3">
+                    <div className="text-xs uppercase tracking-wide text-slate-500">Dias libres</div>
+                    <div className="mt-1 text-lg font-semibold text-slate-900">{worker.offDays}</div>
+                  </div>
+                  <div className="rounded-2xl bg-white px-3 py-3">
+                    <div className="text-xs uppercase tracking-wide text-slate-500">Apertura</div>
+                    <div className="mt-1 text-lg font-semibold text-slate-900">{worker.apeDays} dias</div>
+                  </div>
+                  <div className="rounded-2xl bg-white px-3 py-3">
+                    <div className="text-xs uppercase tracking-wide text-slate-500">Cierre</div>
+                    <div className="mt-1 text-lg font-semibold text-slate-900">{worker.cieDays} dias</div>
+                  </div>
+                </div>
+
+                <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                  <span className="rounded-full bg-emerald-100 px-3 py-1.5 font-semibold text-emerald-700">
+                    {worker.laborHours}h laborales
+                  </span>
+                  <span className="rounded-full bg-slate-200 px-3 py-1.5 font-semibold text-slate-700">
+                    {worker.presenceHours}h presencia
+                  </span>
+                  <span
+                    className={`rounded-full px-3 py-1.5 font-semibold ${
+                      worker.sundayWork > worker.sundayLimit
+                        ? "bg-rose-100 text-rose-700"
+                        : "bg-amber-100 text-amber-700"
+                    }`}
+                  >
+                    Domingos: {worker.sundayWork}/{worker.sundayLimit}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
         <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_330px]">
           <div className="space-y-5">
             {weeks.map((coverageForWeek, weekIndex) => {
@@ -620,9 +801,14 @@ export function FactibilidadPageClient() {
                     </div>
                     <div className="flex flex-wrap gap-2 text-xs">
                       {coverageForWeek.map((cell) => (
-                        <span
+                        <button
                           key={cell.date}
-                          className={`rounded-full px-3 py-1 font-semibold ${
+                          onClick={() => setSelectedDate(cell.date)}
+                          className={`rounded-full px-3 py-1 font-semibold transition ${
+                            selectedDate === cell.date
+                              ? "ring-2 ring-slate-900 ring-offset-1"
+                              : ""
+                          } ${
                             cell.meetsBaseCoverage
                               ? "bg-emerald-100 text-emerald-700"
                               : "bg-rose-100 text-rose-700"
@@ -630,7 +816,7 @@ export function FactibilidadPageClient() {
                         >
                           {DAY_LABELS[cell.day]} {cell.date.slice(8, 10)} {cell.apeOnDuty} apertura /{" "}
                           {cell.cieOnDuty} cierre
-                        </span>
+                        </button>
                       ))}
                     </div>
                   </div>
@@ -763,6 +949,91 @@ export function FactibilidadPageClient() {
           </div>
 
           <aside className="space-y-4">
+            {selectedDayCell && selectedDaySummary && (
+              <div className="rounded-[24px] bg-white p-5 shadow-sm ring-1 ring-slate-200">
+                <h3 className="text-base font-semibold text-slate-900">Vista del dia seleccionado</h3>
+                <p className="mt-1 text-sm leading-6 text-slate-600">
+                  {selectedDayCell.date} · {DAY_LABELS[selectedDayCell.day]}.
+                  {" "}Aqui ves a que hora entra cada persona y en que tramo coinciden.
+                </p>
+
+                <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                  <span className="rounded-full bg-sky-100 px-3 py-1.5 font-semibold text-sky-800">
+                    Apertura: {selectedDayCell.apeOnDuty}
+                  </span>
+                  <span className="rounded-full bg-amber-100 px-3 py-1.5 font-semibold text-amber-800">
+                    Cierre: {selectedDayCell.cieOnDuty}
+                  </span>
+                  <span className="rounded-full bg-slate-100 px-3 py-1.5 font-semibold text-slate-700">
+                    Juntos entre 12:00 y 18:00: {selectedDaySummary.overlapPeople} personas
+                  </span>
+                </div>
+
+                <div className="mt-4 rounded-2xl bg-slate-50 px-3 py-3">
+                  <div className="grid grid-cols-6 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                    <span>10:00</span>
+                    <span className="text-center">12:00</span>
+                    <span className="text-center">14:00</span>
+                    <span className="text-center">16:00</span>
+                    <span className="text-center">18:00</span>
+                    <span className="text-right">20:00</span>
+                  </div>
+                </div>
+
+                <div className="mt-3 space-y-3">
+                  {selectedDaySummary.assignments.map((assignment) => (
+                    <div key={assignment.workerId} className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <div className="font-medium text-slate-900">{assignment.label}</div>
+                          <div className="text-xs text-slate-500">{assignment.group}</div>
+                        </div>
+                        {assignment.status === "working" ? (
+                          <span
+                            className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                              assignment.role === "APE"
+                                ? "bg-sky-100 text-sky-800"
+                                : "bg-amber-100 text-amber-800"
+                            }`}
+                          >
+                            {ROLE_LABELS[assignment.role]} {assignment.start}:00-{assignment.end}:00
+                          </span>
+                        ) : (
+                          <span className="rounded-full bg-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                            Libre
+                          </span>
+                        )}
+                      </div>
+
+                      {assignment.status === "working" ? (
+                        <div className="mt-3">
+                          <div className="relative h-8 rounded-full bg-white ring-1 ring-slate-200">
+                            <div
+                              className={`absolute top-1/2 h-5 -translate-y-1/2 rounded-full px-3 text-[11px] font-semibold leading-5 ${
+                                assignment.role === "APE"
+                                  ? "bg-sky-500 text-white"
+                                  : "bg-amber-500 text-white"
+                              }`}
+                              style={{
+                                left: `${(assignment.start - 10) * 10}%`,
+                                width: `${(assignment.end - assignment.start) * 10}%`,
+                              }}
+                            >
+                              {assignment.start}:00-{assignment.end}:00
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="mt-3 rounded-full bg-slate-200 px-3 py-2 text-xs font-semibold text-slate-600">
+                          Esta persona no trabaja ese dia.
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="rounded-[24px] bg-white p-5 shadow-sm ring-1 ring-slate-200">
               <h3 className="text-base font-semibold text-slate-900">Conclusion recomendada</h3>
               <div
