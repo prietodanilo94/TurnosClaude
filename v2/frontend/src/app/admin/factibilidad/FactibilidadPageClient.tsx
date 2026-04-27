@@ -5,6 +5,7 @@ import { analyzeFactibilityOption } from "@/lib/factibilidad/analyzer";
 import { getFactibilityScenarios } from "@/lib/factibilidad/scenarios";
 import {
   FACTIBILITY_WEEKDAYS,
+  type FactibilityCoverageCell,
   type FactibilityOption,
   type FactibilityView,
   type FactibilityWeekday,
@@ -30,6 +31,9 @@ const ROLE_DESCRIPTIONS = {
   APE: "Apertura 10:00-18:00",
   CIE: "Cierre 12:00-20:00",
 } as const;
+
+const LABOR_HOURS_PER_DAY = 7;
+const PRESENCE_HOURS_PER_DAY = 8;
 
 function cloneWorkers(workers: FactibilityWorkerTemplate[]): FactibilityWorkerTemplate[] {
   return workers.map((worker) => ({
@@ -178,6 +182,52 @@ function buildRecommendation(
         ? "Si quieren seguir iterando, este mismo mes real ya sirve como base razonable para la conversacion."
         : "Si quieren tomar una decision final, denle una ultima mirada en `Mes real` antes de cerrar.",
     ],
+  };
+}
+
+function workerWeekHours(
+  worker: FactibilityWorkerTemplate,
+  cycleWeekIndex: number,
+  coverageForWeek: FactibilityCoverageCell[]
+) {
+  const workedDays = coverageForWeek.filter((cell) => worker.offDays[cycleWeekIndex] !== cell.day).length;
+
+  return {
+    workedDays,
+    laborHours: workedDays * LABOR_HOURS_PER_DAY,
+    presenceHours: workedDays * PRESENCE_HOURS_PER_DAY,
+  };
+}
+
+function weekHoursSummary(
+  coverageForWeek: FactibilityCoverageCell[],
+  workers: FactibilityWorkerTemplate[],
+  cycleWeekIndex: number
+) {
+  const apeLaborHours = coverageForWeek.reduce(
+    (sum, cell) => sum + cell.apeOnDuty * LABOR_HOURS_PER_DAY,
+    0
+  );
+  const cieLaborHours = coverageForWeek.reduce(
+    (sum, cell) => sum + cell.cieOnDuty * LABOR_HOURS_PER_DAY,
+    0
+  );
+  const totalLaborHours = apeLaborHours + cieLaborHours;
+  const totalPresenceHours = coverageForWeek.reduce(
+    (sum, cell) => sum + cell.totalOnDuty * PRESENCE_HOURS_PER_DAY,
+    0
+  );
+  const averageHours =
+    workers.length === 0 ? 0 : Math.round((totalLaborHours / workers.length) * 10) / 10;
+  const apeShare = totalLaborHours === 0 ? 0 : (apeLaborHours / totalLaborHours) * 100;
+
+  return {
+    apeLaborHours,
+    cieLaborHours,
+    totalLaborHours,
+    totalPresenceHours,
+    averageHours,
+    apeShare,
   };
 }
 
@@ -551,6 +601,7 @@ export function FactibilidadPageClient() {
           <div className="space-y-5">
             {weeks.map((coverageForWeek, weekIndex) => {
               const cycleWeekIndex = coverageForWeek[0]?.cycleWeekIndex ?? 0;
+              const weekSummary = weekHoursSummary(coverageForWeek, workers, cycleWeekIndex);
 
               return (
                 <div
@@ -584,6 +635,54 @@ export function FactibilidadPageClient() {
                     </div>
                   </div>
 
+                  <div className="grid gap-3 border-b border-slate-200 bg-white/80 px-5 py-4 lg:grid-cols-[minmax(0,1fr)_240px]">
+                    <div>
+                      <div className="flex items-center justify-between gap-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <span>Horas laborales del equipo esta semana</span>
+                        <span>{weekSummary.totalLaborHours}h</span>
+                      </div>
+                      <div className="mt-2 h-3 overflow-hidden rounded-full bg-slate-200">
+                        <div className="flex h-full w-full">
+                          <div
+                            className="bg-sky-500"
+                            style={{ width: `${weekSummary.apeShare}%` }}
+                          />
+                          <div
+                            className="bg-amber-500"
+                            style={{ width: `${100 - weekSummary.apeShare}%` }}
+                          />
+                        </div>
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                        <span className="rounded-full bg-sky-100 px-3 py-1.5 font-semibold text-sky-800">
+                          Apertura: {weekSummary.apeLaborHours}h
+                        </span>
+                        <span className="rounded-full bg-amber-100 px-3 py-1.5 font-semibold text-amber-800">
+                          Cierre: {weekSummary.cieLaborHours}h
+                        </span>
+                        <span className="rounded-full bg-slate-100 px-3 py-1.5 font-semibold text-slate-700">
+                          Presencia total: {weekSummary.totalPresenceHours}h
+                        </span>
+                      </div>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+                      <div className="rounded-2xl bg-slate-50 px-3 py-3">
+                        <div className="text-xs uppercase tracking-wide text-slate-500">
+                          Promedio por persona
+                        </div>
+                        <div className="mt-1 text-xl font-semibold text-slate-900">
+                          {weekSummary.averageHours}h
+                        </div>
+                      </div>
+                      <div className="rounded-2xl bg-slate-50 px-3 py-3">
+                        <div className="text-xs uppercase tracking-wide text-slate-500">
+                          Meta esperada
+                        </div>
+                        <div className="mt-1 text-xl font-semibold text-slate-900">42h</div>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="overflow-x-auto">
                     <table className="min-w-full border-collapse">
                       <thead>
@@ -594,13 +693,14 @@ export function FactibilidadPageClient() {
                               {DAY_LABELS[day]}
                             </th>
                           ))}
-                          <th className="px-5 py-3 text-right">Libre semanal</th>
+                          <th className="px-5 py-3 text-right">Libre / horas</th>
                         </tr>
                       </thead>
                       <tbody>
                         {workers.map((worker) => {
                           const role = worker.weeklyRoles[cycleWeekIndex];
                           const isWorkerFlagged = workerErrorIds.has(worker.id);
+                          const hours = workerWeekHours(worker, cycleWeekIndex, coverageForWeek);
                           return (
                             <tr
                               key={`${worker.id}-${weekIndex}`}
@@ -635,7 +735,21 @@ export function FactibilidadPageClient() {
                                 );
                               })}
                               <td className="px-5 py-3 text-right text-xs text-slate-500">
-                                {DAY_LABELS[worker.offDays[cycleWeekIndex]]}
+                                <div className="flex flex-col items-end gap-1">
+                                  <span>{DAY_LABELS[worker.offDays[cycleWeekIndex]]}</span>
+                                  <span
+                                    className={`rounded-full px-2.5 py-1 font-semibold ${
+                                      hours.laborHours === 42
+                                        ? "bg-emerald-100 text-emerald-700"
+                                        : "bg-amber-100 text-amber-700"
+                                    }`}
+                                  >
+                                    {hours.laborHours}h lab
+                                  </span>
+                                  <span className="rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-600">
+                                    {hours.presenceHours}h pres
+                                  </span>
+                                </div>
                               </td>
                             </tr>
                           );
