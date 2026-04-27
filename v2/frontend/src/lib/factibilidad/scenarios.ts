@@ -20,11 +20,12 @@ function makeWorkers(
   group: string,
   count: number,
   weeklyRoles: FactibilityRole[],
-  templates: FactibilityWeekday[][]
+  templates: FactibilityWeekday[][],
+  startIndex = 1
 ): FactibilityWorkerTemplate[] {
   return Array.from({ length: count }, (_, index) => ({
     id: `${prefix}-${index + 1}`,
-    label: `${prefix}-${index + 1}`,
+    label: `Trabajador ${startIndex + index}`,
     group,
     weeklyRoles: [...weeklyRoles],
     offDays: [...templates[index]],
@@ -37,8 +38,22 @@ function makeFixedOption(headcount: number): FactibilityOption {
   const apeTemplates = buildGroupOffTemplates(apeCount);
   const cieTemplates = buildGroupOffTemplates(cieCount);
   const workers = [
-    ...makeWorkers("APE", "APE", apeCount, ["APE", "APE", "APE", "APE"], apeTemplates),
-    ...makeWorkers("CIE", "CIE", cieCount, ["CIE", "CIE", "CIE", "CIE"], cieTemplates),
+    ...makeWorkers(
+      "APE",
+      "Turno de apertura",
+      apeCount,
+      ["APE", "APE", "APE", "APE"],
+      apeTemplates,
+      1
+    ),
+    ...makeWorkers(
+      "CIE",
+      "Turno de cierre",
+      cieCount,
+      ["CIE", "CIE", "CIE", "CIE"],
+      cieTemplates,
+      apeCount + 1
+    ),
   ];
 
   return {
@@ -67,8 +82,22 @@ function makeRotativeOption(headcount: number): FactibilityOption {
   const groupATemplates = buildGroupOffTemplates(groupACount);
   const groupBTemplates = buildGroupOffTemplates(groupBCount);
   const workers = [
-    ...makeWorkers("G1", "Grupo 1", groupACount, ["APE", "CIE", "APE", "CIE"], groupATemplates),
-    ...makeWorkers("G2", "Grupo 2", groupBCount, ["CIE", "APE", "CIE", "APE"], groupBTemplates),
+    ...makeWorkers(
+      "G1",
+      "Grupo 1",
+      groupACount,
+      ["APE", "CIE", "APE", "CIE"],
+      groupATemplates,
+      1
+    ),
+    ...makeWorkers(
+      "G2",
+      "Grupo 2",
+      groupBCount,
+      ["CIE", "APE", "CIE", "APE"],
+      groupBTemplates,
+      groupACount + 1
+    ),
   ];
 
   return {
