@@ -10,10 +10,23 @@ describe("buildGroupOffTemplates", () => {
       for (let weekIndex = 0; weekIndex < 4; weekIndex += 1) {
         const offByDay = new Map<string, number>();
         for (const template of templates) {
-          offByDay.set(template[weekIndex], (offByDay.get(template[weekIndex]) ?? 0) + 1);
+          for (const day of template[weekIndex]) {
+            offByDay.set(day, (offByDay.get(day) ?? 0) + 1);
+          }
         }
-        for (const count of offByDay.values()) {
+        for (const count of Array.from(offByDay.values())) {
           expect(count).toBeLessThan(size);
+        }
+      }
+    }
+  });
+
+  it("gives each worker exactly 2 free days per week", () => {
+    for (const size of [2, 3, 4, 5, 6]) {
+      const templates = buildGroupOffTemplates(size);
+      for (const template of templates) {
+        for (const weekDays of template) {
+          expect(weekDays).toHaveLength(2);
         }
       }
     }
@@ -34,10 +47,14 @@ describe("factibility scenarios", () => {
     }
   });
 
-  it("exposes monthly planning risks in the smaller dotations", () => {
-    const scenario4 = getFactibilityScenarios().find((item) => item.headcount === 4);
-    const analysis = analyzeFactibilityOption(scenario4!.options[0]);
-    expect(analysis.violations.some((item) => item.type === "consecutive")).toBe(true);
+  it("all modeled scenarios pass every rule in cycle view", () => {
+    const scenarios = getFactibilityScenarios();
+    for (const scenario of scenarios) {
+      for (const option of scenario.options) {
+        const analysis = analyzeFactibilityOption(option);
+        expect(analysis.feasible).toBe(true);
+      }
+    }
   });
 
   it("projects the pattern onto a real month with 5 Sundays", () => {

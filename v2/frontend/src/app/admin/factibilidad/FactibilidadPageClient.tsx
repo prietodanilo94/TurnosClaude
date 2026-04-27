@@ -39,7 +39,7 @@ function cloneWorkers(workers: FactibilityWorkerTemplate[]): FactibilityWorkerTe
   return workers.map((worker) => ({
     ...worker,
     weeklyRoles: [...worker.weeklyRoles],
-    offDays: [...worker.offDays],
+    offDays: worker.offDays.map((w) => [...w]),
   }));
 }
 
@@ -114,7 +114,7 @@ function workerPeriodSummary(
   let cieDays = 0;
 
   for (const cell of cells) {
-    const isOff = worker.offDays[cell.cycleWeekIndex] === cell.day;
+    const isOff = worker.offDays[cell.cycleWeekIndex].includes(cell.day);
     if (isOff) continue;
 
     workedDays += 1;
@@ -125,7 +125,7 @@ function workerPeriodSummary(
   const laborHours = workedDays * LABOR_HOURS_PER_DAY;
   const presenceHours = workedDays * PRESENCE_HOURS_PER_DAY;
   const sundayWork = cells.filter(
-    (cell) => cell.day === "domingo" && worker.offDays[cell.cycleWeekIndex] !== cell.day
+    (cell) => cell.day === "domingo" && !worker.offDays[cell.cycleWeekIndex].includes(cell.day)
   ).length;
 
   return {
@@ -253,9 +253,11 @@ export function FactibilidadPageClient() {
         worker.id === workerId
           ? {
               ...worker,
-              offDays: worker.offDays.map((currentDay, currentWeek) =>
-                currentWeek === cycleWeekIndex ? day : currentDay
-              ),
+              offDays: worker.offDays.map((weekDays, weekIdx) => {
+                if (weekIdx !== cycleWeekIndex) return weekDays;
+                if (weekDays.includes(day)) return weekDays.filter((d) => d !== day);
+                return [...weekDays, day];
+              }),
             }
           : worker
       )
@@ -836,7 +838,7 @@ export function FactibilidadPageClient() {
                         <div className="text-[11px] text-slate-500">{worker.group}</div>
                       </td>
                       {analysis.coverageCells.map((cell) => {
-                        const isOff = worker.offDays[cell.cycleWeekIndex] === cell.day;
+                        const isOff = worker.offDays[cell.cycleWeekIndex].includes(cell.day);
                         const role = worker.weeklyRoles[cell.cycleWeekIndex];
                         const isSunday = cell.day === "domingo";
 
@@ -986,7 +988,7 @@ export function FactibilidadPageClient() {
                               return <div key={`${worker.id}-${weekIndex}-${day}`} className="h-7 rounded" />;
                             }
 
-                            const isOff = worker.offDays[cycleWeekIndex] === day;
+                            const isOff = worker.offDays[cycleWeekIndex].includes(day);
                             const role = worker.weeklyRoles[cycleWeekIndex];
                             const isSunday = day === "domingo";
 

@@ -11,7 +11,7 @@ function cloneWorkers(workers: FactibilityWorkerTemplate[]): FactibilityWorkerTe
   return workers.map((worker) => ({
     ...worker,
     weeklyRoles: [...worker.weeklyRoles],
-    offDays: [...worker.offDays],
+    offDays: worker.offDays.map((w) => [...w]),
   }));
 }
 
@@ -20,7 +20,7 @@ function makeWorkers(
   group: string,
   count: number,
   weeklyRoles: FactibilityRole[],
-  templates: FactibilityWeekday[][],
+  templates: FactibilityWeekday[][][],
   startIndex = 1
 ): FactibilityWorkerTemplate[] {
   return Array.from({ length: count }, (_, index) => ({
@@ -28,7 +28,7 @@ function makeWorkers(
     label: `Trabajador ${startIndex + index}`,
     group,
     weeklyRoles: [...weeklyRoles],
-    offDays: [...templates[index]],
+    offDays: templates[index].map((w) => [...w]),
   }));
 }
 

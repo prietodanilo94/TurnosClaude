@@ -80,7 +80,7 @@ function createCoverageCells(
     let apeOnDuty = 0;
     let cieOnDuty = 0;
     for (const worker of option.workers) {
-      if (worker.offDays[calendarDay.cycleWeekIndex] === calendarDay.day) continue;
+      if (worker.offDays[calendarDay.cycleWeekIndex].includes(calendarDay.day)) continue;
       if (worker.weeklyRoles[calendarDay.cycleWeekIndex] === "APE") apeOnDuty += 1;
       if (worker.weeklyRoles[calendarDay.cycleWeekIndex] === "CIE") cieOnDuty += 1;
     }
@@ -111,7 +111,7 @@ function getWorkerWorkedDates(
   const inMonth: string[] = [];
 
   for (const day of calendarDays) {
-    const isOff = worker.offDays[day.cycleWeekIndex] === day.day;
+    const isOff = worker.offDays[day.cycleWeekIndex].includes(day.day);
     if (isOff) continue;
     visible.push(day.date);
     if (day.inMonth) inMonth.push(day.date);
@@ -219,28 +219,41 @@ export function analyzeFactibilityOption(
   };
 }
 
-type OffSequence = FactibilityWeekday[];
+// 2 libres por semana: exactamente 2 domingos libres por ciclo de 4 semanas,
+// el resto distribuido para maximizar cobertura y evitar rachas largas.
+//
+// Garantia de consecutivos: dias_libres de semanas adyacentes cumplen
+//   min_pos(libre_W+1) <= max_pos(libre_W)  =>  racha cruce <= 6
+// porque POOL_A (pos 1-3) siempre precede a POOL_B (pos 4-6).
+//
+// Garantia dominical: cada trabajador descansa exactamente 2 de los 4 domingos
+// del ciclo segun SUNDAY_FREE_PAIRS, que asegura >= 1 trabajador activo por domingo.
 
-// Distribuye dias libres fijos por trabajador. El dia libre es constante en todas
-// las semanas del ciclo para eliminar rachas largas en el cruce entre semanas.
-// Matematicamente, cualquier transicion de dia-libre-no-domingo a domingo genera
-// una racha de 7+ dias consecutivos; con dia fijo la racha maxima es siempre 6.
-const WEEKDAY_SPREAD: FactibilityWeekday[] = [
-  "domingo",
-  "lunes",
-  "martes",
-  "miercoles",
-  "jueves",
-  "viernes",
-  "sabado",
+const POOL_A: FactibilityWeekday[] = ["lunes", "martes", "miercoles"];
+const POOL_B: FactibilityWeekday[] = ["jueves", "viernes", "sabado"];
+
+// Pares de semanas con domingo libre por posicion en el grupo (indice 0 = groupSize 2)
+const SUNDAY_FREE_PAIRS: Array<Array<[number, number]>> = [
+  /* 2 */ [[0, 1], [2, 3]],
+  /* 3 */ [[0, 1], [1, 2], [2, 3]],
+  /* 4 */ [[0, 1], [2, 3], [0, 2], [1, 3]],
+  /* 5 */ [[0, 1], [2, 3], [0, 2], [1, 3], [0, 3]],
+  /* 6 */ [[0, 1], [2, 3], [0, 2], [1, 3], [0, 3], [1, 2]],
 ];
 
-export function buildGroupOffTemplates(groupSize: number, numWeeks = 4): OffSequence[] {
+export function buildGroupOffTemplates(groupSize: number, numWeeks = 4): FactibilityWeekday[][][] {
   if (groupSize < 2) {
     throw new Error(`buildGroupOffTemplates: minimo 2 trabajadores por grupo, recibido ${groupSize}`);
   }
-  return Array.from({ length: groupSize }, (_, index) => {
-    const day = WEEKDAY_SPREAD[index % WEEKDAY_SPREAD.length];
-    return Array.from({ length: numWeeks }, () => day) as OffSequence;
+  const pairs = SUNDAY_FREE_PAIRS[Math.min(groupSize, 6) - 2];
+  return Array.from({ length: groupSize }, (_, workerIdx) => {
+    const [sundayW1, sundayW2] = pairs[workerIdx % pairs.length];
+    return Array.from({ length: numWeeks }, (_, weekIdx) => {
+      const p = (workerIdx + weekIdx) % 3;
+      if (weekIdx === sundayW1 || weekIdx === sundayW2) {
+        return ["domingo", POOL_A[p]] as FactibilityWeekday[];
+      }
+      return [POOL_A[p], POOL_B[p]] as FactibilityWeekday[];
+    });
   });
 }

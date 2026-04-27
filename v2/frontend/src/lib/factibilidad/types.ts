@@ -21,7 +21,7 @@ export interface FactibilityWorkerTemplate {
   label: string;
   group: string;
   weeklyRoles: FactibilityRole[];
-  offDays: FactibilityWeekday[];
+  offDays: FactibilityWeekday[][]; // 4 semanas × dias libres por semana
 }
 
 export interface FactibilityOption {
