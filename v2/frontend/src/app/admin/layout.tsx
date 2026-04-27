@@ -1,10 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { syncAppwriteSession } from "@/lib/auth/appwrite-client";
-import { clearAppwriteSessionCookie, clearRoleCookie } from "@/lib/auth/session";
+import { usePathname } from "next/navigation";
 import { useCurrentUser } from "@/lib/auth/use-current-user";
 
 function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
@@ -25,27 +22,7 @@ function NavLink({ href, children }: { href: string; children: React.ReactNode }
 }
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
-  const { user, isAdmin, loading, error } = useCurrentUser();
-
-  useEffect(() => {
-    if (!loading && (error || !isAdmin)) {
-      router.replace("/login");
-    }
-  }, [loading, error, isAdmin, router]);
-
-  async function handleLogout() {
-    try {
-      await fetch("/auth/logout", {
-        method: "POST",
-      });
-    } finally {
-      clearAppwriteSessionCookie();
-      clearRoleCookie();
-      syncAppwriteSession();
-      router.push("/login");
-    }
-  }
+  const { user, loading } = useCurrentUser();
 
   if (loading) {
     return (
@@ -54,8 +31,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </div>
     );
   }
-
-  if (error || !isAdmin) return null;
 
   return (
     <div className="min-h-screen flex">
@@ -68,22 +43,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <nav className="flex-1 px-2 py-4 space-y-1">
           <NavLink href="/admin">Dashboard</NavLink>
           <NavLink href="/admin/sucursales">Sucursales</NavLink>
+          <NavLink href="/admin/factibilidad">Factibilidad</NavLink>
           <NavLink href="/admin/feriados">Feriados</NavLink>
           <NavLink href="/admin/usuarios">Usuarios</NavLink>
-          <NavLink href="/admin/dotacion">Dotación</NavLink>
+          <NavLink href="/admin/dotacion">Dotacion</NavLink>
           <NavLink href="/admin/trabajadores">Trabajadores</NavLink>
         </nav>
 
         <div className="px-4 py-4 border-t border-gray-700">
           <p className="text-xs text-gray-400 truncate" title={user?.email}>
-            {user?.email}
+            {user?.email ?? "Modo publico"}
           </p>
-          <button
-            onClick={handleLogout}
-            className="mt-2 text-xs text-red-400 hover:text-red-300 transition-colors"
-          >
-            Cerrar sesión
-          </button>
         </div>
       </aside>
 

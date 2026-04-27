@@ -1,6 +1,7 @@
 import type { CalendarAssignment, ShiftDef, Violation } from "@/types/optimizer";
 import type { Worker, WorkerConstraint } from "@/types/models";
 import { isoWeek } from "./hours-calculator";
+import { getConsecutiveViolationDetail } from "./consecutive-days";
 import { getShiftDurationMinutes, getShiftWindow, weekdayKey } from "./shift-utils";
 
 interface ValidateContext {
@@ -53,24 +54,21 @@ function checkHorasSemanales(ctx: ValidateContext): Violation[] {
 
 function checkDiasSemanales(ctx: ValidateContext): Violation[] {
   const violations: Violation[] = [];
-  const diasPorRutSemana: Record<string, Record<number, Set<string>>> = {};
+  const diasPorRut: Record<string, string[]> = {};
 
   for (const a of ctx.assignments) {
-    const wk = isoWeek(a.date);
-    if (!diasPorRutSemana[a.worker_rut]) diasPorRutSemana[a.worker_rut] = {};
-    if (!diasPorRutSemana[a.worker_rut][wk]) diasPorRutSemana[a.worker_rut][wk] = new Set();
-    diasPorRutSemana[a.worker_rut][wk].add(a.date);
+    if (!diasPorRut[a.worker_rut]) diasPorRut[a.worker_rut] = [];
+    diasPorRut[a.worker_rut].push(a.date);
   }
 
-  for (const [rut, weeks] of Object.entries(diasPorRutSemana)) {
-    for (const [wk, dates] of Object.entries(weeks)) {
-      if (dates.size > ctx.diasMaximosConsecutivos) {
-        violations.push({
-          tipo: "dias_semanales_excedidos",
-          worker_rut: rut,
-          detalle: `Semana ${wk}: ${dates.size} dias > ${ctx.diasMaximosConsecutivos}`,
-        });
-      }
+  for (const [rut, dates] of Object.entries(diasPorRut)) {
+    const detail = getConsecutiveViolationDetail(dates, ctx.diasMaximosConsecutivos);
+    if (detail) {
+      violations.push({
+        tipo: "dias_semanales_excedidos",
+        worker_rut: rut,
+        detalle: detail,
+      });
     }
   }
 

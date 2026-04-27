@@ -1,10 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { syncAppwriteSession } from "@/lib/auth/appwrite-client";
-import { clearAppwriteSessionCookie, clearRoleCookie } from "@/lib/auth/session";
+import { usePathname } from "next/navigation";
 import { useCurrentUser } from "@/lib/auth/use-current-user";
 import { JefeUserContext } from "@/lib/auth/jefe-user-context";
 
@@ -26,40 +23,8 @@ function NavLink({ href, children }: { href: string; children: React.ReactNode }
 }
 
 export default function JefeLayout({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
-  const pathname = usePathname();
   const currentUser = useCurrentUser();
-  const { user, isJefe, loading, error, authorizedBranchIds } = currentUser;
-
-  useEffect(() => {
-    if (!loading && (error || !isJefe)) {
-      router.replace("/login");
-    }
-  }, [loading, error, isJefe, router]);
-
-  useEffect(() => {
-    if (loading || !isJefe) return;
-    const segments = pathname.split("/").filter(Boolean);
-    if (segments[0] === "jefe" && segments[1] === "sucursales" && segments[2]) {
-      const branchId = segments[2];
-      if (!authorizedBranchIds.includes(branchId)) {
-        router.replace("/jefe/403");
-      }
-    }
-  }, [loading, isJefe, pathname, authorizedBranchIds, router]);
-
-  async function handleLogout() {
-    try {
-      await fetch("/auth/logout", {
-        method: "POST",
-      });
-    } finally {
-      clearAppwriteSessionCookie();
-      clearRoleCookie();
-      syncAppwriteSession();
-      router.push("/login");
-    }
-  }
+  const { user, loading } = currentUser;
 
   if (loading) {
     return (
@@ -68,8 +33,6 @@ export default function JefeLayout({ children }: { children: React.ReactNode }) 
       </div>
     );
   }
-
-  if (error || !isJefe) return null;
 
   return (
     <JefeUserContext.Provider value={currentUser}>
@@ -86,15 +49,9 @@ export default function JefeLayout({ children }: { children: React.ReactNode }) 
 
           <div className="px-4 py-4 border-t border-blue-700">
             <p className="text-xs text-blue-300 truncate" title={user?.email}>
-              {user?.nombre_completo}
+              {user?.nombre_completo ?? "Modo publico"}
             </p>
-            <p className="text-xs text-blue-400 truncate">{user?.email}</p>
-            <button
-              onClick={handleLogout}
-              className="mt-2 text-xs text-red-300 hover:text-red-200 transition-colors"
-            >
-              Cerrar sesión
-            </button>
+            <p className="text-xs text-blue-400 truncate">{user?.email ?? "publico"}</p>
           </div>
         </aside>
 

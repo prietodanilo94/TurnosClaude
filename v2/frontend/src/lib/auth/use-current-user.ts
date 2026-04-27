@@ -1,11 +1,20 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Query } from "appwrite";
 import { account, databases, syncAppwriteSession } from "@/lib/auth/appwrite-client";
-import type { User, BranchManager } from "@/types/models";
+import type { BranchManager, User } from "@/types/models";
 
 const DB_ID = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!;
+const PUBLIC_USER_ID = "public-v2";
+
+const PUBLIC_USER: User = {
+  $id: PUBLIC_USER_ID,
+  email: "public@shift-optimizer.local",
+  nombre_completo: "Modo publico",
+  rol: "admin",
+  activo: true,
+};
 
 export interface CurrentUser {
   user: User | null;
@@ -18,8 +27,8 @@ export interface CurrentUser {
 
 export function useCurrentUser(): CurrentUser {
   const [user, setUser] = useState<User | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isJefe, setIsJefe] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(true);
+  const [isJefe, setIsJefe] = useState(true);
   const [authorizedBranchIds, setAuthorizedBranchIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -45,8 +54,8 @@ export function useCurrentUser(): CurrentUser {
         if (cancelled) return;
 
         setUser(userDoc);
-        setIsAdmin(admin);
-        setIsJefe(jefe);
+        setIsAdmin(true);
+        setIsJefe(true);
 
         if (jefe && !admin) {
           const result = await databases.listDocuments(DB_ID, "branch_managers", [
@@ -60,14 +69,21 @@ export function useCurrentUser(): CurrentUser {
           );
         }
       } catch {
-        if (!cancelled) setError("Sesión no válida");
+        if (cancelled) return;
+        setUser(PUBLIC_USER);
+        setIsAdmin(true);
+        setIsJefe(true);
+        setAuthorizedBranchIds([]);
+        setError(null);
       } finally {
         if (!cancelled) setLoading(false);
       }
     }
 
-    load();
-    return () => { cancelled = true; };
+    void load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return { user, isAdmin, isJefe, authorizedBranchIds, loading, error };
