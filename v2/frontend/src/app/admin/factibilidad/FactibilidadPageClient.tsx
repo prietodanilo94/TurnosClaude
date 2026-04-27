@@ -99,6 +99,12 @@ function recommendationClass(tone: "good" | "warn" | "bad") {
   return "border-emerald-200 bg-emerald-50 text-emerald-800";
 }
 
+function monthLabel(monthValue: string) {
+  const [year, month] = monthValue.split("-").map(Number);
+  const date = new Date(Date.UTC(year, (month || 1) - 1, 1, 12, 0, 0));
+  return date.toLocaleDateString("es-CL", { month: "long", year: "numeric", timeZone: "UTC" });
+}
+
 function buildRecommendation(
   option: FactibilityOption,
   analysis: ReturnType<typeof analyzeFactibilityOption>,
@@ -401,6 +407,10 @@ export function FactibilidadPageClient() {
   const recommendation = buildRecommendation(selectedOption, analysis, viewMode);
   const periodCells = analysis.coverageCells.filter((cell) => cell.inMonth);
   const summaryScopeLabel = viewMode === "month" ? "Resumen del mes" : "Resumen del ciclo visible";
+  const recommendationScope =
+    viewMode === "month"
+      ? `Esta conclusion habla de ${scenario.title}, opcion ${selectedOption.title}, en mes real ${monthLabel(monthValue)}.`
+      : `Esta conclusion habla de ${scenario.title}, opcion ${selectedOption.title}, en el ciclo base de 4 semanas.`;
   const periodWorkerSummary = workers.map((worker) =>
     workerPeriodSummary(worker, periodCells, analysis.maxAllowedWorkedSundays)
   );
@@ -1036,6 +1046,21 @@ export function FactibilidadPageClient() {
 
             <div className="rounded-[24px] bg-white p-5 shadow-sm ring-1 ring-slate-200">
               <h3 className="text-base font-semibold text-slate-900">Conclusion recomendada</h3>
+              <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                <span className="rounded-full bg-slate-100 px-3 py-1.5 font-semibold text-slate-700">
+                  {scenario.title}
+                </span>
+                <span className="rounded-full bg-sky-100 px-3 py-1.5 font-semibold text-sky-800">
+                  {selectedOption.title}
+                </span>
+                <span className="rounded-full bg-slate-100 px-3 py-1.5 font-semibold text-slate-700">
+                  {schemeLabel(selectedOption.scheme)}
+                </span>
+                <span className="rounded-full bg-slate-100 px-3 py-1.5 font-semibold text-slate-700">
+                  {viewMode === "month" ? `Mes real: ${monthLabel(monthValue)}` : "Ciclo base de 4 semanas"}
+                </span>
+              </div>
+              <p className="mt-3 text-sm leading-6 text-slate-600">{recommendationScope}</p>
               <div
                 className={`mt-3 rounded-2xl border px-4 py-4 ${recommendationClass(recommendation.tone)}`}
               >
