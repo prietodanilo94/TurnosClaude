@@ -167,16 +167,6 @@ export function analyzeFactibilityOption(
       });
     }
 
-    if (workedSundays > maxAllowedWorkedSundays) {
-      violations.push({
-        severity: "warning",
-        type: "sundays",
-        title: "Excede domingos trabajados",
-        detail: `${worker.label} trabaja ${workedSundays} dom. (max permitido ${maxAllowedWorkedSundays})`,
-        workerId: worker.id,
-      });
-    }
-
     return {
       workerId: worker.id,
       label: worker.label,
@@ -186,6 +176,20 @@ export function analyzeFactibilityOption(
       maxConsecutive,
     };
   });
+
+  // Capacidad grupal para rotar domingos: el equipo debe tener slots suficientes
+  // para que cada trabajador descanse al menos 2 domingos por mes.
+  // Formula: N × maxDomingosPermitidos >= totalDomingos × 2 (1 APE + 1 CIE por domingo)
+  const sundayCapacity = option.workers.length * maxAllowedWorkedSundays;
+  const sundayDemand = totalSundaysInScope * 2;
+  if (sundayCapacity < sundayDemand) {
+    violations.push({
+      severity: "error",
+      type: "sundays",
+      title: "Dotacion insuficiente para rotar domingos",
+      detail: `${option.workers.length} trabajadores × ${maxAllowedWorkedSundays} dom. max = ${sundayCapacity} slots < ${sundayDemand} necesarios`,
+    });
+  }
 
   const maxConsecutiveOverall = workerMetrics.reduce(
     (max, worker) => Math.max(max, worker.maxConsecutive),
