@@ -89,6 +89,98 @@ function buildStatusMessage(feasible: boolean) {
   };
 }
 
+function recommendationClass(tone: "good" | "warn" | "bad") {
+  if (tone === "bad") return "border-rose-200 bg-rose-50 text-rose-800";
+  if (tone === "warn") return "border-amber-200 bg-amber-50 text-amber-800";
+  return "border-emerald-200 bg-emerald-50 text-emerald-800";
+}
+
+function buildRecommendation(
+  option: FactibilityOption,
+  analysis: ReturnType<typeof analyzeFactibilityOption>,
+  viewMode: FactibilityView["mode"]
+) {
+  const coverageErrors = analysis.violations.filter((item) => item.type === "coverage").length;
+  const consecutiveErrors = analysis.violations.filter((item) => item.type === "consecutive").length;
+  const sundayErrors = analysis.violations.filter((item) => item.type === "sundays").length;
+  const isTight =
+    analysis.maxConsecutiveOverall >= 6 ||
+    analysis.maxWorkedSundays >= analysis.maxAllowedWorkedSundays ||
+    analysis.minTotalOnDuty <= 2;
+
+  if (!analysis.feasible) {
+    let mainProblem = "rompe al menos una regla base";
+    let firstAction = "Usa las alertas rojas para corregir el punto que se cae primero.";
+
+    if (coverageErrors > 0) {
+      mainProblem = "se cae por cobertura en uno o mas dias";
+      firstAction =
+        "Antes de seguir comparando comodidad, recupera al menos 1 apertura y 1 cierre por dia.";
+    } else if (consecutiveErrors > 0) {
+      mainProblem = "deja a una o mas personas con mas de 6 dias seguidos";
+      firstAction = "Mueve los libres para cortar la racha antes de seguir iterando.";
+    } else if (sundayErrors > 0) {
+      mainProblem = "carga demasiados domingos en una o mas personas";
+      firstAction = "Reparte mejor los domingos, sobre todo si estas mirando un mes real.";
+    }
+
+    return {
+      tone: "bad" as const,
+      title: "No la recomendaria asi",
+      detail: `En su estado actual, esta opcion ${mainProblem}.`,
+      bullets: [
+        firstAction,
+        viewMode === "month"
+          ? "Valida la correccion en el mismo mes real para no arreglar una semana y romper otra."
+          : "Despues de ajustar, cambia a `Mes real` para confirmar que el mes calendario tambien siga sano.",
+        option.scheme === "rotativo"
+          ? "Si el rotativo sigue cayendose, compara contra el patron fijo para entender si el problema es de reparto o de dotacion."
+          : "Si el patron fijo sigue cayendose, prueba la opcion rotativa para ver si mejora el reparto de carga.",
+      ],
+    };
+  }
+
+  if (isTight) {
+    return {
+      tone: "warn" as const,
+      title: option.recommended ? "La recomendaria, pero con cuidado" : "Puede servir, pero esta justa",
+      detail:
+        "La opcion pasa las reglas base, pero queda cerca del limite en al menos una dimension importante.",
+      bullets: [
+        analysis.maxConsecutiveOverall >= 6
+          ? "La mayor racha ya toca el limite de 6 dias, asi que cualquier cambio de libre hay que revisarlo con cuidado."
+          : "La racha de trabajo esta controlada, pero conviene no mover libres sin volver a mirar el panel.",
+        analysis.maxWorkedSundays >= analysis.maxAllowedWorkedSundays
+          ? "Los domingos ya estan al tope permitido; un mes con mas tension puede romper facil."
+          : "Los domingos todavia estan dentro de rango, pero no sobra tanto margen como para improvisar.",
+        viewMode === "month"
+          ? "Si esta opcion les gusta al equipo, usala como base y evita cambios manuales grandes dentro del mismo mes."
+          : "Antes de decidir, mirala en `Mes real` para confirmar que el calendario verdadero no apriete mas de la cuenta.",
+      ],
+    };
+  }
+
+  return {
+    tone: "good" as const,
+    title: option.recommended
+      ? "La recomendaria como base para conversar con el equipo"
+      : "Es una alternativa sana para comparar",
+    detail:
+      option.scheme === "rotativo"
+        ? "Reparte mejor la carga entre personas sin perder la lectura operativa de la cobertura."
+        : "Es ordenada, facil de explicar y sirve como patron simple para comparar contra otras alternativas.",
+    bullets: [
+      "No muestra quiebres duros en cobertura, domingos ni dias consecutivos con la configuracion visible.",
+      option.scheme === "rotativo"
+        ? "Es buena si la conversacion principal es justicia del patron y reparto de turnos."
+        : "Es buena si la prioridad es que el equipo entienda rapido quien abre y quien cierra.",
+      viewMode === "month"
+        ? "Si quieren seguir iterando, este mismo mes real ya sirve como base razonable para la conversacion."
+        : "Si quieren tomar una decision final, denle una ultima mirada en `Mes real` antes de cerrar.",
+    ],
+  };
+}
+
 export function FactibilidadPageClient() {
   const scenarios = useMemo(() => getFactibilityScenarios(), []);
   const [headcount, setHeadcount] = useState(6);
@@ -175,6 +267,7 @@ export function FactibilidadPageClient() {
   const errors = analysis.violations.filter((item) => item.severity === "error");
   const workerErrorIds = new Set(errors.map((item) => item.workerId).filter(Boolean));
   const statusMessage = buildStatusMessage(analysis.feasible);
+  const recommendation = buildRecommendation(selectedOption, analysis, viewMode);
 
   return (
     <div className="min-h-screen bg-slate-100">
@@ -556,6 +649,23 @@ export function FactibilidadPageClient() {
           </div>
 
           <aside className="space-y-4">
+            <div className="rounded-[24px] bg-white p-5 shadow-sm ring-1 ring-slate-200">
+              <h3 className="text-base font-semibold text-slate-900">Conclusion recomendada</h3>
+              <div
+                className={`mt-3 rounded-2xl border px-4 py-4 ${recommendationClass(recommendation.tone)}`}
+              >
+                <div className="font-semibold">{recommendation.title}</div>
+                <p className="mt-2 text-sm leading-6">{recommendation.detail}</p>
+              </div>
+              <div className="mt-3 space-y-2">
+                {recommendation.bullets.map((bullet) => (
+                  <div key={bullet} className="rounded-2xl bg-slate-50 px-3 py-3 text-sm leading-6 text-slate-700">
+                    {bullet}
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <div className="rounded-[24px] bg-white p-5 shadow-sm ring-1 ring-slate-200">
               <div className="flex items-center justify-between">
                 <h3 className="text-base font-semibold text-slate-900">Estado actual</h3>
