@@ -217,6 +217,23 @@ export function FactibilidadPageClient() {
     setShowAlerts(!analysis.feasible);
   }, [analysis.feasible]);
 
+  const allScenariosMatrix = useMemo(() => {
+    return scenarios.map((s) => ({
+      headcount: s.headcount,
+      title: s.title,
+      study: s.study,
+      results: s.options.map((option) => ({
+        optionId: option.id,
+        scheme: option.scheme,
+        isStudyRecommended: s.study.recommendedOptionId === option.id,
+        analysis: analyzeFactibilityOption(
+          { ...option, workers: cloneWorkers(option.workers) },
+          analysisView
+        ),
+      })),
+    }));
+  }, [analysisView, scenarios]);
+
   const weeks = useMemo(() => {
     const grouped = new Map<number, (typeof analysis.coverageCells)[number][]>();
 
@@ -473,6 +490,130 @@ export function FactibilidadPageClient() {
             </div>
           </div>
         </div>
+
+        <section className="overflow-hidden rounded-[24px] bg-white shadow-sm ring-1 ring-slate-200">
+          <div className="border-b border-slate-200 px-5 py-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">
+                  Factibilidad de todas las opciones
+                </h2>
+                <p className="mt-0.5 text-sm text-slate-500">
+                  {viewMode === "month" ? monthLabel(monthValue) : "Ciclo base de 4 semanas"} ·
+                  Haz clic en una celda para explorarla en detalle abajo.
+                </p>
+              </div>
+              <div className="flex gap-2 text-xs">
+                {(() => {
+                  const total = allScenariosMatrix.flatMap((s) => s.results).length;
+                  const failing = allScenariosMatrix.flatMap((s) => s.results).filter((r) => !r.analysis.feasible).length;
+                  return (
+                    <>
+                      <span className="rounded-full bg-rose-100 px-3 py-1.5 font-semibold text-rose-700">
+                        {failing} no cumplen
+                      </span>
+                      <span className="rounded-full bg-emerald-100 px-3 py-1.5 font-semibold text-emerald-700">
+                        {total - failing} cumplen
+                      </span>
+                    </>
+                  );
+                })()}
+              </div>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="min-w-full border-collapse">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <th className="px-5 py-3 text-left">Dotacion</th>
+                  <th className="px-5 py-3 text-left">Veredicto del estudio</th>
+                  <th className="px-5 py-3 text-center">Patron fijo</th>
+                  <th className="px-5 py-3 text-center">Patron rotativo</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {allScenariosMatrix.map((row) => {
+                  const isSelectedRow = row.headcount === headcount;
+                  return (
+                    <tr
+                      key={row.headcount}
+                      className={isSelectedRow ? "bg-slate-50" : "hover:bg-slate-50/50"}
+                    >
+                      <td className="px-5 py-3">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-base font-bold ${isSelectedRow ? "text-slate-900" : "text-slate-700"}`}>
+                            N = {row.headcount}
+                          </span>
+                          {isSelectedRow && (
+                            <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[10px] font-semibold text-white">
+                              Viendo
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-5 py-3">
+                        <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${studyToneClass(row.study.statusTone)}`}>
+                          {row.study.status}
+                        </span>
+                      </td>
+                      {row.results.map((result) => {
+                        const isSelected = isSelectedRow && result.optionId === optionId;
+                        const errCount = result.analysis.violations.filter((v) => v.severity === "error").length;
+                        const coverageErrors = result.analysis.violations.filter((v) => v.type === "coverage").length;
+                        const consecutiveErrors = result.analysis.violations.filter((v) => v.type === "consecutive").length;
+
+                        return (
+                          <td key={result.optionId} className="px-3 py-2 text-center">
+                            <button
+                              onClick={() => {
+                                setHeadcount(row.headcount);
+                                setOptionId(result.optionId);
+                              }}
+                              className={`w-full rounded-[14px] border px-4 py-2.5 text-sm transition hover:scale-[1.02] hover:shadow-md ${
+                                isSelected
+                                  ? "border-slate-900 bg-slate-900 text-white shadow-lg"
+                                  : result.analysis.feasible
+                                    ? "border-emerald-200 bg-emerald-50 text-emerald-800 hover:border-emerald-300"
+                                    : "border-rose-200 bg-rose-50 text-rose-800 hover:border-rose-300"
+                              }`}
+                            >
+                              <div className="flex items-center justify-center gap-1.5">
+                                <span className="text-base">
+                                  {result.analysis.feasible ? "✓" : "✗"}
+                                </span>
+                                <span className="font-semibold">
+                                  {result.analysis.feasible ? "Cumple" : `${errCount} error${errCount !== 1 ? "es" : ""}`}
+                                </span>
+                                {result.isStudyRecommended && (
+                                  <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                                    isSelected ? "bg-white/20 text-white" : "bg-emerald-200 text-emerald-800"
+                                  }`}>
+                                    Estudio
+                                  </span>
+                                )}
+                              </div>
+                              {!result.analysis.feasible && (
+                                <div className={`mt-1 text-[11px] ${isSelected ? "text-slate-300" : "text-rose-600"}`}>
+                                  {[
+                                    coverageErrors > 0 && "cobertura",
+                                    consecutiveErrors > 0 && "consecutivos",
+                                  ]
+                                    .filter(Boolean)
+                                    .join(" · ")}
+                                </div>
+                              )}
+                            </button>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
 
         <section className="rounded-[24px] bg-white p-5 shadow-sm ring-1 ring-slate-200">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">

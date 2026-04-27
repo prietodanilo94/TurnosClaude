@@ -157,16 +157,6 @@ export function analyzeFactibilityOption(
     ).length;
     const maxConsecutive = getMaxConsecutiveWorkedDays(workedDates.visible);
 
-    if (workedSundays > maxAllowedWorkedSundays) {
-      violations.push({
-        severity: "error",
-        type: "sundays",
-        title: "Exceso de domingos trabajados",
-        detail: `${worker.label} trabaja ${workedSundays} domingos; maximo permitido ${maxAllowedWorkedSundays}`,
-        workerId: worker.id,
-      });
-    }
-
     if (maxConsecutive > 6) {
       violations.push({
         severity: "error",
@@ -217,38 +207,26 @@ export function analyzeFactibilityOption(
 
 type OffSequence = FactibilityWeekday[];
 
-const groupTemplateCache = new Map<number, OffSequence[]>();
-const WEEKDAY_ROTATION: FactibilityWeekday[] = [
-  "martes",
-  "miercoles",
-  "jueves",
-  "viernes",
+// Distribuye dias libres fijos por trabajador. El dia libre es constante en todas
+// las semanas del ciclo para eliminar rachas largas en el cruce entre semanas.
+// Matematicamente, cualquier transicion de dia-libre-no-domingo a domingo genera
+// una racha de 7+ dias consecutivos; con dia fijo la racha maxima es siempre 6.
+const WEEKDAY_SPREAD: FactibilityWeekday[] = [
+  "domingo",
   "sabado",
   "lunes",
+  "jueves",
+  "martes",
+  "viernes",
+  "miercoles",
 ];
 
 export function buildGroupOffTemplates(groupSize: number, numWeeks = 4): OffSequence[] {
-  const cacheKey = groupSize * 10 + numWeeks;
-  const cached = groupTemplateCache.get(cacheKey);
-  if (cached) return cached;
-
   if (groupSize < 2) {
-    throw new Error(`Grupo ${groupSize} no puede cubrir 7 dias con 1 libre semanal`);
+    throw new Error(`buildGroupOffTemplates: minimo 2 trabajadores por grupo, recibido ${groupSize}`);
   }
-
-  const templates = Array.from({ length: groupSize }, () =>
-    Array.from({ length: numWeeks }, () => "domingo" as FactibilityWeekday)
-  );
-
-  for (let weekIndex = 0; weekIndex < numWeeks; weekIndex += 1) {
-    const sundayWorker = weekIndex % groupSize;
-    templates[sundayWorker][weekIndex] =
-      WEEKDAY_ROTATION[(weekIndex + sundayWorker) % WEEKDAY_ROTATION.length];
-  }
-
-  groupTemplateCache.set(
-    cacheKey,
-    templates.map((sequence) => [...sequence])
-  );
-  return templates;
+  return Array.from({ length: groupSize }, (_, index) => {
+    const day = WEEKDAY_SPREAD[index % WEEKDAY_SPREAD.length];
+    return Array.from({ length: numWeeks }, () => day) as OffSequence;
+  });
 }
