@@ -167,6 +167,16 @@ export function analyzeFactibilityOption(
       });
     }
 
+    if (workedSundays > maxAllowedWorkedSundays) {
+      violations.push({
+        severity: "warning",
+        type: "sundays",
+        title: "Excede domingos trabajados",
+        detail: `${worker.label} trabaja ${workedSundays} dom. (max permitido ${maxAllowedWorkedSundays})`,
+        workerId: worker.id,
+      });
+    }
+
     return {
       workerId: worker.id,
       label: worker.label,
@@ -212,13 +222,13 @@ type OffSequence = FactibilityWeekday[];
 // Matematicamente, cualquier transicion de dia-libre-no-domingo a domingo genera
 // una racha de 7+ dias consecutivos; con dia fijo la racha maxima es siempre 6.
 const WEEKDAY_SPREAD: FactibilityWeekday[] = [
+  "domingo",
   "lunes",
   "martes",
   "miercoles",
   "jueves",
   "viernes",
   "sabado",
-  "domingo",
 ];
 
 export function buildGroupOffTemplates(groupSize: number, numWeeks = 4): OffSequence[] {

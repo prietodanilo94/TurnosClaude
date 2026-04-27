@@ -560,8 +560,10 @@ export function FactibilidadPageClient() {
                       {row.results.map((result) => {
                         const isSelected = isSelectedRow && result.optionId === optionId;
                         const errCount = result.analysis.violations.filter((v) => v.severity === "error").length;
+                        const warnCount = result.analysis.violations.filter((v) => v.severity === "warning").length;
                         const coverageErrors = result.analysis.violations.filter((v) => v.type === "coverage").length;
                         const consecutiveErrors = result.analysis.violations.filter((v) => v.type === "consecutive").length;
+                        const sundayWarnings = result.analysis.violations.filter((v) => v.type === "sundays").length;
 
                         return (
                           <td key={result.optionId} className="px-3 py-2 text-center">
@@ -574,16 +576,22 @@ export function FactibilidadPageClient() {
                                 isSelected
                                   ? "border-slate-900 bg-slate-900 text-white shadow-lg"
                                   : result.analysis.feasible
-                                    ? "border-emerald-200 bg-emerald-50 text-emerald-800 hover:border-emerald-300"
+                                    ? warnCount > 0
+                                      ? "border-amber-200 bg-amber-50 text-amber-800 hover:border-amber-300"
+                                      : "border-emerald-200 bg-emerald-50 text-emerald-800 hover:border-emerald-300"
                                     : "border-rose-200 bg-rose-50 text-rose-800 hover:border-rose-300"
                               }`}
                             >
                               <div className="flex items-center justify-center gap-1.5">
                                 <span className="text-base">
-                                  {result.analysis.feasible ? "✓" : "✗"}
+                                  {result.analysis.feasible ? (warnCount > 0 ? "⚠" : "✓") : "✗"}
                                 </span>
                                 <span className="font-semibold">
-                                  {result.analysis.feasible ? "Cumple" : `${errCount} error${errCount !== 1 ? "es" : ""}`}
+                                  {result.analysis.feasible
+                                    ? warnCount > 0
+                                      ? `${warnCount} aviso${warnCount !== 1 ? "s" : ""}`
+                                      : "Cumple"
+                                    : `${errCount} error${errCount !== 1 ? "es" : ""}`}
                                 </span>
                                 {result.isStudyRecommended && (
                                   <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
@@ -601,6 +609,11 @@ export function FactibilidadPageClient() {
                                   ]
                                     .filter(Boolean)
                                     .join(" · ")}
+                                </div>
+                              )}
+                              {result.analysis.feasible && sundayWarnings > 0 && (
+                                <div className={`mt-1 text-[11px] ${isSelected ? "text-slate-300" : "text-amber-600"}`}>
+                                  {sundayWarnings} trabajador{sundayWarnings !== 1 ? "es" : ""} excede dom.
                                 </div>
                               )}
                             </button>
