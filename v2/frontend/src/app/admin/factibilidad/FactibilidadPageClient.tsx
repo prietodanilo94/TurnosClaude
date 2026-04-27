@@ -43,28 +43,22 @@ function cloneWorkers(workers: FactibilityWorkerTemplate[]): FactibilityWorkerTe
   }));
 }
 
-function optionTone(recommended: boolean) {
-  return recommended
-    ? "border-emerald-300 bg-emerald-50 text-emerald-900"
-    : "border-slate-200 bg-white text-slate-800";
-}
-
 function roleCellClass(role: "APE" | "CIE", isOff: boolean, isSunday: boolean) {
   if (isOff) {
     return isSunday
-      ? "bg-rose-100 text-rose-700 border-rose-200"
-      : "bg-slate-100 text-slate-700 border-slate-200";
+      ? "border-rose-300 bg-white text-rose-700 border-dashed"
+      : "border-slate-300 bg-white text-slate-500 border-dashed";
   }
 
   if (role === "APE") {
     return isSunday
-      ? "bg-sky-100 text-sky-800 border-sky-200"
-      : "bg-sky-50 text-sky-700 border-sky-200";
+      ? "border-sky-300 bg-sky-600 text-white"
+      : "border-sky-300 bg-sky-500 text-white";
   }
 
   return isSunday
-    ? "bg-amber-100 text-amber-800 border-amber-200"
-    : "bg-amber-50 text-amber-700 border-amber-200";
+    ? "border-amber-300 bg-amber-600 text-white"
+    : "border-amber-300 bg-amber-500 text-white";
 }
 
 function verdictClass(tone: "bad" | "warn" | "good") {
@@ -75,6 +69,16 @@ function verdictClass(tone: "bad" | "warn" | "good") {
 
 function schemeLabel(scheme: FactibilityOption["scheme"]) {
   return scheme === "fijo" ? "Patron fijo" : "Patron rotativo";
+}
+
+function monthLabel(monthValue: string) {
+  const [year, month] = monthValue.split("-").map(Number);
+  const date = new Date(Date.UTC(year || 2026, ((month || 1) - 1), 1, 12, 0, 0));
+  return date.toLocaleDateString("es-CL", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
 }
 
 function buildStatusMessage(feasible: boolean) {
@@ -99,19 +103,15 @@ function recommendationClass(tone: "good" | "warn" | "bad") {
   return "border-emerald-200 bg-emerald-50 text-emerald-800";
 }
 
-function monthLabel(monthValue: string) {
-  const [year, month] = monthValue.split("-").map(Number);
-  const date = new Date(Date.UTC(year, (month || 1) - 1, 1, 12, 0, 0));
-  return date.toLocaleDateString("es-CL", { month: "long", year: "numeric", timeZone: "UTC" });
-}
-
 function buildRecommendation(
   option: FactibilityOption,
   analysis: ReturnType<typeof analyzeFactibilityOption>,
   viewMode: FactibilityView["mode"]
 ) {
   const coverageErrors = analysis.violations.filter((item) => item.type === "coverage").length;
-  const consecutiveErrors = analysis.violations.filter((item) => item.type === "consecutive").length;
+  const consecutiveErrors = analysis.violations.filter(
+    (item) => item.type === "consecutive"
+  ).length;
   const sundayErrors = analysis.violations.filter((item) => item.type === "sundays").length;
   const isTight =
     analysis.maxConsecutiveOverall >= 6 ||
@@ -142,7 +142,7 @@ function buildRecommendation(
         firstAction,
         viewMode === "month"
           ? "Valida la correccion en el mismo mes real para no arreglar una semana y romper otra."
-          : "Despues de ajustar, cambia a `Mes real` para confirmar que el mes calendario tambien siga sano.",
+          : "Despues de ajustar, cambia a Mes real para confirmar que el mes calendario tambien siga sano.",
         option.scheme === "rotativo"
           ? "Si el rotativo sigue cayendose, compara contra el patron fijo para entender si el problema es de reparto o de dotacion."
           : "Si el patron fijo sigue cayendose, prueba la opcion rotativa para ver si mejora el reparto de carga.",
@@ -153,7 +153,9 @@ function buildRecommendation(
   if (isTight) {
     return {
       tone: "warn" as const,
-      title: option.recommended ? "La recomendaria, pero con cuidado" : "Puede servir, pero esta justa",
+      title: option.recommended
+        ? "La recomendaria, pero con cuidado"
+        : "Puede servir, pero esta justa",
       detail:
         "La opcion pasa las reglas base, pero queda cerca del limite en al menos una dimension importante.",
       bullets: [
@@ -165,7 +167,7 @@ function buildRecommendation(
           : "Los domingos todavia estan dentro de rango, pero no sobra tanto margen como para improvisar.",
         viewMode === "month"
           ? "Si esta opcion les gusta al equipo, usala como base y evita cambios manuales grandes dentro del mismo mes."
-          : "Antes de decidir, mirala en `Mes real` para confirmar que el calendario verdadero no apriete mas de la cuenta.",
+          : "Antes de decidir, mirala en Mes real para confirmar que el calendario verdadero no apriete mas de la cuenta.",
       ],
     };
   }
@@ -186,7 +188,7 @@ function buildRecommendation(
         : "Es buena si la prioridad es que el equipo entienda rapido quien abre y quien cierra.",
       viewMode === "month"
         ? "Si quieren seguir iterando, este mismo mes real ya sirve como base razonable para la conversacion."
-        : "Si quieren tomar una decision final, denle una ultima mirada en `Mes real` antes de cerrar.",
+        : "Si quieren tomar una decision final, denle una ultima mirada en Mes real antes de cerrar.",
     ],
   };
 }
@@ -196,7 +198,9 @@ function workerWeekHours(
   cycleWeekIndex: number,
   coverageForWeek: FactibilityCoverageCell[]
 ) {
-  const workedDays = coverageForWeek.filter((cell) => worker.offDays[cycleWeekIndex] !== cell.day).length;
+  const workedDays = coverageForWeek.filter(
+    (cell) => worker.offDays[cycleWeekIndex] !== cell.day
+  ).length;
 
   return {
     workedDays,
@@ -207,8 +211,7 @@ function workerWeekHours(
 
 function weekHoursSummary(
   coverageForWeek: FactibilityCoverageCell[],
-  workers: FactibilityWorkerTemplate[],
-  cycleWeekIndex: number
+  workers: FactibilityWorkerTemplate[]
 ) {
   const apeLaborHours = coverageForWeek.reduce(
     (sum, cell) => sum + cell.apeOnDuty * LABOR_HOURS_PER_DAY,
@@ -313,7 +316,6 @@ function dayPresenceSummary(cell: FactibilityCoverageCell, workers: FactibilityW
 
   return {
     assignments,
-    overlapHours: 6,
     overlapPeople: cell.totalOnDuty,
   };
 }
@@ -323,6 +325,8 @@ export function FactibilidadPageClient() {
   const [headcount, setHeadcount] = useState(6);
   const [viewMode, setViewMode] = useState<FactibilityView["mode"]>("month");
   const [monthValue, setMonthValue] = useState("2026-05");
+  const [showHelp, setShowHelp] = useState(false);
+  const [selectedDate, setSelectedDate] = useState("");
 
   const scenario = useMemo(
     () => scenarios.find((item) => item.headcount === headcount) ?? scenarios[0],
@@ -407,10 +411,12 @@ export function FactibilidadPageClient() {
   const recommendation = buildRecommendation(selectedOption, analysis, viewMode);
   const periodCells = analysis.coverageCells.filter((cell) => cell.inMonth);
   const summaryScopeLabel = viewMode === "month" ? "Resumen del mes" : "Resumen del ciclo visible";
+  const activeModeLabel = viewMode === "month" ? `Mes real: ${monthLabel(monthValue)}` : "Ciclo base";
   const recommendationScope =
     viewMode === "month"
       ? `Esta conclusion habla de ${scenario.title}, opcion ${selectedOption.title}, en mes real ${monthLabel(monthValue)}.`
       : `Esta conclusion habla de ${scenario.title}, opcion ${selectedOption.title}, en el ciclo base de 4 semanas.`;
+  const scenarioContextLine = `${scenario.baselineAnalysis} ${scenario.fifthSundayNote}`;
   const periodWorkerSummary = workers.map((worker) =>
     workerPeriodSummary(worker, periodCells, analysis.maxAllowedWorkedSundays)
   );
@@ -420,19 +426,20 @@ export function FactibilidadPageClient() {
     0
   );
   const selectableCells = analysis.coverageCells.filter((cell) => cell.inMonth);
-  const [selectedDate, setSelectedDate] = useState<string>("");
 
   useEffect(() => {
     if (selectableCells.length === 0) {
       setSelectedDate("");
       return;
     }
+
     if (!selectableCells.some((cell) => cell.date === selectedDate)) {
       setSelectedDate(selectableCells[0].date);
     }
   }, [selectableCells, selectedDate]);
 
-  const selectedDayCell = selectableCells.find((cell) => cell.date === selectedDate) ?? selectableCells[0];
+  const selectedDayCell =
+    selectableCells.find((cell) => cell.date === selectedDate) ?? selectableCells[0];
   const selectedDaySummary = selectedDayCell
     ? dayPresenceSummary(selectedDayCell, workers)
     : null;
@@ -453,346 +460,251 @@ export function FactibilidadPageClient() {
                 por cobertura, domingos o exceso de dias seguidos.
               </p>
             </div>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 backdrop-blur">
-                <div className="text-xs uppercase tracking-wide text-slate-300">Apertura</div>
-                <div className="mt-1 text-lg font-semibold">{ROLE_DESCRIPTIONS.APE}</div>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 backdrop-blur">
-                <div className="text-xs uppercase tracking-wide text-slate-300">Cierre</div>
-                <div className="mt-1 text-lg font-semibold">{ROLE_DESCRIPTIONS.CIE}</div>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 backdrop-blur">
-                <div className="text-xs uppercase tracking-wide text-slate-300">
-                  Reglas revisadas
-                </div>
-                <div className="mt-1 text-lg font-semibold">
-                  Cobertura, domingos y 6 dias seguidos
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
-          <div className="rounded-[24px] bg-white p-5 shadow-sm ring-1 ring-slate-200">
-            <h2 className="text-base font-semibold text-slate-900">Como usar esta vista</h2>
-            <div className="mt-4 grid gap-3 md:grid-cols-3">
-              <div className="rounded-2xl bg-slate-50 px-4 py-4">
-                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Paso 1
-                </div>
-                <div className="mt-1 font-medium text-slate-900">Elige la dotacion</div>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Parte eligiendo cuantas personas quieres analizar: N=4, N=5, N=6 y asi
-                  sucesivamente.
-                </p>
-              </div>
-              <div className="rounded-2xl bg-slate-50 px-4 py-4">
-                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Paso 2
-                </div>
-                <div className="mt-1 font-medium text-slate-900">Compara una opcion</div>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Revisa la propuesta fija o la rotativa y mira el veredicto corto antes de
-                  empezar a mover dias libres.
-                </p>
-              </div>
-              <div className="rounded-2xl bg-slate-50 px-4 py-4">
-                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Paso 3
-                </div>
-                <div className="mt-1 font-medium text-slate-900">Prueba cambios</div>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Haz clic en una celda para cambiar el libre de esa semana y mira de inmediato si
-                  la idea sigue cumpliendo o si aparece una alerta.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-[24px] bg-white p-5 shadow-sm ring-1 ring-slate-200">
-            <h2 className="text-base font-semibold text-slate-900">Leyenda rapida</h2>
-            <div className="mt-4 flex flex-wrap gap-2 text-sm">
-              <span className="rounded-full bg-slate-100 px-3 py-1.5 text-slate-700">Libre</span>
-              <span className="rounded-full bg-sky-100 px-3 py-1.5 text-sky-800">
-                Apertura 10:00-18:00
-              </span>
-              <span className="rounded-full bg-amber-100 px-3 py-1.5 text-amber-800">
-                Cierre 12:00-20:00
-              </span>
-              <span className="rounded-full bg-emerald-100 px-3 py-1.5 text-emerald-700">
-                Dia bien cubierto
-              </span>
-              <span className="rounded-full bg-rose-100 px-3 py-1.5 text-rose-700">
-                Falta cobertura o se rompe una regla
-              </span>
-            </div>
-            <p className="mt-4 text-sm leading-6 text-slate-600">
-              Cuando una semana aparece en rojo, no significa solo que falte gente: tambien puede
-              significar que una persona queda con demasiados domingos o mas de 6 dias seguidos
-              trabajando.
-            </p>
-          </div>
-        </section>
-
-        <section className="rounded-[24px] bg-white p-5 shadow-sm ring-1 ring-slate-200">
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-            <div>
-              <div className="flex items-center gap-3">
-                <h2 className="text-xl font-semibold text-slate-900">{scenario.title}</h2>
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-semibold ${verdictClass(scenario.verdictTone)}`}
-                >
-                  {scenario.verdict}
-                </span>
-              </div>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                {scenario.baselineAnalysis}
-              </p>
-            </div>
-            <button
-              onClick={resetOption}
-              className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
-            >
-              Restaurar propuesta base
-            </button>
-          </div>
-
-          <div className="mt-5 rounded-[22px] border border-slate-200 bg-slate-50 p-4">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-              <div>
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-                  Modo de analisis
-                </h3>
-                <p className="mt-1 text-sm text-slate-600">
-                  `Ciclo base` muestra el patron ideal de 4 semanas. `Mes real` lo aterriza a un
-                  mes calendario concreto, con sus domingos reales y sus semanas visibles.
-                </p>
-              </div>
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <div className="inline-flex rounded-full bg-white p-1 ring-1 ring-slate-200">
-                  <button
-                    onClick={() => setViewMode("cycle")}
-                    className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-                      viewMode === "cycle"
-                        ? "bg-slate-900 text-white"
-                        : "text-slate-600 hover:bg-slate-100"
-                    }`}
-                  >
-                    Ciclo base
-                  </button>
-                  <button
-                    onClick={() => setViewMode("month")}
-                    className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-                      viewMode === "month"
-                        ? "bg-slate-900 text-white"
-                        : "text-slate-600 hover:bg-slate-100"
-                    }`}
-                  >
-                    Mes real
-                  </button>
-                </div>
-                {viewMode === "month" && (
-                  <label className="flex flex-col gap-1 text-sm text-slate-600">
-                    <span className="text-xs uppercase tracking-wide text-slate-500">Mes</span>
-                    <input
-                      type="month"
-                      value={monthValue}
-                      onChange={(event) => setMonthValue(event.target.value)}
-                      className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700"
-                    />
-                  </label>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-5 flex flex-wrap gap-2">
-            {scenarios.map((item) => (
+            <div className="flex flex-col items-start gap-3 xl:items-end">
               <button
-                key={item.headcount}
-                onClick={() => setHeadcount(item.headcount)}
-                className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-                  item.headcount === scenario.headcount
-                    ? "bg-slate-900 text-white"
-                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                }`}
+                onClick={() => setShowHelp((value) => !value)}
+                className="self-start rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-sm text-white backdrop-blur transition hover:bg-white/20 xl:self-end"
               >
-                N = {item.headcount}
+                {showHelp ? "Cerrar ayuda" : "Como usar?"}
               </button>
-            ))}
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 backdrop-blur">
+                  <div className="text-xs uppercase tracking-wide text-slate-300">Apertura</div>
+                  <div className="mt-1 text-lg font-semibold">{ROLE_DESCRIPTIONS.APE}</div>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 backdrop-blur">
+                  <div className="text-xs uppercase tracking-wide text-slate-300">Cierre</div>
+                  <div className="mt-1 text-lg font-semibold">{ROLE_DESCRIPTIONS.CIE}</div>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 backdrop-blur">
+                  <div className="text-xs uppercase tracking-wide text-slate-300">
+                    Reglas revisadas
+                  </div>
+                  <div className="mt-1 text-lg font-semibold">
+                    Cobertura, domingos y 6 dias seguidos
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
+        </section>
 
-          <div className="mt-5 grid gap-4 lg:grid-cols-2">
-            {scenario.options.map((option) => (
-              <button
-                key={option.id}
-                onClick={() => setOptionId(option.id)}
-                className={`rounded-[22px] border p-4 text-left transition ${
-                  option.id === selectedOption.id
-                    ? "border-slate-900 bg-slate-900 text-white shadow-lg"
-                    : optionTone(option.recommended)
-                }`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-base font-semibold">{option.title}</h3>
-                      {option.recommended && (
-                        <span
-                          className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                            option.id === selectedOption.id
-                              ? "bg-white/15 text-white"
-                              : "bg-emerald-100 text-emerald-700"
-                          }`}
-                        >
-                          Recomendada
-                        </span>
-                      )}
+        {showHelp && (
+          <section className="rounded-[24px] bg-white p-5 shadow-sm ring-1 ring-slate-200">
+            <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+              <div>
+                <h2 className="text-base font-semibold text-slate-900">Como usar esta vista</h2>
+                <div className="mt-4 grid gap-3 md:grid-cols-3">
+                  <div className="rounded-2xl bg-slate-50 px-4 py-4">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Paso 1
                     </div>
-                    <p
-                      className={`mt-2 text-sm leading-6 ${
-                        option.id === selectedOption.id ? "text-slate-100" : "text-slate-600"
-                      }`}
-                    >
-                      {option.headline}
+                    <div className="mt-1 font-medium text-slate-900">Elige la dotacion</div>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">
+                      Parte eligiendo cuantas personas quieres analizar: N=4, N=5, N=6 y asi
+                      sucesivamente.
                     </p>
                   </div>
-                  <span
-                    className={`rounded-full px-3 py-1 text-xs font-semibold uppercase ${
-                      option.id === selectedOption.id
-                        ? "bg-white/10 text-white"
-                        : "bg-slate-100 text-slate-600"
-                    }`}
-                  >
-                    {schemeLabel(option.scheme)}
-                  </span>
-                </div>
-                <div
-                  className={`mt-4 flex flex-wrap gap-2 text-xs ${
-                    option.id === selectedOption.id ? "text-slate-200" : "text-slate-500"
-                  }`}
-                >
-                  <span className="rounded-full border border-current/20 px-2.5 py-1">
-                    {option.roleCountsLabel}
-                  </span>
-                  <span className="rounded-full border border-current/20 px-2.5 py-1">
-                    {option.workers.length} trabajadores
-                  </span>
-                </div>
-              </button>
-            ))}
-          </div>
-
-          <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-            <div className="rounded-[22px] border border-slate-200 bg-slate-50 p-4">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-                Veredicto rapido
-              </h3>
-              <p className="mt-2 text-sm leading-6 text-slate-700">{selectedOption.shortAnalysis}</p>
-              <ul className="mt-3 space-y-2 text-sm text-slate-600">
-                {selectedOption.summaryBullets.map((bullet) => (
-                  <li key={bullet} className="flex gap-2">
-                    <span className="mt-1 h-1.5 w-1.5 rounded-full bg-slate-400" />
-                    <span>{bullet}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="rounded-[22px] border border-slate-200 bg-white p-4">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-                Antes de decidir
-              </h3>
-              <p className="mt-2 text-sm leading-6 text-slate-700">{scenario.fifthSundayNote}</p>
-              {scenario.mixedOutlook && (
-                <div className="mt-3 rounded-2xl bg-slate-100 px-3 py-3 text-sm leading-6 text-slate-700">
-                  {scenario.mixedOutlook}
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
-
-        <section className="rounded-[24px] bg-white p-5 shadow-sm ring-1 ring-slate-200">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <h2 className="text-lg font-semibold text-slate-900">{summaryScopeLabel}</h2>
-              <p className="mt-1 text-sm leading-6 text-slate-600">
-                Muestra cuántos días trabaja cada persona en el período visible y cuántas horas
-                laborales y de presencia acumula.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2 text-sm">
-              <span className="rounded-full bg-sky-100 px-3 py-1.5 font-semibold text-sky-800">
-                Horas laborales equipo: {periodLaborHours}h
-              </span>
-              <span className="rounded-full bg-slate-100 px-3 py-1.5 font-semibold text-slate-700">
-                Presencia total equipo: {periodPresenceHours}h
-              </span>
-            </div>
-          </div>
-
-          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {periodWorkerSummary.map((worker) => (
-              <div key={worker.workerId} className="rounded-[22px] border border-slate-200 bg-slate-50 p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="font-medium text-slate-900">{worker.label}</div>
-                    <div className="text-xs text-slate-500">{worker.group}</div>
+                  <div className="rounded-2xl bg-slate-50 px-4 py-4">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Paso 2
+                    </div>
+                    <div className="mt-1 font-medium text-slate-900">Compara el patron</div>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">
+                      Revisa si te conviene mas la opcion fija o la rotativa antes de ajustar dias
+                      libres.
+                    </p>
                   </div>
-                  <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                    {worker.laborHours}h lab
-                  </span>
-                </div>
-
-                <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-                  <div className="rounded-2xl bg-white px-3 py-3">
-                    <div className="text-xs uppercase tracking-wide text-slate-500">Dias trabajados</div>
-                    <div className="mt-1 text-lg font-semibold text-slate-900">{worker.workedDays}</div>
+                  <div className="rounded-2xl bg-slate-50 px-4 py-4">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Paso 3
+                    </div>
+                    <div className="mt-1 font-medium text-slate-900">Haz cambios y compara</div>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">
+                      Haz clic en una celda para cambiar el libre de esa semana y mira de inmediato
+                      si aparece un problema.
+                    </p>
                   </div>
-                  <div className="rounded-2xl bg-white px-3 py-3">
-                    <div className="text-xs uppercase tracking-wide text-slate-500">Dias libres</div>
-                    <div className="mt-1 text-lg font-semibold text-slate-900">{worker.offDays}</div>
-                  </div>
-                  <div className="rounded-2xl bg-white px-3 py-3">
-                    <div className="text-xs uppercase tracking-wide text-slate-500">Apertura</div>
-                    <div className="mt-1 text-lg font-semibold text-slate-900">{worker.apeDays} dias</div>
-                  </div>
-                  <div className="rounded-2xl bg-white px-3 py-3">
-                    <div className="text-xs uppercase tracking-wide text-slate-500">Cierre</div>
-                    <div className="mt-1 text-lg font-semibold text-slate-900">{worker.cieDays} dias</div>
-                  </div>
-                </div>
-
-                <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                  <span className="rounded-full bg-emerald-100 px-3 py-1.5 font-semibold text-emerald-700">
-                    {worker.laborHours}h laborales
-                  </span>
-                  <span className="rounded-full bg-slate-200 px-3 py-1.5 font-semibold text-slate-700">
-                    {worker.presenceHours}h presencia
-                  </span>
-                  <span
-                    className={`rounded-full px-3 py-1.5 font-semibold ${
-                      worker.sundayWork > worker.sundayLimit
-                        ? "bg-rose-100 text-rose-700"
-                        : "bg-amber-100 text-amber-700"
-                    }`}
-                  >
-                    Domingos: {worker.sundayWork}/{worker.sundayLimit}
-                  </span>
                 </div>
               </div>
-            ))}
+
+              <div>
+                <h2 className="text-base font-semibold text-slate-900">Leyenda rapida</h2>
+                <div className="mt-4 flex flex-wrap gap-2 text-sm">
+                  <span className="rounded-full bg-slate-100 px-3 py-1.5 text-slate-700">Libre</span>
+                  <span className="rounded-full bg-sky-100 px-3 py-1.5 text-sky-800">
+                    Apertura 10:00-18:00
+                  </span>
+                  <span className="rounded-full bg-amber-100 px-3 py-1.5 text-amber-800">
+                    Cierre 12:00-20:00
+                  </span>
+                  <span className="rounded-full bg-emerald-100 px-3 py-1.5 text-emerald-700">
+                    Dia bien cubierto
+                  </span>
+                  <span className="rounded-full bg-rose-100 px-3 py-1.5 text-rose-700">
+                    Falta cobertura o se rompe una regla
+                  </span>
+                </div>
+                <p className="mt-4 text-sm leading-6 text-slate-600">
+                  Cuando una semana aparece en rojo, no significa solo que falte gente: tambien
+                  puede significar demasiados domingos o mas de 6 dias seguidos para una persona.
+                </p>
+              </div>
+            </div>
+          </section>
+        )}
+
+        <section
+          className={`rounded-[24px] border-2 px-6 py-4 ${
+            analysis.feasible ? "border-emerald-300 bg-emerald-50" : "border-rose-300 bg-rose-50"
+          }`}
+        >
+          <div className="flex flex-wrap items-center gap-4">
+            <span
+              className={`text-2xl font-bold ${
+                analysis.feasible ? "text-emerald-700" : "text-rose-700"
+              }`}
+            >
+              {analysis.feasible ? "Cumple las reglas" : "Tiene problemas"}
+            </span>
+            <span className="rounded-full bg-white px-3 py-1 text-sm font-semibold text-slate-700 ring-1 ring-slate-200">
+              {errors.length} {errors.length === 1 ? "error" : "errores"}
+            </span>
+            <span className="rounded-full bg-white px-3 py-1 text-sm font-semibold text-slate-700 ring-1 ring-slate-200">
+              Racha max: {analysis.maxConsecutiveOverall} dias
+            </span>
+            <span className="rounded-full bg-white px-3 py-1 text-sm font-semibold text-slate-700 ring-1 ring-slate-200">
+              Domingos: {analysis.maxWorkedSundays}/{analysis.maxAllowedWorkedSundays}
+            </span>
+            <span className="ml-auto text-sm text-slate-500">
+              {scenario.title} · {selectedOption.title} · {activeModeLabel}
+            </span>
           </div>
         </section>
+
+        <section className="rounded-[20px] bg-white px-5 py-4 shadow-sm ring-1 ring-slate-200">
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white">
+                {scenario.title}
+              </span>
+              <span
+                className={`rounded-full px-3 py-1 text-xs font-semibold ${verdictClass(
+                  scenario.verdictTone
+                )}`}
+              >
+                {scenario.verdict}
+              </span>
+              <span className="text-slate-500">{selectedOption.headline}</span>
+            </div>
+            <p className="text-sm leading-6 text-slate-600">{scenarioContextLine}</p>
+            {scenario.mixedOutlook && (
+              <p className="text-sm leading-6 text-slate-500">{scenario.mixedOutlook}</p>
+            )}
+          </div>
+        </section>
+
+        <div className="sticky top-0 z-20 rounded-[20px] bg-white/90 px-5 py-3 shadow-md ring-1 ring-slate-200 backdrop-blur">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-1">
+              <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Dotacion
+              </span>
+              <div className="ml-2 flex gap-1">
+                {scenarios.map((item) => (
+                  <button
+                    key={item.headcount}
+                    onClick={() => setHeadcount(item.headcount)}
+                    className={`rounded-full px-3 py-1 text-sm font-semibold transition ${
+                      item.headcount === scenario.headcount
+                        ? "bg-slate-900 text-white"
+                        : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                    }`}
+                  >
+                    {item.headcount}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="h-6 w-px bg-slate-200" />
+
+            <div className="flex items-center gap-1">
+              <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Patron
+              </span>
+              <div className="ml-2 inline-flex rounded-full bg-slate-100 p-0.5">
+                {scenario.options.map((option) => (
+                  <button
+                    key={option.id}
+                    onClick={() => setOptionId(option.id)}
+                    className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
+                      option.id === selectedOption.id
+                        ? "bg-slate-900 text-white"
+                        : "text-slate-600 hover:bg-slate-200"
+                    }`}
+                  >
+                    {option.scheme === "fijo" ? "Fijo" : "Rotativo"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="h-6 w-px bg-slate-200" />
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Vista
+              </span>
+              <div className="inline-flex rounded-full bg-slate-100 p-0.5">
+                <button
+                  onClick={() => setViewMode("cycle")}
+                  className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
+                    viewMode === "cycle"
+                      ? "bg-slate-900 text-white"
+                      : "text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  Ciclo base
+                </button>
+                <button
+                  onClick={() => setViewMode("month")}
+                  className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
+                    viewMode === "month"
+                      ? "bg-slate-900 text-white"
+                      : "text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  Mes real
+                </button>
+              </div>
+              {viewMode === "month" && (
+                <input
+                  type="month"
+                  value={monthValue}
+                  onChange={(event) => setMonthValue(event.target.value)}
+                  className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700"
+                />
+              )}
+            </div>
+
+            <div className="ml-auto flex items-center gap-2">
+              <span className="text-sm font-medium text-slate-700">{scenario.verdict}</span>
+              <button
+                onClick={resetOption}
+                className="rounded-full border border-slate-300 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50"
+              >
+                Restaurar
+              </button>
+            </div>
+          </div>
+        </div>
 
         <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_330px]">
           <div className="space-y-5">
             {weeks.map((coverageForWeek, weekIndex) => {
               const cycleWeekIndex = coverageForWeek[0]?.cycleWeekIndex ?? 0;
-              const weekSummary = weekHoursSummary(coverageForWeek, workers, cycleWeekIndex);
+              const weekSummary = weekHoursSummary(coverageForWeek, workers);
 
               return (
                 <div
@@ -801,12 +713,19 @@ export function FactibilidadPageClient() {
                 >
                   <div className="flex flex-col gap-2 border-b border-slate-200 bg-slate-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                      <h3 className="text-lg font-semibold text-slate-900">
-                        {viewMode === "month" ? `Semana visible ${weekIndex + 1}` : `Semana ${weekIndex + 1}`}
-                      </h3>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-lg font-semibold text-slate-900">
+                          {viewMode === "month"
+                            ? `Semana visible ${weekIndex + 1}`
+                            : `Semana ${weekIndex + 1}`}
+                        </h3>
+                        <span className="rounded-full bg-slate-200 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-600">
+                          Editable
+                        </span>
+                      </div>
                       <p className="text-sm text-slate-500">
-                        Haz clic en una celda para cambiar el dia libre. Esta semana hereda la
-                        logica de la semana {cycleWeekIndex + 1} del ciclo base.
+                        Haz clic en una celda para cambiar el libre. Esta semana hereda la logica
+                        de la semana {cycleWeekIndex + 1} del ciclo base.
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-2 text-xs">
@@ -814,18 +733,17 @@ export function FactibilidadPageClient() {
                         <button
                           key={cell.date}
                           onClick={() => setSelectedDate(cell.date)}
+                          title="Ver detalle horario del dia"
                           className={`rounded-full px-3 py-1 font-semibold transition ${
-                            selectedDate === cell.date
-                              ? "ring-2 ring-slate-900 ring-offset-1"
-                              : ""
+                            selectedDate === cell.date ? "ring-2 ring-slate-900 ring-offset-1" : ""
                           } ${
                             cell.meetsBaseCoverage
                               ? "bg-emerald-100 text-emerald-700"
                               : "bg-rose-100 text-rose-700"
                           }`}
                         >
-                          {DAY_LABELS[cell.day]} {cell.date.slice(8, 10)} {cell.apeOnDuty} apertura /{" "}
-                          {cell.cieOnDuty} cierre
+                          {DAY_LABELS[cell.day]} {cell.date.slice(8, 10)} · {cell.apeOnDuty}A/
+                          {cell.cieOnDuty}C
                         </button>
                       ))}
                     </div>
@@ -897,6 +815,7 @@ export function FactibilidadPageClient() {
                           const role = worker.weeklyRoles[cycleWeekIndex];
                           const isWorkerFlagged = workerErrorIds.has(worker.id);
                           const hours = workerWeekHours(worker, cycleWeekIndex, coverageForWeek);
+
                           return (
                             <tr
                               key={`${worker.id}-${weekIndex}`}
@@ -917,13 +836,10 @@ export function FactibilidadPageClient() {
                                   <td key={day} className="px-2 py-2 text-center">
                                     <button
                                       onClick={() => setOffDay(worker.id, cycleWeekIndex, day)}
+                                      title={`Cambiar libre semanal a ${DAY_LABELS[day]}`}
                                       className={`w-24 rounded-2xl border px-3 py-2 text-[11px] font-semibold leading-tight transition hover:-translate-y-0.5 ${
                                         dateCell?.inMonth ? "" : "opacity-50"
-                                      } ${roleCellClass(
-                                        role,
-                                        isOff,
-                                        day === "domingo"
-                                      )}`}
+                                      } ${roleCellClass(role, isOff, day === "domingo")}`}
                                     >
                                       {isOff ? "Libre" : role === "APE" ? "Apert." : "Cierre"}
                                     </button>
@@ -963,8 +879,8 @@ export function FactibilidadPageClient() {
               <div className="rounded-[24px] bg-white p-5 shadow-sm ring-1 ring-slate-200">
                 <h3 className="text-base font-semibold text-slate-900">Vista del dia seleccionado</h3>
                 <p className="mt-1 text-sm leading-6 text-slate-600">
-                  {selectedDayCell.date} · {DAY_LABELS[selectedDayCell.day]}.
-                  {" "}Aqui ves a que hora entra cada persona y en que tramo coinciden.
+                  {selectedDayCell.date} · {DAY_LABELS[selectedDayCell.day]}. Aqui ves a que hora
+                  entra cada persona y en que tramo coinciden.
                 </p>
 
                 <div className="mt-3 flex flex-wrap gap-2 text-xs">
@@ -992,7 +908,10 @@ export function FactibilidadPageClient() {
 
                 <div className="mt-3 space-y-3">
                   {selectedDaySummary.assignments.map((assignment) => (
-                    <div key={assignment.workerId} className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
+                    <div
+                      key={assignment.workerId}
+                      className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3"
+                    >
                       <div className="flex items-center justify-between gap-3">
                         <div>
                           <div className="font-medium text-slate-900">{assignment.label}</div>
@@ -1045,45 +964,11 @@ export function FactibilidadPageClient() {
             )}
 
             <div className="rounded-[24px] bg-white p-5 shadow-sm ring-1 ring-slate-200">
-              <h3 className="text-base font-semibold text-slate-900">Conclusion recomendada</h3>
-              <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                <span className="rounded-full bg-slate-100 px-3 py-1.5 font-semibold text-slate-700">
-                  {scenario.title}
-                </span>
-                <span className="rounded-full bg-sky-100 px-3 py-1.5 font-semibold text-sky-800">
-                  {selectedOption.title}
-                </span>
-                <span className="rounded-full bg-slate-100 px-3 py-1.5 font-semibold text-slate-700">
-                  {schemeLabel(selectedOption.scheme)}
-                </span>
-                <span className="rounded-full bg-slate-100 px-3 py-1.5 font-semibold text-slate-700">
-                  {viewMode === "month" ? `Mes real: ${monthLabel(monthValue)}` : "Ciclo base de 4 semanas"}
-                </span>
-              </div>
-              <p className="mt-3 text-sm leading-6 text-slate-600">{recommendationScope}</p>
-              <div
-                className={`mt-3 rounded-2xl border px-4 py-4 ${recommendationClass(recommendation.tone)}`}
-              >
-                <div className="font-semibold">{recommendation.title}</div>
-                <p className="mt-2 text-sm leading-6">{recommendation.detail}</p>
-              </div>
-              <div className="mt-3 space-y-2">
-                {recommendation.bullets.map((bullet) => (
-                  <div key={bullet} className="rounded-2xl bg-slate-50 px-3 py-3 text-sm leading-6 text-slate-700">
-                    {bullet}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-[24px] bg-white p-5 shadow-sm ring-1 ring-slate-200">
               <div className="flex items-center justify-between">
                 <h3 className="text-base font-semibold text-slate-900">Estado actual</h3>
                 <span
                   className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                    analysis.feasible
-                      ? "bg-emerald-100 text-emerald-700"
-                      : "bg-rose-100 text-rose-700"
+                    analysis.feasible ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"
                   }`}
                 >
                   {analysis.feasible ? "Cumple" : "Revisar"}
@@ -1138,9 +1023,9 @@ export function FactibilidadPageClient() {
               <div className="mt-4 space-y-3">
                 {analysis.violations.length === 0 ? (
                   <div className="rounded-2xl bg-emerald-50 px-3 py-3 text-sm text-emerald-700">
-                    No aparecen problemas duros en esta configuracion. Igual conviene mirar `Mes
-                    real` cuando el calendario tenga 5 domingos o semanas cortadas por el cambio
-                    de mes.
+                    No aparecen problemas duros en esta configuracion. Igual conviene mirar Mes
+                    real cuando el calendario tenga 5 domingos o semanas cortadas por el cambio de
+                    mes.
                   </div>
                 ) : (
                   analysis.violations.map((violation, index) => (
@@ -1161,38 +1046,118 @@ export function FactibilidadPageClient() {
                 )}
               </div>
             </div>
-
-            <div className="rounded-[24px] bg-white p-5 shadow-sm ring-1 ring-slate-200">
-              <h3 className="text-base font-semibold text-slate-900">Resumen por persona</h3>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Este bloque ayuda a detectar rapido si alguien quedo sobrecargado aunque la semana
-                completa parezca sana a primera vista.
-              </p>
-              <div className="mt-4 space-y-3">
-                {analysis.workerMetrics.map((worker) => (
-                  <div
-                    key={worker.workerId}
-                    className={`rounded-2xl border px-3 py-3 ${
-                      worker.maxConsecutive > 6 || worker.workedSundays > 2
-                        ? "border-rose-200 bg-rose-50"
-                        : "border-slate-200 bg-slate-50"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium text-slate-900">{worker.label}</div>
-                        <div className="text-xs text-slate-500">{worker.group}</div>
-                      </div>
-                      <div className="text-right text-xs text-slate-500">
-                        <div>Domingos trabajados: {worker.workedSundays}</div>
-                        <div>Mayor racha: {worker.maxConsecutive} dias</div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
           </aside>
+        </section>
+
+        <section className="rounded-[24px] bg-white p-5 shadow-sm ring-1 ring-slate-200">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">{summaryScopeLabel}</h2>
+              <p className="mt-1 text-sm leading-6 text-slate-600">
+                Muestra cuantos dias trabaja cada persona en el periodo visible y cuantas horas
+                laborales y de presencia acumula.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2 text-sm">
+              <span className="rounded-full bg-sky-100 px-3 py-1.5 font-semibold text-sky-800">
+                Horas laborales equipo: {periodLaborHours}h
+              </span>
+              <span className="rounded-full bg-slate-100 px-3 py-1.5 font-semibold text-slate-700">
+                Presencia total equipo: {periodPresenceHours}h
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-4 overflow-x-auto">
+            <table className="min-w-full border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
+                  <th className="py-3 pr-4">Persona</th>
+                  <th className="px-4 py-3 text-center">Dias trab.</th>
+                  <th className="px-4 py-3 text-center">Libres</th>
+                  <th className="px-4 py-3 text-center">APE</th>
+                  <th className="px-4 py-3 text-center">CIE</th>
+                  <th className="px-4 py-3 text-right">Hrs lab.</th>
+                  <th className="px-4 py-3 text-center">Domingos</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {periodWorkerSummary.map((worker) => (
+                  <tr key={worker.workerId} className="hover:bg-slate-50">
+                    <td className="py-3 pr-4">
+                      <div className="font-medium text-slate-900">{worker.label}</div>
+                      <div className="text-xs text-slate-500">{worker.group}</div>
+                    </td>
+                    <td className="px-4 py-3 text-center font-semibold text-slate-900">
+                      {worker.workedDays}
+                    </td>
+                    <td className="px-4 py-3 text-center text-slate-600">{worker.offDays}</td>
+                    <td className="px-4 py-3 text-center text-sky-700">{worker.apeDays}</td>
+                    <td className="px-4 py-3 text-center text-amber-700">{worker.cieDays}</td>
+                    <td className="px-4 py-3 text-right font-semibold text-emerald-700">
+                      {worker.laborHours}h
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className="inline-flex gap-0.5">
+                        {Array.from({ length: analysis.totalSundaysInScope }).map((_, index) => (
+                          <span
+                            key={index}
+                            className={`h-2.5 w-2.5 rounded-full ${
+                              index < worker.sundayWork ? "bg-amber-400" : "bg-slate-200"
+                            }`}
+                          />
+                        ))}
+                      </span>
+                      <div
+                        className={`mt-0.5 text-xs font-semibold ${
+                          worker.sundayWork > worker.sundayLimit ? "text-rose-600" : "text-slate-500"
+                        }`}
+                      >
+                        {worker.sundayWork}/{worker.sundayLimit}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section className="rounded-[24px] bg-white p-5 shadow-sm ring-1 ring-slate-200">
+          <h3 className="text-base font-semibold text-slate-900">
+            Conclusion recomendada para esta opcion
+          </h3>
+          <div className="mt-3 flex flex-wrap gap-2 text-xs">
+            <span className="rounded-full bg-slate-100 px-3 py-1.5 font-semibold text-slate-700">
+              {scenario.title}
+            </span>
+            <span className="rounded-full bg-sky-100 px-3 py-1.5 font-semibold text-sky-800">
+              {selectedOption.title}
+            </span>
+            <span className="rounded-full bg-slate-100 px-3 py-1.5 font-semibold text-slate-700">
+              {schemeLabel(selectedOption.scheme)}
+            </span>
+            <span className="rounded-full bg-slate-100 px-3 py-1.5 font-semibold text-slate-700">
+              {activeModeLabel}
+            </span>
+          </div>
+          <p className="mt-3 text-sm leading-6 text-slate-600">{recommendationScope}</p>
+          <div
+            className={`mt-3 rounded-2xl border px-4 py-4 ${recommendationClass(recommendation.tone)}`}
+          >
+            <div className="font-semibold">{recommendation.title}</div>
+            <p className="mt-2 text-sm leading-6">{recommendation.detail}</p>
+          </div>
+          <div className="mt-3 space-y-2">
+            {recommendation.bullets.map((bullet) => (
+              <div
+                key={bullet}
+                className="rounded-2xl bg-slate-50 px-3 py-3 text-sm leading-6 text-slate-700"
+              >
+                {bullet}
+              </div>
+            ))}
+          </div>
         </section>
       </div>
     </div>
