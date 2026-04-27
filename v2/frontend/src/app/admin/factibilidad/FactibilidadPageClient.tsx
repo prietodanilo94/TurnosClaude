@@ -196,6 +196,21 @@ export function FactibilidadPageClient() {
     [analysisView, liveOption]
   );
 
+  const modeledOptionSnapshots = useMemo(
+    () =>
+      scenario.options.map((option) => ({
+        option,
+        analysis: analyzeFactibilityOption(
+          {
+            ...option,
+            workers: cloneWorkers(option.workers),
+          },
+          analysisView
+        ),
+      })),
+    [analysisView, scenario]
+  );
+
   const [showAlerts, setShowAlerts] = useState(false);
 
   useEffect(() => {
@@ -239,6 +254,17 @@ export function FactibilidadPageClient() {
   const scenarioContextLine = `${scenario.baselineAnalysis} ${scenario.fifthSundayNote}`;
   const groupsCopy = groupExplanation(selectedOption);
   const selectedMatchesStudy = scenario.study.recommendedOptionId === selectedOption.id;
+  const studyRecommendedSnapshot = scenario.study.recommendedOptionId
+    ? modeledOptionSnapshots.find((item) => item.option.id === scenario.study.recommendedOptionId)
+    : undefined;
+  const feasibleModeledOptions = modeledOptionSnapshots.filter((item) => item.analysis.feasible);
+  const bestModeledOption =
+    (scenario.study.recommendedOptionId
+      ? feasibleModeledOptions.find((item) => item.option.id === scenario.study.recommendedOptionId)
+      : undefined) ??
+    feasibleModeledOptions.find((item) => item.option.id === "rotativo") ??
+    feasibleModeledOptions[0];
+  const selectedBaseSnapshot = modeledOptionSnapshots.find((item) => item.option.id === selectedOption.id);
   const periodCells = analysis.coverageCells.filter((cell) => cell.inMonth);
   const visiblePeriodCells =
     periodCells.length > 0 ? periodCells : analysis.coverageCells.filter((cell) => cell.inMonth);
@@ -497,6 +523,63 @@ export function FactibilidadPageClient() {
                 {bullet}
               </div>
             ))}
+          </div>
+
+          <div className="mt-4 rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="text-sm font-semibold text-slate-900">
+                Lo que si representa esta herramienta hoy
+              </h3>
+              <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700 ring-1 ring-slate-200">
+                Modelado: Fijo + Rotativo APE/CIE
+              </span>
+            </div>
+
+            <div className="mt-3 grid gap-3 lg:grid-cols-3">
+              <div className="rounded-2xl bg-white px-4 py-3 ring-1 ring-slate-200">
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Recomendacion del estudio
+                </div>
+                <div className="mt-1 text-sm font-semibold text-slate-900">
+                  {scenario.study.recommendedLabel}
+                </div>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  {scenario.study.recommendedOptionId
+                    ? studyRecommendedSnapshot?.analysis.feasible
+                      ? "Dentro de las opciones modeladas aqui, esa recomendacion hoy si aparece factible en la vista activa."
+                      : "Dentro de las opciones modeladas aqui, esa recomendacion todavia aparece con alertas en la vista activa."
+                    : "La recomendacion final del estudio no esta modelada aun en esta pantalla."}
+                </p>
+              </div>
+
+              <div className="rounded-2xl bg-white px-4 py-3 ring-1 ring-slate-200">
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Mejor opcion factible aqui
+                </div>
+                <div className="mt-1 text-sm font-semibold text-slate-900">
+                  {bestModeledOption ? bestModeledOption.option.title : "Ninguna plantilla base"}
+                </div>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  {bestModeledOption
+                    ? "Esta es la mejor opcion que hoy aparece sana dentro de lo que la herramienta ya construyo."
+                    : "En esta vista no hay una plantilla base que pase completa. Eso no invalida el estudio, solo muestra que la simulacion aun no reproduce una planificacion correcta."}
+                </p>
+              </div>
+
+              <div className="rounded-2xl bg-white px-4 py-3 ring-1 ring-slate-200">
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Opcion seleccionada ahora
+                </div>
+                <div className="mt-1 text-sm font-semibold text-slate-900">
+                  {selectedOption.title}
+                </div>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  {selectedBaseSnapshot?.analysis.feasible
+                    ? "La base de esta opcion hoy si aparece factible en la vista activa."
+                    : "La base de esta opcion hoy todavia aparece con alertas en la vista activa."}
+                </p>
+              </div>
+            </div>
           </div>
 
           {scenario.study.simulationNote ? (
