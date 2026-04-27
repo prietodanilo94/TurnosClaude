@@ -47,6 +47,32 @@ function schemeLabel(scheme: FactibilityOption["scheme"]) {
   return scheme === "fijo" ? "Patron fijo" : "Patron rotativo";
 }
 
+function groupExplanation(option: FactibilityOption) {
+  if (option.scheme === "fijo") {
+    return {
+      title: "Como leer los grupos en esta opcion",
+      detail:
+        "Aqui no hay grupos rotando entre semanas. Las personas con prefijo APE quedan siempre en apertura y las personas con prefijo CIE quedan siempre en cierre.",
+      bullets: [
+        "APE-1, APE-2, etc. = personas que trabajan siempre en apertura.",
+        "CIE-1, CIE-2, etc. = personas que trabajan siempre en cierre.",
+        "El numero solo identifica a cada persona dentro de su bloque.",
+      ],
+    };
+  }
+
+  return {
+    title: "Como leer los grupos en esta opcion",
+    detail:
+      "Aqui si hay dos grupos que se van alternando por semana para repartir mejor la carga entre apertura y cierre.",
+    bullets: [
+      "G1 = Grupo 1 y G2 = Grupo 2.",
+      "Semanas 1 y 3: G1 abre y G2 cierra.",
+      "Semanas 2 y 4: G1 cierra y G2 abre.",
+    ],
+  };
+}
+
 function monthLabel(monthValue: string) {
   const [year, month] = monthValue.split("-").map(Number);
   const date = new Date(Date.UTC(year || 2026, (month || 1) - 1, 1, 12, 0, 0));
@@ -197,6 +223,7 @@ export function FactibilidadPageClient() {
   const errors = analysis.violations.filter((item) => item.severity === "error");
   const workerErrorIds = new Set(errors.map((item) => item.workerId).filter(Boolean));
   const scenarioContextLine = `${scenario.baselineAnalysis} ${scenario.fifthSundayNote}`;
+  const groupsCopy = groupExplanation(selectedOption);
   const periodCells = analysis.coverageCells.filter((cell) => cell.inMonth);
   const visiblePeriodCells =
     periodCells.length > 0 ? periodCells : analysis.coverageCells.filter((cell) => cell.inMonth);
@@ -405,6 +432,27 @@ export function FactibilidadPageClient() {
             </div>
           </div>
         </div>
+
+        <section className="rounded-[20px] bg-white px-5 py-4 shadow-sm ring-1 ring-slate-200">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div className="max-w-3xl">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-base font-semibold text-slate-900">{groupsCopy.title}</h2>
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                  {selectedOption.roleCountsLabel}
+                </span>
+              </div>
+              <p className="mt-2 text-sm leading-6 text-slate-600">{groupsCopy.detail}</p>
+            </div>
+            <div className="grid gap-2 text-sm text-slate-700">
+              {groupsCopy.bullets.map((bullet) => (
+                <div key={bullet} className="rounded-2xl bg-slate-50 px-3 py-2.5">
+                  {bullet}
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
 
         <section className="overflow-hidden rounded-[24px] bg-white shadow-sm ring-1 ring-slate-200">
           <div className="border-b border-slate-200 px-5 py-4">
