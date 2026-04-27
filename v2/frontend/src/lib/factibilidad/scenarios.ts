@@ -43,21 +43,21 @@ function makeFixedOption(headcount: number): FactibilityOption {
 
   return {
     id: "fijo",
-    title: "APE + CIE fijo",
+    title: "Apertura y cierre fijos",
     scheme: "fijo",
     recommended: headcount === 4,
-    headline: "Mantiene roles estables durante todo el ciclo de 4 semanas.",
+    headline: "Cada persona mantiene el mismo tipo de turno durante todo el ciclo de 4 semanas.",
     shortAnalysis:
       headcount === 4
-        ? "Es la base mas simple para N=4. Si se toca mal un libre, la fragilidad aparece al tiro."
-        : "Da una lectura clara de cobertura y permite comparar la estabilidad contra la opcion rotativa.",
+        ? "Es la opcion mas simple para N=4. Se entiende facil, pero cualquier cambio torpe de libre la puede volver fragil."
+        : "Es una opcion ordenada y facil de leer. Sirve para comparar estabilidad versus reparto mas equitativo.",
     summaryBullets: [
       "42h exactas por trabajador con 1 libre semanal.",
-      "Muestra con claridad la asimetria entre apertura y cierre.",
-      "Sirve como baseline para comparar equidad versus simplicidad.",
+      "Hace muy visible quien queda siempre en apertura y quien queda siempre en cierre.",
+      "Sirve como punto de partida para comparar simplicidad versus equidad.",
     ],
     workers,
-    roleCountsLabel: `${apeCount} APE + ${cieCount} CIE`,
+    roleCountsLabel: `${apeCount} apertura + ${cieCount} cierre`,
   };
 }
 
@@ -73,18 +73,18 @@ function makeRotativeOption(headcount: number): FactibilityOption {
 
   return {
     id: "rotativo",
-    title: "Rotativo semanal A/B",
+    title: "Rotativo semanal",
     scheme: "rotativo",
     recommended: headcount >= 5,
-    headline: "Alterna manana y tarde por semana sin cambiar la logica base de cobertura.",
+    headline: "Alterna apertura y cierre por semana para repartir mejor la carga del equipo.",
     shortAnalysis:
       headcount === 5
-        ? "Es la opcion minima que mejor reparte la carga y ayuda a comparar la equidad del equipo."
-        : "Es la mejor base para discutir equidad sin perder la lectura operativa de la cobertura.",
+        ? "Es la opcion minima que mejor reparte la carga entre personas y abre una conversacion mas justa."
+        : "Es la mejor base para discutir justicia del patron sin perder claridad sobre la cobertura.",
     summaryBullets: [
-      "Semana 1/3: Grupo 1 apertura, Grupo 2 cierre.",
-      "Semana 2/4: Grupo 1 cierre, Grupo 2 apertura.",
-      "Ideal para iterar cambios de libres y ver rapido cuando aparece una racha larga.",
+      "Semanas 1 y 3: un grupo abre y el otro cierra.",
+      "Semanas 2 y 4: los grupos intercambian sus turnos.",
+      "Es ideal para probar cambios de libres y detectar rapido cuando aparece una racha larga.",
     ],
     workers,
     roleCountsLabel: `${groupACount} / ${groupBCount} por grupo`,
@@ -100,34 +100,34 @@ const SCENARIO_COPY: Record<
     verdict: "Ajustado",
     verdictTone: "warn",
     baselineAnalysis:
-      "Es el minimo matematicamente viable. Cubre el dia completo, pero cualquier ausencia o cambio torpe de libre lo deja en rojo.",
+      "Es el minimo matematicamente viable. Puede cubrir el dia completo, pero cualquier ausencia o cambio mal hecho lo deja al limite.",
     fifthSundayNote:
-      "En un mes de 5 domingos queda muy expuesto; esta vista modela 4 semanas y conviene validar el mes real aparte.",
+      "En un mes con 5 domingos queda muy expuesto. Por eso conviene mirar la opcion `Mes real` antes de sacar conclusiones.",
   },
   5: {
     title: "N = 5",
     verdict: "Minimo viable",
     verdictTone: "warn",
     baselineAnalysis:
-      "El rotativo aparece como mejor comparador porque mejora equidad y deja una lectura mas honesta de domingos.",
+      "Ya aparece una base util para comparar opciones. El rotativo suele leerse mejor porque reparte mejor domingos y carga semanal.",
     fifthSundayNote:
-      "Con 5 domingos queda justo. El analisis de 4 semanas ayuda, pero no reemplaza la validacion del mes real.",
+      "Con 5 domingos sigue quedando justo. El analisis de 4 semanas ayuda, pero no reemplaza revisar un mes calendario real.",
   },
   6: {
     title: "N = 6",
     verdict: "Solido",
     verdictTone: "good",
     baselineAnalysis:
-      "Es el primer punto donde el sistema deja de sentirse fragil y empieza a dar margen real de gestion.",
+      "Es el primer punto donde el sistema deja de sentirse fragil y empieza a dar margen real para mover piezas sin romper todo.",
     fifthSundayNote:
-      "Tolera mejor meses de 5 domingos, aunque igual conviene revisar ausencias y cambios manuales.",
+      "Tolera mejor meses de 5 domingos, aunque sigue siendo sano revisar ausencias y cambios manuales.",
   },
   7: {
     title: "N = 7",
     verdict: "Holgura buena",
     verdictTone: "good",
     baselineAnalysis:
-      "Ya aparece una capa de aire operativo. La herramienta sirve para probar ajustes sin romper la base tan facil.",
+      "Ya aparece una capa de aire operativo. Desde aqui es mas facil probar ajustes sin que la cobertura base se rompa de inmediato.",
     fifthSundayNote:
       "Sigue siendo sano validar el mes real, pero la holgura mejora mucho frente a N=4 y N=5.",
   },
@@ -136,7 +136,7 @@ const SCENARIO_COPY: Record<
     verdict: "Holgura comoda",
     verdictTone: "good",
     baselineAnalysis:
-      "Cobertura alta y comparacion interesante entre estabilidad fija y reparto equitativo de la rotacion.",
+      "La cobertura ya deja de ser la pelea principal y la comparacion se mueve hacia que patron se siente mas justo y entendible.",
     fifthSundayNote:
       "Tiene espalda suficiente para un quinto domingo, pero la distribucion fina igual importa.",
     mixedOutlook:
@@ -147,7 +147,7 @@ const SCENARIO_COPY: Record<
     verdict: "Zona comoda",
     verdictTone: "good",
     baselineAnalysis:
-      "Permite comparar patrones sin que la cobertura base se vuelva el cuello de botella principal.",
+      "Permite comparar patrones sin que la cobertura base se vuelva el principal cuello de botella.",
     fifthSundayNote:
       "El riesgo de domingo baja mucho, asi que la conversacion se mueve mas hacia equidad y confort del equipo.",
     mixedOutlook:
@@ -158,7 +158,7 @@ const SCENARIO_COPY: Record<
     verdict: "Zona de confort",
     verdictTone: "good",
     baselineAnalysis:
-      "Es un buen punto para discutir preferencia de los trabajadores en vez de mera supervivencia operativa.",
+      "Es un buen punto para discutir preferencia real de los trabajadores en vez de mera supervivencia operativa.",
     fifthSundayNote:
       "El quinto domingo deja de ser la amenaza principal y el foco pasa a distribucion y claridad del patron.",
     mixedOutlook:
@@ -169,7 +169,7 @@ const SCENARIO_COPY: Record<
     verdict: "Alta holgura",
     verdictTone: "good",
     baselineAnalysis:
-      "La herramienta sirve mas para afinar justicia, orden y lectura del patron que para pelear la factibilidad base.",
+      "La herramienta sirve mas para afinar justicia, orden y facilidad de lectura del patron que para pelear la factibilidad base.",
     fifthSundayNote:
       "El quinto domingo importa mucho menos; lo delicado pasa a ser mantener un patron entendible para el equipo.",
     mixedOutlook:
@@ -180,7 +180,7 @@ const SCENARIO_COPY: Record<
     verdict: "Maxima holgura del rango",
     verdictTone: "good",
     baselineAnalysis:
-      "Es la lectura mas desahogada del rango analizado. Ideal para iterar y decidir que patron prefieren realmente los trabajadores.",
+      "Es la lectura mas desahogada del rango analizado. Ideal para iterar con calma y decidir que patron prefieren realmente los trabajadores.",
     fifthSundayNote:
       "La validacion mensual sigue siendo sana, pero esta dotacion ya opera con una espalda muy distinta.",
     mixedOutlook:

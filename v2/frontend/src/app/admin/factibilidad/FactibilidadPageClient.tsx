@@ -21,6 +21,16 @@ const DAY_LABELS: Record<FactibilityWeekday, string> = {
   domingo: "Dom",
 };
 
+const ROLE_LABELS = {
+  APE: "Apertura",
+  CIE: "Cierre",
+} as const;
+
+const ROLE_DESCRIPTIONS = {
+  APE: "Apertura 10:00-18:00",
+  CIE: "Cierre 12:00-20:00",
+} as const;
+
 function cloneWorkers(workers: FactibilityWorkerTemplate[]): FactibilityWorkerTemplate[] {
   return workers.map((worker) => ({
     ...worker,
@@ -57,6 +67,26 @@ function verdictClass(tone: "bad" | "warn" | "good") {
   if (tone === "bad") return "bg-rose-100 text-rose-700";
   if (tone === "warn") return "bg-amber-100 text-amber-800";
   return "bg-emerald-100 text-emerald-700";
+}
+
+function schemeLabel(scheme: FactibilityOption["scheme"]) {
+  return scheme === "fijo" ? "Patron fijo" : "Patron rotativo";
+}
+
+function buildStatusMessage(feasible: boolean) {
+  if (feasible) {
+    return {
+      title: "Cumple las reglas base",
+      detail:
+        "Esta propuesta cubre apertura y cierre todos los dias visibles, no supera 6 dias seguidos y mantiene los domingos dentro del limite.",
+    };
+  }
+
+  return {
+    title: "Tiene problemas que revisar",
+    detail:
+      "Al menos una regla se rompe. Mira las alertas para ver si el problema viene por cobertura, por demasiados domingos o por una racha larga de trabajo.",
+  };
 }
 
 export function FactibilidadPageClient() {
@@ -144,10 +174,11 @@ export function FactibilidadPageClient() {
 
   const errors = analysis.violations.filter((item) => item.severity === "error");
   const workerErrorIds = new Set(errors.map((item) => item.workerId).filter(Boolean));
+  const statusMessage = buildStatusMessage(analysis.feasible);
 
   return (
     <div className="min-h-screen bg-slate-100">
-      <div className="mx-auto max-w-[1500px] p-6 space-y-6">
+      <div className="mx-auto max-w-[1500px] space-y-6 p-6">
         <section className="rounded-[28px] bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.20),_transparent_38%),linear-gradient(135deg,#0f172a_0%,#111827_52%,#1e293b_100%)] px-6 py-8 text-white shadow-xl">
           <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
             <div className="max-w-3xl">
@@ -156,24 +187,91 @@ export function FactibilidadPageClient() {
                 Analizador visual de factibilidad
               </h1>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-200">
-                Compara opciones APE/CIE por dotacion, ajusta los libres semana a semana y mira
-                al instante si se rompe cobertura, domingos o la racha maxima de 6 dias.
+                Compara opciones de turnos para una sucursal que abre 7 dias, mueve los libres
+                semana a semana y mira al instante si la propuesta sigue siendo sana o si se rompe
+                por cobertura, domingos o exceso de dias seguidos.
               </p>
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 backdrop-blur">
-                <div className="text-xs uppercase tracking-wide text-slate-300">Ciclo</div>
-                <div className="mt-1 text-lg font-semibold">4 semanas</div>
+                <div className="text-xs uppercase tracking-wide text-slate-300">Apertura</div>
+                <div className="mt-1 text-lg font-semibold">{ROLE_DESCRIPTIONS.APE}</div>
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 backdrop-blur">
-                <div className="text-xs uppercase tracking-wide text-slate-300">Limite duro</div>
-                <div className="mt-1 text-lg font-semibold">6 dias seguidos</div>
+                <div className="text-xs uppercase tracking-wide text-slate-300">Cierre</div>
+                <div className="mt-1 text-lg font-semibold">{ROLE_DESCRIPTIONS.CIE}</div>
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 backdrop-blur">
-                <div className="text-xs uppercase tracking-wide text-slate-300">Domingos</div>
-                <div className="mt-1 text-lg font-semibold">Max 2 trabajados</div>
+                <div className="text-xs uppercase tracking-wide text-slate-300">
+                  Reglas revisadas
+                </div>
+                <div className="mt-1 text-lg font-semibold">
+                  Cobertura, domingos y 6 dias seguidos
+                </div>
               </div>
             </div>
+          </div>
+        </section>
+
+        <section className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+          <div className="rounded-[24px] bg-white p-5 shadow-sm ring-1 ring-slate-200">
+            <h2 className="text-base font-semibold text-slate-900">Como usar esta vista</h2>
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
+              <div className="rounded-2xl bg-slate-50 px-4 py-4">
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Paso 1
+                </div>
+                <div className="mt-1 font-medium text-slate-900">Elige la dotacion</div>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  Parte eligiendo cuantas personas quieres analizar: N=4, N=5, N=6 y asi
+                  sucesivamente.
+                </p>
+              </div>
+              <div className="rounded-2xl bg-slate-50 px-4 py-4">
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Paso 2
+                </div>
+                <div className="mt-1 font-medium text-slate-900">Compara una opcion</div>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  Revisa la propuesta fija o la rotativa y mira el veredicto corto antes de
+                  empezar a mover dias libres.
+                </p>
+              </div>
+              <div className="rounded-2xl bg-slate-50 px-4 py-4">
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Paso 3
+                </div>
+                <div className="mt-1 font-medium text-slate-900">Prueba cambios</div>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  Haz clic en una celda para cambiar el libre de esa semana y mira de inmediato si
+                  la idea sigue cumpliendo o si aparece una alerta.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-[24px] bg-white p-5 shadow-sm ring-1 ring-slate-200">
+            <h2 className="text-base font-semibold text-slate-900">Leyenda rapida</h2>
+            <div className="mt-4 flex flex-wrap gap-2 text-sm">
+              <span className="rounded-full bg-slate-100 px-3 py-1.5 text-slate-700">Libre</span>
+              <span className="rounded-full bg-sky-100 px-3 py-1.5 text-sky-800">
+                Apertura 10:00-18:00
+              </span>
+              <span className="rounded-full bg-amber-100 px-3 py-1.5 text-amber-800">
+                Cierre 12:00-20:00
+              </span>
+              <span className="rounded-full bg-emerald-100 px-3 py-1.5 text-emerald-700">
+                Dia bien cubierto
+              </span>
+              <span className="rounded-full bg-rose-100 px-3 py-1.5 text-rose-700">
+                Falta cobertura o se rompe una regla
+              </span>
+            </div>
+            <p className="mt-4 text-sm leading-6 text-slate-600">
+              Cuando una semana aparece en rojo, no significa solo que falte gente: tambien puede
+              significar que una persona queda con demasiados domingos o mas de 6 dias seguidos
+              trabajando.
+            </p>
           </div>
         </section>
 
@@ -182,7 +280,9 @@ export function FactibilidadPageClient() {
             <div>
               <div className="flex items-center gap-3">
                 <h2 className="text-xl font-semibold text-slate-900">{scenario.title}</h2>
-                <span className={`rounded-full px-3 py-1 text-xs font-semibold ${verdictClass(scenario.verdictTone)}`}>
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-semibold ${verdictClass(scenario.verdictTone)}`}
+                >
                   {scenario.verdict}
                 </span>
               </div>
@@ -205,8 +305,8 @@ export function FactibilidadPageClient() {
                   Modo de analisis
                 </h3>
                 <p className="mt-1 text-sm text-slate-600">
-                  Cambia entre el ciclo abstracto de 4 semanas y un mes real con sus domingos
-                  efectivos.
+                  `Ciclo base` muestra el patron ideal de 4 semanas. `Mes real` lo aterriza a un
+                  mes calendario concreto, con sus domingos reales y sus semanas visibles.
                 </p>
               </div>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -305,7 +405,7 @@ export function FactibilidadPageClient() {
                         : "bg-slate-100 text-slate-600"
                     }`}
                   >
-                    {option.scheme}
+                    {schemeLabel(option.scheme)}
                   </span>
                 </div>
                 <div
@@ -327,7 +427,7 @@ export function FactibilidadPageClient() {
           <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
             <div className="rounded-[22px] border border-slate-200 bg-slate-50 p-4">
               <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-                Lectura corta
+                Veredicto rapido
               </h3>
               <p className="mt-2 text-sm leading-6 text-slate-700">{selectedOption.shortAnalysis}</p>
               <ul className="mt-3 space-y-2 text-sm text-slate-600">
@@ -342,7 +442,7 @@ export function FactibilidadPageClient() {
 
             <div className="rounded-[22px] border border-slate-200 bg-white p-4">
               <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-                Alertas de contexto
+                Antes de decidir
               </h3>
               <p className="mt-2 text-sm leading-6 text-slate-700">{scenario.fifthSundayNote}</p>
               {scenario.mixedOutlook && (
@@ -370,8 +470,8 @@ export function FactibilidadPageClient() {
                         {viewMode === "month" ? `Semana visible ${weekIndex + 1}` : `Semana ${weekIndex + 1}`}
                       </h3>
                       <p className="text-sm text-slate-500">
-                        Haz clic en una celda para mover el libre. Esta semana usa el patron del
-                        ciclo {cycleWeekIndex + 1}.
+                        Haz clic en una celda para cambiar el dia libre. Esta semana hereda la
+                        logica de la semana {cycleWeekIndex + 1} del ciclo base.
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-2 text-xs">
@@ -384,7 +484,8 @@ export function FactibilidadPageClient() {
                               : "bg-rose-100 text-rose-700"
                           }`}
                         >
-                          {DAY_LABELS[cell.day]} {cell.date.slice(8, 10)} {cell.apeOnDuty}A / {cell.cieOnDuty}C
+                          {DAY_LABELS[cell.day]} {cell.date.slice(8, 10)} {cell.apeOnDuty} apertura /{" "}
+                          {cell.cieOnDuty} cierre
                         </span>
                       ))}
                     </div>
@@ -394,13 +495,13 @@ export function FactibilidadPageClient() {
                     <table className="min-w-full border-collapse">
                       <thead>
                         <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
-                          <th className="px-5 py-3">Trabajador</th>
+                          <th className="px-5 py-3">Persona</th>
                           {FACTIBILITY_WEEKDAYS.map((day) => (
                             <th key={day} className="px-3 py-3 text-center">
                               {DAY_LABELS[day]}
                             </th>
                           ))}
-                          <th className="px-5 py-3 text-right">Semana</th>
+                          <th className="px-5 py-3 text-right">Libre semanal</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -416,7 +517,7 @@ export function FactibilidadPageClient() {
                                 <div className="flex flex-col">
                                   <span className="font-medium text-slate-900">{worker.label}</span>
                                   <span className="text-xs text-slate-500">
-                                    {worker.group} · {role}
+                                    {worker.group} | {ROLE_LABELS[role]}
                                   </span>
                                 </div>
                               </td>
@@ -427,7 +528,7 @@ export function FactibilidadPageClient() {
                                   <td key={day} className="px-2 py-2 text-center">
                                     <button
                                       onClick={() => setOffDay(worker.id, cycleWeekIndex, day)}
-                                      className={`w-20 rounded-2xl border px-3 py-2 text-xs font-semibold transition hover:-translate-y-0.5 ${
+                                      className={`w-24 rounded-2xl border px-3 py-2 text-[11px] font-semibold leading-tight transition hover:-translate-y-0.5 ${
                                         dateCell?.inMonth ? "" : "opacity-50"
                                       } ${roleCellClass(
                                         role,
@@ -435,13 +536,13 @@ export function FactibilidadPageClient() {
                                         day === "domingo"
                                       )}`}
                                     >
-                                      {isOff ? "LIB" : role}
+                                      {isOff ? "Libre" : role === "APE" ? "Apert." : "Cierre"}
                                     </button>
                                   </td>
                                 );
                               })}
                               <td className="px-5 py-3 text-right text-xs text-slate-500">
-                                libre: {DAY_LABELS[worker.offDays[cycleWeekIndex]]}
+                                {DAY_LABELS[worker.offDays[cycleWeekIndex]]}
                               </td>
                             </tr>
                           );
@@ -465,24 +566,32 @@ export function FactibilidadPageClient() {
                       : "bg-rose-100 text-rose-700"
                   }`}
                 >
-                  {analysis.feasible ? "Factible" : "Con alertas"}
+                  {analysis.feasible ? "Cumple" : "Revisar"}
                 </span>
+              </div>
+              <div className="mt-3 rounded-2xl bg-slate-50 px-3 py-3">
+                <div className="font-medium text-slate-900">{statusMessage.title}</div>
+                <p className="mt-1 text-sm leading-6 text-slate-600">{statusMessage.detail}</p>
               </div>
               <div className="mt-4 grid grid-cols-2 gap-3">
                 <div className="rounded-2xl bg-slate-50 px-3 py-3">
-                  <div className="text-xs uppercase tracking-wide text-slate-500">Racha maxima</div>
+                  <div className="text-xs uppercase tracking-wide text-slate-500">Mayor racha</div>
                   <div className="mt-1 text-xl font-semibold text-slate-900">
-                    {analysis.maxConsecutiveOverall}
+                    {analysis.maxConsecutiveOverall} dias
                   </div>
                 </div>
                 <div className="rounded-2xl bg-slate-50 px-3 py-3">
-                  <div className="text-xs uppercase tracking-wide text-slate-500">Domingos max</div>
+                  <div className="text-xs uppercase tracking-wide text-slate-500">
+                    Domingos maximos
+                  </div>
                   <div className="mt-1 text-xl font-semibold text-slate-900">
                     {analysis.maxWorkedSundays} / {analysis.maxAllowedWorkedSundays}
                   </div>
                 </div>
                 <div className="rounded-2xl bg-slate-50 px-3 py-3">
-                  <div className="text-xs uppercase tracking-wide text-slate-500">Min presentes</div>
+                  <div className="text-xs uppercase tracking-wide text-slate-500">
+                    Minimo presente
+                  </div>
                   <div className="mt-1 text-xl font-semibold text-slate-900">
                     {analysis.minTotalOnDuty}
                   </div>
@@ -495,21 +604,23 @@ export function FactibilidadPageClient() {
             </div>
 
             <div className="rounded-[24px] bg-white p-5 shadow-sm ring-1 ring-slate-200">
-              <h3 className="text-base font-semibold text-slate-900">Lectura operativa</h3>
+              <h3 className="text-base font-semibold text-slate-900">Que significa este resultado</h3>
               <p className="mt-2 text-sm leading-6 text-slate-600">
                 {analysis.feasible
-                  ? "La configuracion actual respeta cobertura base, domingos y racha maxima para el ciclo de 4 semanas."
-                  : "La configuracion actual ya muestra al menos una ruptura dura. Usa las alertas para ver exactamente donde se cae."}
+                  ? "La propuesta actual pasa las reglas base de esta vista. Eso no significa que sea la unica buena opcion, pero si que no muestra quiebres duros con los datos visibles."
+                  : "La propuesta actual ya muestra un problema concreto. La lista de alertas te dice exactamente si el quiebre viene por cobertura, domingos o por demasiados dias seguidos."}
               </p>
               <div className="mt-3 rounded-2xl bg-slate-50 px-3 py-3 text-sm text-slate-700">
                 {viewMode === "month"
-                  ? `Mes real: ${analysis.totalSundaysInScope} domingo(s) en el mes, maximo permitido trabajado por persona ${analysis.maxAllowedWorkedSundays}.`
-                  : `Ciclo base: 4 domingos visibles, maximo trabajado por persona ${analysis.maxAllowedWorkedSundays}.`}
+                  ? `Mes real: este calendario tiene ${analysis.totalSundaysInScope} domingo(s). En esta vista, cada persona deberia trabajar como maximo ${analysis.maxAllowedWorkedSundays}.`
+                  : `Ciclo base: estas viendo 4 semanas tipo. En este ciclo, cada persona deberia trabajar como maximo ${analysis.maxAllowedWorkedSundays} domingos.`}
               </div>
               <div className="mt-4 space-y-3">
                 {analysis.violations.length === 0 ? (
                   <div className="rounded-2xl bg-emerald-50 px-3 py-3 text-sm text-emerald-700">
-                    Sin alertas duras en este ciclo. Aun asi, valida el mes real si tendra 5 domingos o cambios de borde entre meses.
+                    No aparecen problemas duros en esta configuracion. Igual conviene mirar `Mes
+                    real` cuando el calendario tenga 5 domingos o semanas cortadas por el cambio
+                    de mes.
                   </div>
                 ) : (
                   analysis.violations.map((violation, index) => (
@@ -519,8 +630,8 @@ export function FactibilidadPageClient() {
                         violation.severity === "error"
                           ? "bg-rose-50 text-rose-700"
                           : violation.severity === "warning"
-                          ? "bg-amber-50 text-amber-700"
-                          : "bg-slate-100 text-slate-700"
+                            ? "bg-amber-50 text-amber-700"
+                            : "bg-slate-100 text-slate-700"
                       }`}
                     >
                       <div className="font-semibold">{violation.title}</div>
@@ -532,7 +643,11 @@ export function FactibilidadPageClient() {
             </div>
 
             <div className="rounded-[24px] bg-white p-5 shadow-sm ring-1 ring-slate-200">
-              <h3 className="text-base font-semibold text-slate-900">Resumen por trabajador</h3>
+              <h3 className="text-base font-semibold text-slate-900">Resumen por persona</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Este bloque ayuda a detectar rapido si alguien quedo sobrecargado aunque la semana
+                completa parezca sana a primera vista.
+              </p>
               <div className="mt-4 space-y-3">
                 {analysis.workerMetrics.map((worker) => (
                   <div
@@ -550,7 +665,7 @@ export function FactibilidadPageClient() {
                       </div>
                       <div className="text-right text-xs text-slate-500">
                         <div>Domingos trabajados: {worker.workedSundays}</div>
-                        <div>Racha maxima: {worker.maxConsecutive}</div>
+                        <div>Mayor racha: {worker.maxConsecutive} dias</div>
                       </div>
                     </div>
                   </div>
