@@ -104,7 +104,7 @@ function makeRotativeOption(headcount: number): FactibilityOption {
     id: "rotativo",
     title: "Rotativo semanal",
     scheme: "rotativo",
-    recommended: headcount >= 5,
+    recommended: headcount >= 5 && headcount <= 10,
     headline: "Alterna apertura y cierre por semana para repartir mejor la carga del equipo.",
     shortAnalysis:
       headcount === 5
@@ -132,6 +132,27 @@ const SCENARIO_COPY: Record<
       "Es el minimo matematicamente viable. Puede cubrir el dia completo, pero cualquier ausencia o cambio mal hecho lo deja al limite.",
     fifthSundayNote:
       "En un mes con 5 domingos queda muy expuesto. Por eso conviene mirar la opcion `Mes real` antes de sacar conclusiones.",
+    study: {
+      status: "Minimo matematicamente viable",
+      statusTone: "warn",
+      recommendedLabel: "APE + CIE fijo",
+      recommendedOptionId: "fijo",
+      summary:
+        "El estudio lo muestra como viable, pero con margen cero. Cubre el dia completo, aunque no tolera ausencias ni meses exigentes sin planificacion muy cuidada.",
+      simulationNote:
+        "Si la simulacion mensual de abajo cae, eso confirma lo fragil del caso. No significa que el estudio este mal: significa que N=4 vive en el limite.",
+      bullets: [
+        "2 personas en apertura y 2 en cierre.",
+        "Los domingos quedan justos: 4 slots APE y 4 slots CIE para 4 necesarios.",
+        "En meses de 5 domingos se vuelve muy delicado.",
+      ],
+      metrics: [
+        { label: "Config. base", value: "2 APE + 2 CIE", tone: "neutral" },
+        { label: "Margen dom. APE", value: "4 / 4", tone: "warn" },
+        { label: "Margen dom. CIE", value: "4 / 4", tone: "warn" },
+        { label: "Cobertura minima", value: "1 APE + 1 CIE", tone: "good" },
+      ],
+    },
   },
   5: {
     title: "N = 5",
@@ -141,6 +162,27 @@ const SCENARIO_COPY: Record<
       "Ya aparece una base util para comparar opciones. El rotativo suele leerse mejor porque reparte mejor domingos y carga semanal.",
     fifthSundayNote:
       "Con 5 domingos sigue quedando justo. El analisis de 4 semanas ayuda, pero no reemplaza revisar un mes calendario real.",
+    study: {
+      status: "Minimo viable",
+      statusTone: "warn",
+      recommendedLabel: "Rotativo semanal",
+      recommendedOptionId: "rotativo",
+      summary:
+        "El estudio marca aqui el primer caso realmente comparable. El rotativo se recomienda porque reparte mejor la carga y los domingos, pero sigue quedando justo.",
+      simulationNote:
+        "Si la simulacion editable se rompe, leelo como senal de fragilidad del caso, no como sorpresa: N=5 todavia necesita meses y libres muy bien planificados.",
+      bullets: [
+        "Base tipica: 3 APE + 2 CIE en una semana, luego 2 APE + 3 CIE.",
+        "Tiene margen dominical total, pero en meses de 5 domingos queda exacto.",
+        "Sirve para discutir justicia del patron, no para relajarse operativamente.",
+      ],
+      metrics: [
+        { label: "Config. base", value: "3 APE + 2 CIE", tone: "neutral" },
+        { label: "Margen dom. APE", value: "6 / 4 (+2)", tone: "good" },
+        { label: "Margen dom. CIE", value: "4 / 4 (0)", tone: "warn" },
+        { label: "Mes de 5 dom.", value: "CIE: -1", tone: "bad" },
+      ],
+    },
   },
   6: {
     title: "N = 6",
@@ -150,6 +192,27 @@ const SCENARIO_COPY: Record<
       "Es el primer punto donde el sistema deja de sentirse fragil y empieza a dar margen real para mover piezas sin romper todo.",
     fifthSundayNote:
       "Tolera mejor meses de 5 domingos, aunque sigue siendo sano revisar ausencias y cambios manuales.",
+    study: {
+      status: "Primer punto solido",
+      statusTone: "good",
+      recommendedLabel: "Rotativo semanal",
+      recommendedOptionId: "rotativo",
+      summary:
+        "El documento lo define como el primer minimo operativo realmente recomendable. Tiene margen en ambos tipos de turno y soporta mejor meses de 5 domingos.",
+      simulationNote:
+        "Ojo: esto no significa que cualquier plantilla mensual sea correcta. El mismo estudio dice 'maximo 6 con planificacion correcta'. Si la simulacion de abajo cae, el problema es la plantilla de libres, no la conclusion general del caso.",
+      bullets: [
+        "Base del estudio: 3 APE + 3 CIE.",
+        "Hay margen +2 en domingos para ambos tipos.",
+        "El tope de consecutivos se cumple solo con una planificacion correcta de libres.",
+      ],
+      metrics: [
+        { label: "Config. base", value: "3 APE + 3 CIE", tone: "neutral" },
+        { label: "Margen dom. APE", value: "6 / 4 (+2)", tone: "good" },
+        { label: "Margen dom. CIE", value: "6 / 4 (+2)", tone: "good" },
+        { label: "Max. consecutivos", value: "6 con planif. correcta", tone: "good" },
+      ],
+    },
   },
   7: {
     title: "N = 7",
@@ -159,6 +222,25 @@ const SCENARIO_COPY: Record<
       "Ya aparece una capa de aire operativo. Desde aqui es mas facil probar ajustes sin que la cobertura base se rompa de inmediato.",
     fifthSundayNote:
       "Sigue siendo sano validar el mes real, pero la holgura mejora mucho frente a N=4 y N=5.",
+    study: {
+      status: "Buena holgura",
+      statusTone: "good",
+      recommendedLabel: "Rotativo semanal",
+      recommendedOptionId: "rotativo",
+      summary:
+        "Desde aqui el estudio muestra aire operativo real. La cobertura deja de romperse con tanta facilidad y se pueden probar ajustes con mas tranquilidad.",
+      bullets: [
+        "Caso base del estudio: 4 APE + 3 CIE.",
+        "Puede absorber mejor ausencias y domingos exigentes.",
+        "Sigue conviniendo validar el mes real, pero ya no se siente tan fragil.",
+      ],
+      metrics: [
+        { label: "Config. base", value: "4 APE + 3 CIE", tone: "neutral" },
+        { label: "Margen dom. APE", value: "+4", tone: "good" },
+        { label: "Margen dom. CIE", value: "+2", tone: "good" },
+        { label: "Cobertura minima", value: "3 APE + 2 CIE", tone: "good" },
+      ],
+    },
   },
   8: {
     title: "N = 8",
@@ -170,6 +252,25 @@ const SCENARIO_COPY: Record<
       "Tiene espalda suficiente para un quinto domingo, pero la distribucion fina igual importa.",
     mixedOutlook:
       "Desde aqui ya vale la pena contrastar con esquemas mixtos usando COM, aunque esa variante aun no esta modelada en esta vista.",
+    study: {
+      status: "Holgura comoda",
+      statusTone: "good",
+      recommendedLabel: "Rotativo semanal",
+      recommendedOptionId: "rotativo",
+      summary:
+        "El estudio marca que desde N=8 la pelea ya no es sobrevivir la cobertura, sino comparar que patron se siente mas justo y mas facil de operar.",
+      bullets: [
+        "Caso base: 4 APE + 4 CIE.",
+        "Desde aqui ya se empieza a abrir la conversacion con esquemas mixtos.",
+        "La vista actual sigue comparando fijo versus rotativo sobre el baseline APE/CIE.",
+      ],
+      metrics: [
+        { label: "Config. base", value: "4 APE + 4 CIE", tone: "neutral" },
+        { label: "Margen dom. APE", value: "+4", tone: "good" },
+        { label: "Margen dom. CIE", value: "+4", tone: "good" },
+        { label: "Cobertura minima", value: "3 APE + 3 CIE", tone: "good" },
+      ],
+    },
   },
   9: {
     title: "N = 9",
@@ -181,6 +282,25 @@ const SCENARIO_COPY: Record<
       "El riesgo de domingo baja mucho, asi que la conversacion se mueve mas hacia equidad y confort del equipo.",
     mixedOutlook:
       "La documentacion recomienda abrir el analisis hacia COM + APE/CIE; esta pantalla deja esa comparacion preparada como siguiente iteracion.",
+    study: {
+      status: "Zona comoda",
+      statusTone: "good",
+      recommendedLabel: "Rotativo o mixto",
+      recommendedOptionId: "rotativo",
+      summary:
+        "El estudio ya permite comparar el rotativo contra un futuro esquema mixto con COM. La app aun no dibuja ese mixto, asi que el rotativo es la mejor referencia entre las opciones modeladas.",
+      bullets: [
+        "Caso base: 5 APE + 4 CIE.",
+        "Ya no domina la pelea por cobertura; pesa mas la justicia y el confort.",
+        "Es un buen punto para abrir la siguiente iteracion con COM.",
+      ],
+      metrics: [
+        { label: "Config. base", value: "5 APE + 4 CIE", tone: "neutral" },
+        { label: "Margen dom. APE", value: "+6", tone: "good" },
+        { label: "Margen dom. CIE", value: "+4", tone: "good" },
+        { label: "Cobertura minima", value: "4 APE + 3 CIE", tone: "good" },
+      ],
+    },
   },
   10: {
     title: "N = 10",
@@ -192,6 +312,25 @@ const SCENARIO_COPY: Record<
       "El quinto domingo deja de ser la amenaza principal y el foco pasa a distribucion y claridad del patron.",
     mixedOutlook:
       "Se puede introducir una variante mixta con COM como base, pero aqui mantenemos el terreno comparable APE/CIE.",
+    study: {
+      status: "Zona de confort",
+      statusTone: "good",
+      recommendedLabel: "Rotativo o mixto",
+      recommendedOptionId: "rotativo",
+      summary:
+        "Segun el estudio, aqui ya se puede discutir preferencia real del equipo. Entre las opciones hoy visibles, el rotativo sigue siendo la comparacion mas util.",
+      bullets: [
+        "Caso base: 5 APE + 5 CIE.",
+        "Hay flexibilidad dominical amplia.",
+        "La siguiente mejora de valor es incorporar COM como tercera alternativa.",
+      ],
+      metrics: [
+        { label: "Config. base", value: "5 APE + 5 CIE", tone: "neutral" },
+        { label: "Margen dom.", value: "Flexibilidad alta", tone: "good" },
+        { label: "Cobertura minima", value: "4 APE + 4 CIE", tone: "good" },
+        { label: "Enfoque", value: "Equidad y claridad", tone: "good" },
+      ],
+    },
   },
   11: {
     title: "N = 11",
@@ -203,6 +342,26 @@ const SCENARIO_COPY: Record<
       "El quinto domingo importa mucho menos; lo delicado pasa a ser mantener un patron entendible para el equipo.",
     mixedOutlook:
       "A esta altura el esquema mixto empieza a ser una comparacion natural, aunque aun no lo dibujamos con turno corto complementario.",
+    study: {
+      status: "Alta holgura",
+      statusTone: "good",
+      recommendedLabel: "Mixto COM + APE/CIE",
+      summary:
+        "El documento ya recomienda pasar a un mixto con COM como base. La pantalla actual todavia no modela ese esquema, asi que lo de abajo sirve solo como aproximacion APE/CIE.",
+      simulationNote:
+        "En N=11, fijo o rotativo siguen siendo utiles como referencia, pero no representan la recomendacion final del estudio.",
+      bullets: [
+        "Caso base: 6 APE + 5 CIE.",
+        "La cobertura deja de ser el problema; manda la claridad del patron.",
+        "La mejor continuidad de esta vista es agregar el esquema mixto.",
+      ],
+      metrics: [
+        { label: "Config. base", value: "6 APE + 5 CIE", tone: "neutral" },
+        { label: "Margen dom. APE", value: "+8", tone: "good" },
+        { label: "Margen dom. CIE", value: "+6", tone: "good" },
+        { label: "Recomendacion", value: "Mixto", tone: "good" },
+      ],
+    },
   },
   12: {
     title: "N = 12",
@@ -214,6 +373,26 @@ const SCENARIO_COPY: Record<
       "La validacion mensual sigue siendo sana, pero esta dotacion ya opera con una espalda muy distinta.",
     mixedOutlook:
       "El siguiente salto de valor es comparar este baseline contra un mixto con COM y turno corto de ajuste.",
+    study: {
+      status: "Maxima holgura del rango",
+      statusTone: "good",
+      recommendedLabel: "Mixto COM + APE/CIE",
+      summary:
+        "Es el caso mas desahogado del estudio. La conclusion documentada ya empuja hacia un esquema mixto, porque la cobertura base esta mas que resuelta.",
+      simulationNote:
+        "La simulacion APE/CIE de abajo sigue siendo valida como referencia, pero no es la recomendacion final del estudio para esta dotacion.",
+      bullets: [
+        "Caso base: 6 APE + 6 CIE.",
+        "Cobertura excelente todos los dias.",
+        "El foco pasa a confort, solape y flexibilidad fina.",
+      ],
+      metrics: [
+        { label: "Config. base", value: "6 APE + 6 CIE", tone: "neutral" },
+        { label: "Cobertura minima", value: "5 APE + 5 CIE", tone: "good" },
+        { label: "Holgura", value: "Muy alta", tone: "good" },
+        { label: "Recomendacion", value: "Mixto", tone: "good" },
+      ],
+    },
   },
 };
 

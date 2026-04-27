@@ -36,6 +36,23 @@ export interface FactibilityOption {
   roleCountsLabel: string;
 }
 
+export interface FactibilityStudyMetric {
+  label: string;
+  value: string;
+  tone: "neutral" | "good" | "warn" | "bad";
+}
+
+export interface FactibilityStudySummary {
+  status: string;
+  statusTone: "bad" | "warn" | "good";
+  recommendedLabel: string;
+  recommendedOptionId?: FactibilityOption["id"];
+  summary: string;
+  simulationNote?: string;
+  bullets: string[];
+  metrics: FactibilityStudyMetric[];
+}
+
 export interface FactibilityScenario {
   headcount: number;
   title: string;
@@ -44,6 +61,7 @@ export interface FactibilityScenario {
   baselineAnalysis: string;
   fifthSundayNote: string;
   mixedOutlook?: string;
+  study: FactibilityStudySummary;
   options: FactibilityOption[];
 }
 

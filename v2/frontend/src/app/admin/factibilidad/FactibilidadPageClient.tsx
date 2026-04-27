@@ -47,16 +47,37 @@ function schemeLabel(scheme: FactibilityOption["scheme"]) {
   return scheme === "fijo" ? "Patron fijo" : "Patron rotativo";
 }
 
+function studyToneClass(tone: "bad" | "warn" | "good") {
+  if (tone === "bad") return "bg-rose-100 text-rose-700";
+  if (tone === "warn") return "bg-amber-100 text-amber-800";
+  return "bg-emerald-100 text-emerald-700";
+}
+
+function metricToneClass(tone: "neutral" | "good" | "warn" | "bad") {
+  if (tone === "bad") return "bg-rose-50 border-rose-200 text-rose-700";
+  if (tone === "warn") return "bg-amber-50 border-amber-200 text-amber-800";
+  if (tone === "good") return "bg-emerald-50 border-emerald-200 text-emerald-700";
+  return "bg-slate-50 border-slate-200 text-slate-700";
+}
+
+function getDefaultOptionId(scenario: (ReturnType<typeof getFactibilityScenarios>)[number]) {
+  return (
+    scenario.study.recommendedOptionId ??
+    scenario.options.find((item) => item.id === "rotativo")?.id ??
+    scenario.options[0].id
+  );
+}
+
 function groupExplanation(option: FactibilityOption) {
   if (option.scheme === "fijo") {
     return {
       title: "Como leer los grupos en esta opcion",
       detail:
-        "Aqui no hay grupos rotando entre semanas. Las personas con prefijo APE quedan siempre en apertura y las personas con prefijo CIE quedan siempre en cierre.",
+        "Aqui no hay grupos rotando entre semanas. Un bloque queda siempre en apertura y el otro siempre en cierre.",
       bullets: [
-        "APE-1, APE-2, etc. = personas que trabajan siempre en apertura.",
-        "CIE-1, CIE-2, etc. = personas que trabajan siempre en cierre.",
-        "El numero solo identifica a cada persona dentro de su bloque.",
+        "Turno de apertura = personas que trabajan siempre en apertura.",
+        "Turno de cierre = personas que trabajan siempre en cierre.",
+        "Trabajador 1, 2, 3... solo identifica a cada persona dentro del caso.",
       ],
     };
   }
@@ -66,9 +87,9 @@ function groupExplanation(option: FactibilityOption) {
     detail:
       "Aqui si hay dos grupos que se van alternando por semana para repartir mejor la carga entre apertura y cierre.",
     bullets: [
-      "G1 = Grupo 1 y G2 = Grupo 2.",
-      "Semanas 1 y 3: G1 abre y G2 cierra.",
-      "Semanas 2 y 4: G1 cierra y G2 abre.",
+      "Grupo 1 y Grupo 2 son los dos bloques que se alternan.",
+      "Semanas 1 y 3: Grupo 1 abre y Grupo 2 cierra.",
+      "Semanas 2 y 4: Grupo 1 cierra y Grupo 2 abre.",
     ],
   };
 }
@@ -134,22 +155,15 @@ export function FactibilidadPageClient() {
     [headcount, scenarios]
   );
 
-  const [optionId, setOptionId] = useState(
-    scenario.options.find((item) => item.recommended)?.id ?? scenario.options[0].id
-  );
+  const [optionId, setOptionId] = useState(getDefaultOptionId(scenario));
 
   useEffect(() => {
-    setOptionId(scenario.options.find((item) => item.recommended)?.id ?? scenario.options[0].id);
+    setOptionId(getDefaultOptionId(scenario));
   }, [scenario]);
 
   const selectedOption = useMemo(
     () => scenario.options.find((item) => item.id === optionId) ?? scenario.options[0],
     [optionId, scenario]
-  );
-
-  const recommendedOption = useMemo(
-    () => scenario.options.find((item) => item.recommended) ?? scenario.options[0],
-    [scenario]
   );
 
   const [workers, setWorkers] = useState<FactibilityWorkerTemplate[]>(() =>
@@ -224,6 +238,7 @@ export function FactibilidadPageClient() {
   const workerErrorIds = new Set(errors.map((item) => item.workerId).filter(Boolean));
   const scenarioContextLine = `${scenario.baselineAnalysis} ${scenario.fifthSundayNote}`;
   const groupsCopy = groupExplanation(selectedOption);
+  const selectedMatchesStudy = scenario.study.recommendedOptionId === selectedOption.id;
   const periodCells = analysis.coverageCells.filter((cell) => cell.inMonth);
   const visiblePeriodCells =
     periodCells.length > 0 ? periodCells : analysis.coverageCells.filter((cell) => cell.inMonth);
@@ -364,7 +379,7 @@ export function FactibilidadPageClient() {
                   }`}
                 >
                   {option.scheme === "fijo" ? "Fijo" : "Rotativo"}
-                  {option.recommended ? (
+                  {scenario.study.recommendedOptionId === option.id ? (
                     <span
                       className={`ml-2 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
                         option.id === selectedOption.id
@@ -372,7 +387,7 @@ export function FactibilidadPageClient() {
                           : "bg-emerald-100 text-emerald-700"
                       }`}
                     >
-                      Recomendada
+                      Segun estudio
                     </span>
                   ) : null}
                 </button>
@@ -433,6 +448,64 @@ export function FactibilidadPageClient() {
           </div>
         </div>
 
+        <section className="rounded-[24px] bg-white p-5 shadow-sm ring-1 ring-slate-200">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="max-w-3xl">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-lg font-semibold text-slate-900">
+                  Lo que dice el estudio para {scenario.title}
+                </h2>
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-semibold ${studyToneClass(
+                    scenario.study.statusTone
+                  )}`}
+                >
+                  {scenario.study.status}
+                </span>
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                  Recomendacion del estudio: {scenario.study.recommendedLabel}
+                </span>
+              </div>
+              <p className="mt-3 text-sm leading-6 text-slate-600">{scenario.study.summary}</p>
+            </div>
+            <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
+              <div className="font-semibold text-slate-900">Importante</div>
+              <div className="mt-1 leading-6">
+                Esta parte resume el documento de factibilidad. La simulacion de abajo es una
+                plantilla editable, no el resultado final del estudio.
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {scenario.study.metrics.map((metric) => (
+              <div
+                key={metric.label}
+                className={`rounded-2xl border px-4 py-3 ${metricToneClass(metric.tone)}`}
+              >
+                <div className="text-xs font-semibold uppercase tracking-wide opacity-80">
+                  {metric.label}
+                </div>
+                <div className="mt-1 text-lg font-semibold">{metric.value}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 grid gap-2 lg:grid-cols-3">
+            {scenario.study.bullets.map((bullet) => (
+              <div key={bullet} className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                {bullet}
+              </div>
+            ))}
+          </div>
+
+          {scenario.study.simulationNote ? (
+            <div className="mt-4 rounded-2xl bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800 ring-1 ring-amber-200">
+              {scenario.study.simulationNote}
+            </div>
+          ) : null}
+        </section>
+
         <section className="rounded-[20px] bg-white px-5 py-4 shadow-sm ring-1 ring-slate-200">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div className="max-w-3xl">
@@ -460,20 +533,27 @@ export function FactibilidadPageClient() {
               <div>
                 <h2 className="text-lg font-semibold text-slate-900">
                   {viewMode === "month"
-                    ? `Distribucion de ${monthLabel(monthValue)}`
-                    : "Patron ciclo base (4 semanas)"}
+                    ? `Simulacion editable de ${monthLabel(monthValue)}`
+                    : "Simulacion editable del ciclo base (4 semanas)"}
                 </h2>
                 <p className="mt-0.5 text-sm text-slate-500">
                   {scenario.title} · {selectedOption.title} · {schemeLabel(selectedOption.scheme)}
-                  {selectedOption.recommended ? (
+                  {selectedMatchesStudy ? (
                     <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
-                      Recomendada
+                      Coincide con el estudio
                     </span>
                   ) : null}
                 </p>
                 <p className="mt-2 text-sm leading-6 text-slate-600">{scenarioContextLine}</p>
                 {scenario.mixedOutlook ? (
                   <p className="mt-1 text-sm leading-6 text-slate-500">{scenario.mixedOutlook}</p>
+                ) : null}
+                {selectedMatchesStudy && !analysis.feasible ? (
+                  <div className="mt-3 rounded-2xl bg-rose-50 px-4 py-3 text-sm leading-6 text-rose-700 ring-1 ring-rose-200">
+                    Esta simulacion usa el patron sugerido por el estudio, pero la plantilla mensual
+                    actual todavia rompe reglas. Eso significa que la simulacion editable aun no
+                    esta reproduciendo la planificacion correcta del caso.
+                  </div>
                 ) : null}
               </div>
               <div className="flex flex-wrap gap-2 text-xs">
