@@ -345,6 +345,10 @@ export function FactibilidadPageClient() {
     () => scenario.options.find((item) => item.id === optionId) ?? scenario.options[0],
     [optionId, scenario]
   );
+  const recommendedOption = useMemo(
+    () => scenario.options.find((item) => item.recommended) ?? scenario.options[0],
+    [scenario]
+  );
 
   const [workers, setWorkers] = useState<FactibilityWorkerTemplate[]>(() =>
     cloneWorkers(selectedOption.workers)
@@ -583,21 +587,24 @@ export function FactibilidadPageClient() {
         </section>
 
         <section className="rounded-[20px] bg-white px-5 py-4 shadow-sm ring-1 ring-slate-200">
-          <div className="flex flex-col gap-2">
-            <div className="flex flex-wrap items-center gap-2 text-sm">
-              <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white">
-                {scenario.title}
-              </span>
+            <div className="flex flex-col gap-2">
+              <div className="flex flex-wrap items-center gap-2 text-sm">
+                <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white">
+                  {scenario.title}
+                </span>
               <span
                 className={`rounded-full px-3 py-1 text-xs font-semibold ${verdictClass(
                   scenario.verdictTone
                 )}`}
-              >
-                {scenario.verdict}
-              </span>
-              <span className="text-slate-500">{selectedOption.headline}</span>
-            </div>
-            <p className="text-sm leading-6 text-slate-600">{scenarioContextLine}</p>
+                >
+                  {scenario.verdict}
+                </span>
+                <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
+                  Recomendada: {recommendedOption.title}
+                </span>
+                <span className="text-slate-500">{selectedOption.headline}</span>
+              </div>
+              <p className="text-sm leading-6 text-slate-600">{scenarioContextLine}</p>
             {scenario.mixedOutlook && (
               <p className="text-sm leading-6 text-slate-500">{scenario.mixedOutlook}</p>
             )}
@@ -645,6 +652,7 @@ export function FactibilidadPageClient() {
                     }`}
                   >
                     {option.scheme === "fijo" ? "Fijo" : "Rotativo"}
+                    {option.recommended ? " ★" : ""}
                   </button>
                 ))}
               </div>
@@ -689,7 +697,9 @@ export function FactibilidadPageClient() {
             </div>
 
             <div className="ml-auto flex items-center gap-2">
-              <span className="text-sm font-medium text-slate-700">{scenario.verdict}</span>
+              <span className="text-sm font-medium text-slate-700">
+                Recomendada: {recommendedOption.scheme === "fijo" ? "Fijo" : "Rotativo"}
+              </span>
               <button
                 onClick={resetOption}
                 className="rounded-full border border-slate-300 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-50"
