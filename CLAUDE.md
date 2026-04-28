@@ -311,3 +311,17 @@ Si detectas una contradicción entre dos specs o entre una spec y `docs/`, **det
 - `v3` quedo publicado en `https://turnos3.dpmake.cl` con nginx + Let's Encrypt sobre el frontend en `127.0.0.1:3013`. La ruta `https://turnos3.dpmake.cl/admin/optimizer-lab` responde `200`.
 - Validacion publica real del playground de `v3`: `POST https://turnos3.dpmake.cl/api/optimizer-lab` responde correctamente tanto en modo `heuristic` como en modo `cp_sat`. En la prueba actual, el heuristico devolvio 2 propuestas factibles y el CP-SAT devolvio 2 propuestas con diagnostico `ILP status: OPTIMAL`.
 - Mejora de usabilidad del playground de `v3`: la grilla del optimizer lab ahora se renderiza por semanas completas del rango extendido, atenúa los dias fuera del mes visible, muestra horas por celda y agrega una columna `Hrs` por semana para cada slot. Esto permite verificar visualmente las `42h` semanales desde la misma interfaz.
+
+### Update 2026-04-28 — v4 desplegada (turnos4.dpmake.cl)
+- Se creo `v4/` como app independiente: Next.js 14 + Prisma + SQLite. **No usa Appwrite**; auth propio JWT (`jose`) en cookie httpOnly, credenciales admin en env vars (`ADMIN_EMAIL`, `ADMIN_PASSWORD_HASH` bcrypt).
+- Catalogo de patrones en `v4/frontend/src/lib/patterns/catalog.ts`: 8 categorias (`ventas_standalone`, `ventas_autopark`, `ventas_mall_7d`, `postventa_vista_hermosa`, `postventa_standalone`, `postventa_cap`, `postventa_mall_mqt`, `postventa_mall_oeste`). El de `ventas_mall_7d` mantiene rotacion 4 semanas con S3 = 36h por restriccion legal/interna.
+- Generador deterministico en `v4/frontend/src/lib/calendar/generator.ts`: rota slots segun `(isoWeek + slotOffset) % rotLen`. Para >4 trabajadores la rotacion vuelve a empezar; para 3 con rotacion 4-sem genera con alerta de cobertura; para 2 ofrece slot virtual (UI placeholder, etapa 2).
+- Excel parser en `v4/frontend/src/lib/excel/parser.ts` exige columnas `Rut`, `Nombre`, `Área`, `Área de Negocio` (acepta `Servicios` como alias de Postventa). Categoria se asigna por combinación `Sucursal + Área de Negocio` y queda persistida.
+- Calendario con 2 vistas (`global` y `por trabajador`) y 2 exportaciones Excel (`plantilla` con slots genericos / `asignado` con nombres reales) replicando el flujo de v1.
+- Despliegue: `turnos4.dpmake.cl` → `127.0.0.1:3014` con nginx + Let's Encrypt. Volumen `v4_data:/data` para `v4.db`. Verificado en publico: `POST /api/auth/login` con `prieto.danilo94@gmail.com / 1234` → `200`; `/admin`, `/admin/sucursales`, `/admin/dotacion` → `200` con cookie; sin cookie → `307` a `/login`.
+- Tropezones operativos del despliegue (documentar para futuras versiones):
+  1. **Next.js expande `$VAR` en `.env`**: el hash bcrypt `$2a$12$...` queda truncado al cargarse via `@next/env`. Solucion: escapar como `\$2a\$12\$...` en `.env` local.
+  2. **Docker Compose interpola `$VAR` en `env_file`**: ademas hay que escribirlo como `$$2a$$12$$...` en el `.env` del compose para que llegue intacto al contenedor.
+  3. **Alpine + OpenSSL 3 requiere binary target adicional**: `binaryTargets = ["native", "linux-musl-openssl-3.0.x"]` en `schema.prisma` y `apk add openssl` en el runner stage del Dockerfile.
+  4. **`npx prisma` descarga la version mas reciente**: rompe con schema v5. Hay que copiar el `prisma` local del builder y ejecutarlo via `node ./node_modules/prisma/build/index.js`.
+  5. **Paginas server con Prisma necesitan `force-dynamic`**: sin esto Next.js intenta pre-renderizarlas en build sin DB.
