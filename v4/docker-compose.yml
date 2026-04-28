@@ -6,11 +6,6 @@ services:
       - "3014:3014"
     volumes:
       - v4_data:/data
-    environment:
-      DATABASE_URL: "file:/data/v4.db"
-      AUTH_SECRET: "${AUTH_SECRET}"
-      ADMIN_EMAIL: "${ADMIN_EMAIL}"
-      ADMIN_PASSWORD_HASH: "${ADMIN_PASSWORD_HASH}"
     env_file:
       - .env
 
