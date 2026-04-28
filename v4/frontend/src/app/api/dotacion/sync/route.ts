@@ -29,13 +29,14 @@ export async function POST(req: NextRequest) {
     for (const [codigo, branchRows] of byBranch) {
       const nombre = branchRows[0].nombreBranch;
 
+      const existing = await prisma.branch.findUnique({ where: { codigo } });
       const branch = await prisma.branch.upsert({
         where: { codigo },
         create: { codigo, nombre },
         update: { nombre },
       });
 
-      if (branch.nombre !== nombre) branchesUpdated++;
+      if (existing) branchesUpdated++;
       else branchesCreated++;
 
       // Agrupar por área de negocio
