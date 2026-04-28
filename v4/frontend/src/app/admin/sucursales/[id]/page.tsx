@@ -10,6 +10,8 @@ interface Props {
   searchParams: { team?: string };
 }
 
+export const dynamic = "force-dynamic";
+
 export default async function BranchDetailPage({ params, searchParams }: Props) {
   const branch = await prisma.branch.findUnique({
     where: { id: params.id },

@@ -3,6 +3,8 @@ import { prisma } from "@/lib/db/prisma";
 import { CATEGORY_LABELS } from "@/lib/patterns/catalog";
 import type { ShiftCategory } from "@/types";
 
+export const dynamic = "force-dynamic";
+
 export default async function SucursalesPage() {
   const branches = await prisma.branch.findMany({
     include: {

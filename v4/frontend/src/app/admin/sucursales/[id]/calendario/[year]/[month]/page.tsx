@@ -9,6 +9,8 @@ interface Props {
   searchParams: { team?: string };
 }
 
+export const dynamic = "force-dynamic";
+
 export default async function CalendarioPage({ params, searchParams }: Props) {
   const year = parseInt(params.year);
   const month = parseInt(params.month);
