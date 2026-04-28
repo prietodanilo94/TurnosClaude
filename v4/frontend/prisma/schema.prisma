@@ -1,0 +1,61 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Branch {
+  id        String       @id @default(cuid())
+  codigo    String       @unique
+  nombre    String
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  teams     BranchTeam[]
+}
+
+// Una sucursal puede tener equipo de Ventas y/o Postventa
+model BranchTeam {
+  id             String     @id @default(cuid())
+  branchId       String
+  branch         Branch     @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  areaNegocio    String     // "ventas" | "postventa"
+  categoria      String?    // "ventas_standalone" | "ventas_mall_7d" | etc.
+  categoriaSetAt DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  workers        Worker[]
+  calendars      Calendar[]
+
+  @@unique([branchId, areaNegocio])
+}
+
+model Worker {
+  id           String     @id @default(cuid())
+  rut          String     @unique
+  nombre       String
+  branchTeamId String
+  branchTeam   BranchTeam @relation(fields: [branchTeamId], references: [id], onDelete: Cascade)
+  activo       Boolean    @default(true)
+  esVirtual    Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model Calendar {
+  id           String     @id @default(cuid())
+  branchTeamId String
+  branchTeam   BranchTeam @relation(fields: [branchTeamId], references: [id], onDelete: Cascade)
+  year         Int
+  month        Int
+  // JSON: { [slotNumber]: { [date]: { start, end } | null } }
+  slotsData    String
+  // JSON: { [slotNumber]: workerId | null }
+  assignments  String     @default("{}")
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([branchTeamId, year, month])
+}
