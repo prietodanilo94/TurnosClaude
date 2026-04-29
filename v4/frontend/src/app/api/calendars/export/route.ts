@@ -19,7 +19,8 @@ function dowIndex(d: Date) { return (d.getDay() + 6) % 7; }
 function shiftDuration(s: DayShift): number {
   const [h1, m1] = s.start.split(":").map(Number);
   const [h2, m2] = s.end.split(":").map(Number);
-  return Math.max(0, (h2 * 60 + m2 - h1 * 60 - m1) / 60);
+  const total = Math.max(0, (h2 * 60 + m2 - h1 * 60 - m1) / 60);
+  return total >= 6 ? total - 1 : total; // descuenta 1h colación en turnos ≥ 6h
 }
 
 function isoWeekNumber(d: Date): number {

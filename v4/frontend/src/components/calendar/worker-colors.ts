@@ -1,16 +1,14 @@
+// 8 colores con hues bien separados (sin pares visualmente similares).
+// Para equipos ≤8 vendedores no se repite ninguno.
 const PALETTE = [
-  { bg: "bg-blue-100",    text: "text-blue-800",    border: "border-blue-300"    },
-  { bg: "bg-emerald-100", text: "text-emerald-800",  border: "border-emerald-300" },
-  { bg: "bg-violet-100",  text: "text-violet-800",   border: "border-violet-300"  },
-  { bg: "bg-orange-100",  text: "text-orange-800",   border: "border-orange-300"  },
-  { bg: "bg-rose-100",    text: "text-rose-800",     border: "border-rose-300"    },
-  { bg: "bg-teal-100",    text: "text-teal-800",     border: "border-teal-300"    },
-  { bg: "bg-pink-100",    text: "text-pink-800",     border: "border-pink-300"    },
-  { bg: "bg-amber-100",   text: "text-amber-800",    border: "border-amber-300"   },
-  { bg: "bg-indigo-100",  text: "text-indigo-800",   border: "border-indigo-300"  },
-  { bg: "bg-cyan-100",    text: "text-cyan-800",     border: "border-cyan-300"    },
-  { bg: "bg-lime-100",    text: "text-lime-800",     border: "border-lime-300"    },
-  { bg: "bg-fuchsia-100", text: "text-fuchsia-800",  border: "border-fuchsia-300" },
+  { bg: "bg-blue-200",    text: "text-blue-900",    border: "border-blue-400"    }, // azul
+  { bg: "bg-emerald-200", text: "text-emerald-900",  border: "border-emerald-400" }, // verde
+  { bg: "bg-orange-200",  text: "text-orange-900",   border: "border-orange-400"  }, // naranja
+  { bg: "bg-violet-200",  text: "text-violet-900",   border: "border-violet-400"  }, // violeta
+  { bg: "bg-rose-200",    text: "text-rose-900",     border: "border-rose-400"    }, // rojo rosa
+  { bg: "bg-amber-200",   text: "text-amber-900",    border: "border-amber-400"   }, // amarillo
+  { bg: "bg-cyan-200",    text: "text-cyan-900",     border: "border-cyan-400"    }, // cian
+  { bg: "bg-pink-200",    text: "text-pink-900",     border: "border-pink-400"    }, // rosa
 ] as const;
 
 export interface SlotColor {
@@ -25,6 +23,6 @@ export function workerColor(slot: number): SlotColor {
 
 export const UNASSIGNED_COLOR: SlotColor = {
   bg: "bg-gray-100",
-  text: "text-gray-500",
-  border: "border-gray-300",
+  text: "text-gray-400",
+  border: "border-gray-200",
 };
