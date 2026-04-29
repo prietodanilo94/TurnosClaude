@@ -1,53 +1,75 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { workerColor, UNASSIGNED_COLOR } from "@/components/calendar/worker-colors";
 import type { CalendarSlot, DayShift, ShiftCategory, WorkerInfo } from "@/types";
 import { CATEGORY_LABELS } from "@/lib/patterns/catalog";
 
-const DOW_LABELS = ["L", "M", "M", "J", "V", "S", "D"];
+const DOW_LABELS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 const MONTH_NAMES = [
   "", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
 ];
+const MONTH_ABBR = [
+  "", "Ene", "Feb", "Mar", "Abr", "May", "Jun",
+  "Jul", "Ago", "Sep", "Oct", "Nov", "Dic",
+];
 
-function formatShift(s: DayShift | null): string {
-  if (!s) return "Libre";
-  return `${s.start}–${s.end}`;
+function dowIndex(d: Date) { return (d.getDay() + 6) % 7; }
+function fmt(d: Date) { return d.toISOString().slice(0, 10); }
+
+function shiftDuration(s: DayShift): number {
+  const [h1, m1] = s.start.split(":").map(Number);
+  const [h2, m2] = s.end.split(":").map(Number);
+  return Math.max(0, (h2 * 60 + m2 - h1 * 60 - m1) / 60);
 }
 
-function getDaysInMonth(year: number, month: number): Date[] {
-  const days: Date[] = [];
-  const count = new Date(year, month, 0).getDate();
-  for (let d = 1; d <= count; d++) days.push(new Date(year, month - 1, d));
-  return days;
-}
-
-function getWeeks(days: Date[]): Date[][] {
-  const weeks: Date[][] = [];
-  let week: Date[] = [];
-  const first = days[0];
-  const startDow = (first.getDay() + 6) % 7; // Lun=0
-  for (let i = 0; i < startDow; i++) week.push(null as unknown as Date);
-  for (const d of days) {
-    week.push(d);
-    if (week.length === 7) { weeks.push(week); week = []; }
+function isoWeekNumber(d: Date): number {
+  const target = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayNr = (target.getUTCDay() + 6) % 7;
+  target.setUTCDate(target.getUTCDate() - dayNr + 3);
+  const firstThursday = target.valueOf();
+  target.setUTCMonth(0, 1);
+  if (target.getUTCDay() !== 4) {
+    target.setUTCMonth(0, 1 + ((4 - target.getUTCDay()) + 7) % 7);
   }
-  if (week.length > 0) {
-    while (week.length < 7) week.push(null as unknown as Date);
+  return 1 + Math.ceil((firstThursday - target.valueOf()) / 604800000);
+}
+
+function buildIsoWeeks(year: number, month: number): Date[][] {
+  const first = new Date(year, month - 1, 1);
+  const last = new Date(year, month, 0);
+  const start = new Date(first);
+  start.setDate(first.getDate() - dowIndex(first));
+  const end = new Date(last);
+  end.setDate(last.getDate() + (6 - dowIndex(last)));
+
+  const weeks: Date[][] = [];
+  const cur = new Date(start);
+  while (cur <= end) {
+    const week: Date[] = [];
+    for (let i = 0; i < 7; i++) {
+      week.push(new Date(cur));
+      cur.setDate(cur.getDate() + 1);
+    }
     weeks.push(week);
   }
   return weeks;
 }
 
-function fmt(d: Date): string {
-  return d.toISOString().slice(0, 10);
+function fmtDateRange(d1: Date, d2: Date): string {
+  if (d1.getMonth() === d2.getMonth()) {
+    return `${String(d1.getDate()).padStart(2, "0")} – ${String(d2.getDate()).padStart(2, "0")} ${MONTH_ABBR[d2.getMonth() + 1]}`;
+  }
+  return `${String(d1.getDate()).padStart(2, "0")} ${MONTH_ABBR[d1.getMonth() + 1]} – ${String(d2.getDate()).padStart(2, "0")} ${MONTH_ABBR[d2.getMonth() + 1]}`;
 }
 
 interface Props {
   branchId: string;
   branchName: string;
+  branchCodigo: string;
   teamId: string;
   areaNegocio: "ventas" | "postventa";
   categoria: ShiftCategory;
@@ -62,18 +84,18 @@ interface Props {
 }
 
 export default function CalendarView({
-  branchId, branchName, teamId, areaNegocio, categoria,
+  branchId, branchName, branchCodigo, teamId, areaNegocio, categoria,
   year, month, slots, assignments, workers, workerMap, calendarId, generateAlert,
 }: Props) {
-  const [view, setView] = useState<"global" | "persona">("global");
+  const router = useRouter();
   const [assign, setAssign] = useState<Record<string, string | null>>(assignments);
-  const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
+  const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [savedMsg, setSavedMsg] = useState("");
   const [calId, setCalId] = useState(calendarId);
+  const [dialogSlot, setDialogSlot] = useState<number | null>(null);
+  const [recalculating, setRecalculating] = useState(false);
 
-  const days = getDaysInMonth(year, month);
-  const weeks = getWeeks(days);
+  const weeks = useMemo(() => buildIsoWeeks(year, month), [year, month]);
 
   async function handleSave() {
     setSaving(true);
@@ -86,63 +108,132 @@ export default function CalendarView({
       if (res.ok) {
         const d = await res.json();
         setCalId(d.id);
-        setSavedMsg("Guardado");
-        setTimeout(() => setSavedMsg(""), 2000);
+        setDirty(false);
       }
     } finally {
       setSaving(false);
     }
   }
 
-  async function handleExport(mode: "slots" | "assigned") {
-    const url = `/api/calendars/export?teamId=${teamId}&year=${year}&month=${month}&mode=${mode}`;
-    const res = await fetch(url);
-    if (!res.ok) return;
-    const blob = await res.blob();
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `turnos_${branchName}_${month}_${year}_${mode}.xlsx`;
-    a.click();
+  async function handleRecalcular() {
+    if (!confirm("Esto borrará el calendario guardado y volverá a generar la plantilla limpia. ¿Continuar?")) return;
+    setRecalculating(true);
+    try {
+      if (calId) {
+        await fetch(`/api/calendars?id=${calId}`, { method: "DELETE" });
+      }
+      router.refresh();
+    } finally {
+      setRecalculating(false);
+    }
   }
+
+  function navigateTo(newYear: number, newMonth: number) {
+    router.push(`/admin/sucursales/${branchId}/calendario/${newYear}/${newMonth}?team=${teamId}`);
+  }
+
+  function handleAssign(slotNum: number, workerId: string | null) {
+    setAssign((prev) => ({ ...prev, [String(slotNum)]: workerId }));
+    setDirty(true);
+    setDialogSlot(null);
+  }
+
+  function handleExport(mode: "calendar" | "rrhh") {
+    const url = `/api/calendars/export?teamId=${teamId}&year=${year}&month=${month}&mode=${mode}`;
+    window.open(url, "_blank");
+  }
+
+  // Vendedores ya asignados a otros slots (para mostrar quiénes están ocupados)
+  const occupiedByOther = (slotNum: number): Set<string> => {
+    const set = new Set<string>();
+    for (const [k, v] of Object.entries(assign)) {
+      if (Number(k) !== slotNum && v) set.add(v);
+    }
+    return set;
+  };
 
   return (
     <div className="p-6">
-      {/* Encabezado */}
       <div className="mb-1">
-        <Link href={`/admin/sucursales/${branchId}?team=${teamId}`} className="text-xs text-gray-400 hover:text-gray-600">
-          ← {branchName}
+        <Link href="/admin/sucursales" className="text-xs text-gray-400 hover:text-gray-600">
+          ← Sucursales
         </Link>
       </div>
-      <div className="mb-4 flex items-start justify-between">
+
+      {/* Header sucursal + acciones */}
+      <div className="mb-4 flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-xl font-semibold text-gray-900">
-            {MONTH_NAMES[month]} {year}
-          </h1>
-          <p className="text-xs text-gray-400 mt-0.5">
-            {areaNegocio === "ventas" ? "Ventas" : "Postventa"} — {CATEGORY_LABELS[categoria]}
-          </p>
+          <h1 className="text-2xl font-semibold text-gray-900">{branchName}</h1>
+          <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+            <span>Código {branchCodigo}</span>
+            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+              areaNegocio === "ventas" ? "bg-blue-100 text-blue-800" : "bg-emerald-100 text-emerald-800"
+            }`}>
+              {areaNegocio === "ventas" ? "Ventas" : "Postventa"}
+            </span>
+            <span>{CATEGORY_LABELS[categoria]}</span>
+          </div>
         </div>
+
         <div className="flex items-center gap-2">
           <button
-            onClick={() => handleExport("slots")}
-            className="px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors"
+            onClick={handleRecalcular}
+            disabled={recalculating || !calId}
+            className="px-3 py-1.5 text-sm border border-rose-300 text-rose-700 rounded hover:bg-rose-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            title={!calId ? "No hay calendario guardado" : "Borrar y regenerar plantilla"}
           >
-            Exportar plantilla
-          </button>
-          <button
-            onClick={() => handleExport("assigned")}
-            className="px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors"
-          >
-            Exportar asignado
+            {recalculating ? "Borrando…" : "Recalcular parcial"}
           </button>
           <button
             onClick={handleSave}
-            disabled={saving}
-            className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            disabled={saving || !dirty}
+            className={`px-3 py-1.5 text-sm rounded transition-colors ${
+              dirty
+                ? "bg-blue-600 text-white hover:bg-blue-700"
+                : "border border-gray-300 text-gray-400 cursor-default"
+            }`}
           >
-            {saving ? "Guardando…" : "Guardar"}
+            {saving ? "Guardando…" : dirty ? "Guardar" : "Guardado"}
           </button>
-          {savedMsg && <span className="text-xs text-green-600">{savedMsg}</span>}
+          <button
+            onClick={() => handleExport("calendar")}
+            className="px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors"
+          >
+            Exportar Calendario
+          </button>
+          <button
+            onClick={() => handleExport("rrhh")}
+            className="px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors"
+          >
+            Exportar Excel
+          </button>
+        </div>
+      </div>
+
+      {/* Selector mes/año */}
+      <div className="mb-4 flex items-center gap-3 bg-white border border-gray-200 rounded-lg p-3">
+        <h2 className="text-lg font-medium text-gray-800">
+          {MONTH_NAMES[month]} {year}
+        </h2>
+        <div className="ml-auto flex items-center gap-2">
+          <select
+            value={month}
+            onChange={(e) => navigateTo(year, Number(e.target.value))}
+            className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            {MONTH_NAMES.slice(1).map((m, i) => (
+              <option key={i + 1} value={i + 1}>{m}</option>
+            ))}
+          </select>
+          <select
+            value={year}
+            onChange={(e) => navigateTo(Number(e.target.value), month)}
+            className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            {[year - 1, year, year + 1, year + 2].map((y) => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -152,247 +243,207 @@ export default function CalendarView({
         </div>
       )}
 
-      {/* Tabs vista */}
-      <div className="flex gap-1 mb-4">
-        {(["global", "persona"] as const).map((v) => (
-          <button
-            key={v}
-            onClick={() => setView(v)}
-            className={`px-3 py-1.5 text-sm rounded transition-colors ${
-              view === v
-                ? "bg-gray-800 text-white"
-                : "text-gray-600 hover:bg-gray-100"
-            }`}
-          >
-            {v === "global" ? "Vista global" : "Por trabajador"}
-          </button>
+      {/* Grilla por semanas ISO */}
+      <div className="space-y-4">
+        {weeks.map((week, wi) => (
+          <WeekBlock
+            key={wi}
+            week={week}
+            month={month}
+            slots={slots}
+            assign={assign}
+            workerMap={workerMap}
+            onSlotClick={(n) => setDialogSlot(n)}
+          />
         ))}
       </div>
 
-      {view === "global" ? (
-        <GlobalView
-          weeks={weeks}
-          slots={slots}
-          assign={assign}
-          workerMap={workerMap}
+      {/* Modal asignar vendedor */}
+      {dialogSlot !== null && (
+        <AssignDialog
+          slotNumber={dialogSlot}
+          currentWorkerId={assign[String(dialogSlot)] ?? null}
           workers={workers}
-          selectedSlot={selectedSlot}
-          onSelectSlot={setSelectedSlot}
-          onAssign={(slotNum, workerId) =>
-            setAssign((prev) => ({ ...prev, [String(slotNum)]: workerId }))
-          }
-        />
-      ) : (
-        <PersonaView
-          weeks={weeks}
-          slots={slots}
-          assign={assign}
-          workers={workers}
-          workerMap={workerMap}
+          occupied={occupiedByOther(dialogSlot)}
+          onClose={() => setDialogSlot(null)}
+          onAssign={(wid) => handleAssign(dialogSlot, wid)}
         />
       )}
     </div>
   );
 }
 
-// ─── Vista Global ─────────────────────────────────────────────────────────────
+// ─── Bloque de semana ─────────────────────────────────────────────────────────
 
-interface GlobalViewProps {
-  weeks: (Date | null)[][];
+interface WeekBlockProps {
+  week: Date[];
+  month: number;
   slots: CalendarSlot[];
   assign: Record<string, string | null>;
   workerMap: Record<string, string>;
-  workers: WorkerInfo[];
-  selectedSlot: number | null;
-  onSelectSlot: (n: number | null) => void;
-  onAssign: (slotNum: number, workerId: string | null) => void;
+  onSlotClick: (slotNum: number) => void;
 }
 
-function GlobalView({ weeks, slots, assign, workerMap, workers, selectedSlot, onSelectSlot, onAssign }: GlobalViewProps) {
+function WeekBlock({ week, month, slots, assign, workerMap, onSlotClick }: WeekBlockProps) {
+  const isoWeek = isoWeekNumber(week[0]);
+  const rangeLabel = fmtDateRange(week[0], week[6]);
+
   return (
-    <div className="space-y-4">
-      {/* Leyenda de slots */}
-      <div className="flex flex-wrap gap-2">
-        {slots.map((slot) => {
-          const color = workerColor(slot.slotNumber);
-          const workerId = assign[String(slot.slotNumber)] ?? null;
-          const workerName = workerId ? (workerMap[workerId] ?? "?") : null;
-          const isSelected = selectedSlot === slot.slotNumber;
-          return (
-            <button
-              key={slot.slotNumber}
-              onClick={() => onSelectSlot(isSelected ? null : slot.slotNumber)}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded border text-xs font-medium transition-colors ${color.bg} ${color.text} ${color.border} ${isSelected ? "ring-2 ring-offset-1 ring-blue-500" : ""}`}
-            >
-              T{slot.slotNumber}
-              {workerName && <span className="opacity-70">{workerName.split(" ")[0]}</span>}
-            </button>
-          );
-        })}
+    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+      {/* Cabecera de semana */}
+      <div className="bg-blue-700 text-white px-3 py-1.5 text-sm font-medium">
+        Sem {isoWeek} &nbsp;&nbsp; {rangeLabel}
       </div>
 
-      {/* Asignar trabajador a slot seleccionado */}
-      {selectedSlot !== null && (
-        <div className="bg-white border border-gray-200 rounded-lg p-3 flex items-center gap-3">
-          <span className="text-sm text-gray-700">Asignar Trabajador {selectedSlot}:</span>
-          <select
-            value={assign[String(selectedSlot)] ?? ""}
-            onChange={(e) => onAssign(selectedSlot, e.target.value || null)}
-            className="px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">— Sin asignar —</option>
-            {workers.map((w) => (
-              <option key={w.id} value={w.id}>
-                {w.nombre} {w.esVirtual ? "(virtual)" : ""}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
+      <div className="overflow-x-auto">
+        <table className="min-w-full text-sm">
+          <thead>
+            <tr className="bg-blue-50 border-b border-gray-200">
+              <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 w-44">Vendedor</th>
+              {week.map((d, i) => {
+                const inMonth = d.getMonth() + 1 === month;
+                const isWeekend = i >= 5;
+                return (
+                  <th
+                    key={i}
+                    className={`px-2 py-2 text-center text-xs font-semibold border-l border-gray-100 ${
+                      isWeekend ? "bg-orange-50 text-orange-900" : "text-gray-700"
+                    } ${inMonth ? "" : "opacity-50"}`}
+                  >
+                    {DOW_LABELS[i]} {String(d.getDate()).padStart(2, "0")}
+                  </th>
+                );
+              })}
+              <th className="px-2 py-2 text-center text-xs font-semibold text-gray-700 border-l border-gray-100 w-20">
+                Hrs Sem
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {slots.map((slot, idx) => {
+              const workerId = assign[String(slot.slotNumber)] ?? null;
+              const workerName = workerId ? (workerMap[workerId] ?? "?") : `Vendedor ${slot.slotNumber}`;
+              const color = workerId ? workerColor(slot.slotNumber) : UNASSIGNED_COLOR;
+              const altRow = idx % 2 === 1 ? "bg-gray-50/50" : "";
 
-      {/* Grilla mensual */}
-      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-        {/* Cabecera días */}
-        <div className="grid grid-cols-7 border-b border-gray-200">
-          {DOW_LABELS.map((d, i) => (
-            <div key={i} className="py-2 text-center text-xs font-medium text-gray-500 border-r border-gray-100 last:border-r-0">
-              {d}
-            </div>
-          ))}
-        </div>
-
-        {weeks.map((week, wi) => (
-          <div key={wi} className="grid grid-cols-7 border-b border-gray-100 last:border-b-0">
-            {week.map((day, di) => {
-              if (!day) return <div key={di} className="bg-gray-50 min-h-[80px] border-r border-gray-100 last:border-r-0" />;
-              const dateStr = fmt(day);
-              const dow = (day.getDay() + 6) % 7;
-              const isWeekend = dow >= 5;
+              let totalHours = 0;
+              const cells = week.map((d, ci) => {
+                const dateStr = fmt(d);
+                const shift = slot.days[dateStr];
+                const inMonth = d.getMonth() + 1 === month;
+                if (shift) totalHours += shiftDuration(shift);
+                return { dateStr, shift, inMonth, ci };
+              });
 
               return (
-                <div
-                  key={di}
-                  className={`min-h-[80px] p-1 border-r border-gray-100 last:border-r-0 ${isWeekend ? "bg-blue-50/30" : ""}`}
-                >
-                  <div className="text-xs text-gray-400 mb-1">{day.getDate()}</div>
-                  <div className="space-y-0.5">
-                    {slots.map((slot) => {
-                      const shift = slot.days[dateStr];
-                      const color = shift ? workerColor(slot.slotNumber) : UNASSIGNED_COLOR;
-                      return (
-                        <div
-                          key={slot.slotNumber}
-                          className={`px-1 py-0.5 rounded text-[10px] leading-tight ${color.bg} ${color.text} border ${color.border}`}
-                        >
-                          <span className="font-medium">T{slot.slotNumber}</span>
-                          {shift ? ` ${shift.start}` : " Libre"}
+                <tr key={slot.slotNumber} className={`border-b border-gray-100 last:border-b-0 ${altRow}`}>
+                  <td
+                    className={`px-3 py-2 cursor-pointer hover:bg-gray-100 transition-colors`}
+                    onClick={() => onSlotClick(slot.slotNumber)}
+                    title="Click para asignar vendedor"
+                  >
+                    <div className={`flex items-center gap-2`}>
+                      <span className={`w-2.5 h-2.5 rounded-full ${color.bg} border ${color.border}`} />
+                      <span className={`text-sm font-medium truncate ${workerId ? "text-gray-900" : "text-gray-500 italic"}`}>
+                        {workerName}
+                      </span>
+                    </div>
+                  </td>
+                  {cells.map(({ dateStr, shift, inMonth, ci }) => (
+                    <td
+                      key={ci}
+                      className={`px-1 py-1.5 text-center text-xs border-l border-gray-100 ${
+                        inMonth ? "" : "opacity-40"
+                      }`}
+                    >
+                      {shift ? (
+                        <div className={`px-1 py-1 rounded ${color.bg} ${color.text} border ${color.border}`}>
+                          {shift.start}–{shift.end}
                         </div>
-                      );
-                    })}
-                  </div>
-                </div>
+                      ) : (
+                        <span className="text-gray-300 italic">libre</span>
+                      )}
+                    </td>
+                  ))}
+                  <td className="px-2 py-2 text-center text-xs font-semibold text-gray-700 border-l border-gray-100">
+                    {totalHours > 0 ? `${totalHours.toFixed(1)}h` : "—"}
+                  </td>
+                </tr>
               );
             })}
-          </div>
-        ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
 }
 
-// ─── Vista Por Persona ────────────────────────────────────────────────────────
+// ─── Modal de asignación ──────────────────────────────────────────────────────
 
-interface PersonaViewProps {
-  weeks: (Date | null)[][];
-  slots: CalendarSlot[];
-  assign: Record<string, string | null>;
+interface AssignDialogProps {
+  slotNumber: number;
+  currentWorkerId: string | null;
   workers: WorkerInfo[];
-  workerMap: Record<string, string>;
+  occupied: Set<string>;
+  onClose: () => void;
+  onAssign: (workerId: string | null) => void;
 }
 
-function PersonaView({ weeks, slots, assign, workers, workerMap }: PersonaViewProps) {
-  const [selected, setSelected] = useState<string>("all");
-
-  // Construir mapa slot -> worker
-  const slotWorker = Object.fromEntries(
-    slots.map((s) => [s.slotNumber, assign[String(s.slotNumber)] ?? null]),
-  );
-  // Slot sin asignar también se muestra
-  const displaySlots = selected === "all"
-    ? slots
-    : slots.filter((s) => slotWorker[s.slotNumber] === selected);
-
+function AssignDialog({ slotNumber, currentWorkerId, workers, occupied, onClose, onAssign }: AssignDialogProps) {
+  const color = workerColor(slotNumber);
   return (
-    <div className="space-y-4">
-      {/* Selector */}
-      <div className="flex gap-2 flex-wrap">
-        <button
-          onClick={() => setSelected("all")}
-          className={`px-3 py-1 text-sm rounded border transition-colors ${selected === "all" ? "bg-gray-800 text-white border-gray-800" : "text-gray-600 border-gray-300 hover:bg-gray-50"}`}
-        >
-          Todos
-        </button>
-        {slots.map((slot) => {
-          const wId = slotWorker[slot.slotNumber];
-          const name = wId ? (workerMap[wId] ?? "?") : `T${slot.slotNumber}`;
-          const color = workerColor(slot.slotNumber);
-          return (
-            <button
-              key={slot.slotNumber}
-              onClick={() => setSelected(wId ?? `slot-${slot.slotNumber}`)}
-              className={`px-3 py-1 text-xs rounded border transition-colors ${color.bg} ${color.text} ${color.border}`}
-            >
-              {name}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Tabla por semana */}
-      {displaySlots.map((slot) => {
-        const wId = slotWorker[slot.slotNumber];
-        const name = wId ? (workerMap[wId] ?? "?") : `Trabajador ${slot.slotNumber}`;
-        const color = workerColor(slot.slotNumber);
-        return (
-          <div key={slot.slotNumber} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-            <div className={`px-3 py-2 flex items-center gap-2 border-b border-gray-200 ${color.bg}`}>
-              <span className={`text-sm font-medium ${color.text}`}>{name}</span>
-              <span className={`text-xs ${color.text} opacity-60`}>T{slot.slotNumber}</span>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-xs">
-                <thead className="bg-gray-50">
-                  <tr>
-                    {DOW_LABELS.map((d, i) => (
-                      <th key={i} className="px-2 py-1.5 text-center font-medium text-gray-500 border-r border-gray-100 last:border-r-0">
-                        {d}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {weeks.map((week, wi) => (
-                    <tr key={wi} className="border-t border-gray-100">
-                      {week.map((day, di) => {
-                        if (!day) return <td key={di} className="px-2 py-2 bg-gray-50 border-r border-gray-100 last:border-r-0" />;
-                        const shift = slot.days[fmt(day)];
-                        return (
-                          <td key={di} className={`px-2 py-2 text-center border-r border-gray-100 last:border-r-0 ${shift ? "" : "text-gray-300"}`}>
-                            <div className="text-[10px] font-medium text-gray-600">{day.getDate()}</div>
-                            <div className={shift ? color.text : "text-gray-400"}>
-                              {shift ? `${shift.start}` : "—"}
-                            </div>
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
+      <div
+        className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+          <div className="flex items-center gap-2">
+            <span className={`w-3 h-3 rounded-full ${color.bg} border ${color.border}`} />
+            <h3 className="text-sm font-semibold text-gray-900">Asignar vendedor — Slot {slotNumber}</h3>
           </div>
-        );
-      })}
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg leading-none">×</button>
+        </div>
+
+        <div className="max-h-80 overflow-y-auto">
+          {workers.length === 0 && (
+            <p className="px-4 py-6 text-sm text-gray-500 text-center">No hay vendedores activos.</p>
+          )}
+          {workers.map((w) => {
+            const isCurrent = w.id === currentWorkerId;
+            const isOccupied = occupied.has(w.id);
+            return (
+              <button
+                key={w.id}
+                onClick={() => onAssign(w.id)}
+                disabled={isOccupied}
+                className={`w-full text-left px-4 py-2.5 flex items-center gap-3 border-b border-gray-100 last:border-b-0 transition-colors ${
+                  isCurrent ? "bg-blue-50" : "hover:bg-gray-50"
+                } ${isOccupied ? "opacity-40 cursor-not-allowed" : ""}`}
+              >
+                <span className={`w-2.5 h-2.5 rounded-full ${color.bg} border ${color.border}`} />
+                <span className="text-sm text-gray-800 flex-1 truncate">
+                  {w.nombre}
+                  {w.esVirtual && <span className="ml-1 text-xs text-gray-400">(virtual)</span>}
+                </span>
+                {isCurrent && <span className="text-xs text-blue-600 font-medium">actual</span>}
+                {isOccupied && !isCurrent && <span className="text-xs text-gray-400">en otro slot</span>}
+              </button>
+            );
+          })}
+        </div>
+
+        {currentWorkerId && (
+          <div className="border-t border-gray-200 px-4 py-2.5">
+            <button
+              onClick={() => onAssign(null)}
+              className="text-sm text-rose-600 hover:text-rose-800 font-medium"
+            >
+              Quitar asignación
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

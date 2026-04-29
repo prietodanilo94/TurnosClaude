@@ -29,7 +29,7 @@ export default async function AdminDashboard() {
           <p className="text-2xl font-semibold text-gray-900">{branches}</p>
         </div>
         <div className="bg-white border border-gray-200 rounded-lg p-4">
-          <p className="text-xs text-gray-500 mb-1">Trabajadores activos</p>
+          <p className="text-xs text-gray-500 mb-1">Vendedores activos</p>
           <p className="text-2xl font-semibold text-gray-900">{workers}</p>
         </div>
         <div className="bg-white border border-gray-200 rounded-lg p-4">

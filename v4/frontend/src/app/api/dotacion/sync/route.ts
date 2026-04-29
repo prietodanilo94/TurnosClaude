@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
           workersUpserted++;
         }
 
-        // Desactivar trabajadores que ya no están en el archivo (para este equipo)
+        // Desactivar vendedores que ya no están en el archivo (para este equipo)
         const toDeactivate = await prisma.worker.findMany({
           where: { branchTeamId: team.id, activo: true, rut: { notIn: [...incomingRuts] } },
         });

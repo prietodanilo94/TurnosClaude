@@ -31,3 +31,11 @@ export async function PUT(req: NextRequest) {
   });
   return NextResponse.json({ id: cal.id });
 }
+
+export async function DELETE(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get("id");
+  if (!id) return NextResponse.json({ error: "Falta id" }, { status: 400 });
+  await prisma.calendar.delete({ where: { id } });
+  return NextResponse.json({ ok: true });
+}

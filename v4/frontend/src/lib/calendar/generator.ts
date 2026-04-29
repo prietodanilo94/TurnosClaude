@@ -19,7 +19,7 @@ export interface GenerateResult {
 
 /**
  * Genera los slots del calendario para un mes completo.
- * - workerCount: cantidad de trabajadores activos (sin contar virtuales aún).
+ * - workerCount: cantidad de vendedores activos (sin contar virtuales aún).
  * - Para rotación biweekly: slot i parte en semana (i-1) % 2.
  * - Para rotación 4weekly:  slot i parte en semana (i-1) % 4.
  * - Para horario fijo:      todos tienen siempre semana 0.
@@ -38,36 +38,42 @@ export function generateCalendar(
 
   let alert: string | undefined;
   if (workerCount === 1) {
-    alert = "Solo hay 1 trabajador. No es posible generar una rotación adecuada.";
+    alert = "Solo hay 1 vendedor. No es posible generar una rotación adecuada.";
   } else if (workerCount === 3 && rotLen === 4) {
     alert =
-      "Con 3 trabajadores en rotación de 4 semanas, queda un puesto descubierto. " +
+      "Con 3 vendedores en rotación de 4 semanas, queda un puesto descubierto. " +
       "El jefe debe cubrir manualmente ese turno.";
   }
+
+  // Rango extendido: lunes de la semana del día 1 → domingo de la semana del último día.
+  // Esto permite mostrar la grilla completa por semanas ISO en el calendario v4.
+  const firstDay = new Date(year, month - 1, 1);
+  const lastDayDate = new Date(year, month, 0);
+  const startMonday = new Date(firstDay);
+  startMonday.setDate(firstDay.getDate() - dowIndex(firstDay));
+  const endSunday = new Date(lastDayDate);
+  endSunday.setDate(lastDayDate.getDate() + (6 - dowIndex(lastDayDate)));
 
   const slots: CalendarSlot[] = [];
 
   for (let slotNum = 1; slotNum <= workerCount; slotNum++) {
     const days: Record<string, DayShift | null> = {};
 
-    // Recorrer todos los días del mes
-    const lastDay = new Date(year, month, 0).getDate();
-    for (let d = 1; d <= lastDay; d++) {
-      const date = new Date(year, month - 1, d);
-      const dateStr = fmt(date);
+    const cur = new Date(startMonday);
+    while (cur <= endSunday) {
+      const dateStr = fmt(cur);
 
-      // Número de semana ISO del lunes de esa semana (0-indexed desde epoch)
-      const monday = new Date(date);
-      monday.setDate(date.getDate() - dowIndex(date));
+      const monday = new Date(cur);
+      monday.setDate(cur.getDate() - dowIndex(cur));
       const isoWeek = Math.floor(monday.getTime() / (7 * 24 * 3600 * 1000));
 
-      // Para horario fijo (1 semana) siempre usa índice 0.
-      // Para rotativos: la semana base del slot es (slotNum - 1).
       const baseOffset = rotLen === 1 ? 0 : slotNum - 1;
       const weekIdx = (isoWeek + baseOffset) % rotLen;
 
-      const dow = dowIndex(date);
+      const dow = dowIndex(cur);
       days[dateStr] = pattern.rotationWeeks[weekIdx][dow] ?? null;
+
+      cur.setDate(cur.getDate() + 1);
     }
 
     slots.push({ slotNumber: slotNum, days });

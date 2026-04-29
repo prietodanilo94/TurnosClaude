@@ -62,6 +62,7 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
     <CalendarView
       branchId={params.id}
       branchName={team.branch.nombre}
+      branchCodigo={team.branch.codigo}
       teamId={team.id}
       areaNegocio={team.areaNegocio as "ventas" | "postventa"}
       categoria={team.categoria as ShiftCategory}

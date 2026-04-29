@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parseDotacionExcel } from "@/lib/excel/parser";
+import { computeDotacionDiff } from "@/lib/dotacion/diff";
 
 export async function POST(req: NextRequest) {
   try {
@@ -11,11 +12,13 @@ export async function POST(req: NextRequest) {
     const { rows, errors } = parseDotacionExcel(buffer);
 
     const branches = new Set(rows.map((r) => r.codigoBranch));
+    const diff = await computeDotacionDiff(rows);
 
     return NextResponse.json({
       rowCount: rows.length,
       branchCount: branches.size,
       errors,
+      diff,
     });
   } catch (e: unknown) {
     return NextResponse.json(

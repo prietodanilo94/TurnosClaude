@@ -7,9 +7,10 @@ interface Props {
   teamId: string;
   current: ShiftCategory | null;
   options: { id: string; label: string }[];
+  compact?: boolean;
 }
 
-export default function CategorySelector({ teamId, current, options }: Props) {
+export default function CategorySelector({ teamId, current, options, compact }: Props) {
   const [value, setValue] = useState<string>(current ?? "");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -41,15 +42,19 @@ export default function CategorySelector({ teamId, current, options }: Props) {
     }
   }
 
+  const selectClass = compact
+    ? "px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 max-w-[260px]"
+    : "px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50";
+
   return (
-    <div className="flex items-center gap-3">
+    <div className={compact ? "flex items-center gap-2" : "flex items-center gap-3"}>
       <select
         value={value}
         onChange={(e) => handleChange(e.target.value)}
         disabled={saving}
-        className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+        className={selectClass}
       >
-        <option value="">— Seleccionar categoría —</option>
+        <option value="">— Sin asignar —</option>
         {options.map((opt) => (
           <option key={opt.id} value={opt.id}>
             {opt.label}
@@ -57,8 +62,8 @@ export default function CategorySelector({ teamId, current, options }: Props) {
         ))}
       </select>
 
-      {saving && <span className="text-xs text-gray-400">Guardando…</span>}
-      {saved && <span className="text-xs text-green-600">✓ Guardado</span>}
+      {saving && <span className="text-xs text-gray-400">…</span>}
+      {saved && <span className="text-xs text-green-600">✓</span>}
       {error && <span className="text-xs text-red-600">{error}</span>}
     </div>
   );
