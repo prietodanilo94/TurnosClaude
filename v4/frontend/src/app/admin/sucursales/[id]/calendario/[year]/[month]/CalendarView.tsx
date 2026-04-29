@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { workerColor, UNASSIGNED_COLOR } from "@/components/calendar/worker-colors";
+import { workerColor } from "@/components/calendar/worker-colors";
 import type { CalendarSlot, DayShift, ShiftCategory, WorkerInfo } from "@/types";
 import { CATEGORY_LABELS } from "@/lib/patterns/catalog";
 
@@ -324,8 +324,8 @@ function WeekBlock({ week, month, slots, assign, workerMap, onSlotClick }: WeekB
             {slots.map((slot, idx) => {
               const workerId = assign[String(slot.slotNumber)] ?? null;
               const workerName = workerId ? (workerMap[workerId] ?? "?") : `Vendedor ${slot.slotNumber}`;
-              const color = workerId ? workerColor(slot.slotNumber) : UNASSIGNED_COLOR;
-              const altRow = idx % 2 === 1 ? "bg-gray-50/50" : "";
+              const color = workerColor(slot.slotNumber);
+              const altRow = idx % 2 === 1 ? "bg-gray-50/30" : "";
 
               let totalHours = 0;
               const cells = week.map((d, ci) => {
@@ -358,11 +358,15 @@ function WeekBlock({ week, month, slots, assign, workerMap, onSlotClick }: WeekB
                       }`}
                     >
                       {shift ? (
-                        <div className={`px-1 py-1 rounded ${color.bg} ${color.text} border ${color.border}`}>
+                        <div className={`px-1 py-1 rounded border text-xs ${
+                          workerId
+                            ? `${color.bg} ${color.text} ${color.border}`
+                            : "bg-gray-50 text-gray-400 border-gray-200"
+                        }`}>
                           {shift.start}–{shift.end}
                         </div>
                       ) : (
-                        <span className="text-gray-300 italic">libre</span>
+                        <span className="text-gray-300 italic text-[11px]">libre</span>
                       )}
                     </td>
                   ))}
@@ -407,31 +411,30 @@ function AssignDialog({ slotNumber, currentWorkerId, workers, occupied, onClose,
         </div>
 
         <div className="max-h-80 overflow-y-auto">
-          {workers.length === 0 && (
-            <p className="px-4 py-6 text-sm text-gray-500 text-center">No hay vendedores activos.</p>
+          {workers.filter((w) => !occupied.has(w.id) || w.id === currentWorkerId).length === 0 && (
+            <p className="px-4 py-6 text-sm text-gray-500 text-center">No hay vendedores disponibles.</p>
           )}
-          {workers.map((w) => {
-            const isCurrent = w.id === currentWorkerId;
-            const isOccupied = occupied.has(w.id);
-            return (
-              <button
-                key={w.id}
-                onClick={() => onAssign(w.id)}
-                disabled={isOccupied}
-                className={`w-full text-left px-4 py-2.5 flex items-center gap-3 border-b border-gray-100 last:border-b-0 transition-colors ${
-                  isCurrent ? "bg-blue-50" : "hover:bg-gray-50"
-                } ${isOccupied ? "opacity-40 cursor-not-allowed" : ""}`}
-              >
-                <span className={`w-2.5 h-2.5 rounded-full ${color.bg} border ${color.border}`} />
-                <span className="text-sm text-gray-800 flex-1 truncate">
-                  {w.nombre}
-                  {w.esVirtual && <span className="ml-1 text-xs text-gray-400">(virtual)</span>}
-                </span>
-                {isCurrent && <span className="text-xs text-blue-600 font-medium">actual</span>}
-                {isOccupied && !isCurrent && <span className="text-xs text-gray-400">en otro slot</span>}
-              </button>
-            );
-          })}
+          {workers
+            .filter((w) => !occupied.has(w.id) || w.id === currentWorkerId)
+            .map((w) => {
+              const isCurrent = w.id === currentWorkerId;
+              return (
+                <button
+                  key={w.id}
+                  onClick={() => onAssign(w.id)}
+                  className={`w-full text-left px-4 py-2.5 flex items-center gap-3 border-b border-gray-100 last:border-b-0 transition-colors ${
+                    isCurrent ? "bg-blue-50 hover:bg-blue-100" : "hover:bg-gray-50"
+                  }`}
+                >
+                  <span className={`w-2.5 h-2.5 rounded-full ${color.bg} border ${color.border}`} />
+                  <span className="text-sm text-gray-800 flex-1 truncate">
+                    {w.nombre}
+                    {w.esVirtual && <span className="ml-1 text-xs text-gray-400">(virtual)</span>}
+                  </span>
+                  {isCurrent && <span className="text-xs text-blue-600 font-medium">actual</span>}
+                </button>
+              );
+            })}
         </div>
 
         {currentWorkerId && (
