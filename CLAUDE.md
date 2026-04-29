@@ -68,6 +68,14 @@
 
 **Verificado en producción**: login 200, `/admin`, `/admin/sucursales`, `/admin/dotacion` 200 con cookie; sin cookie → 307 a `/login`. DB en volumen `v4_data:/data/v4.db`.
 
+**Update 2026-04-29 — rediseño UI v4**:
+- Calendario: layout semanal ISO (Sem N + rango fechas), colores por slot, modal "Asignar vendedor" (asigna todo el mes), selector mes/año con continuidad, generator extiende a semanas ISO completas.
+- Dotación: diff inteligente (nuevos/modificados/desactivar/sucursales nuevas) antes de sync; botón "Ir a Sucursales" tras confirmar.
+- Sucursales: categoría editable inline en listado; "Ver calendario" va directo al calendar (omite página intermedia).
+- UI: Trabajador → Vendedor en todos los textos.
+- Exports: "Exportar Calendario" = visual semanal estilo v1 (xlsx con colores y Hrs Sem); "Exportar Excel" = formato RRHH (RUT sin DV, DIA1-DIA31, `HH:MM a HH:MM`).
+- API: `DELETE /api/calendars?id=` para recalcular (borra calendar y regenera limpio).
+
 ---
 
 ## v1/v2/v3 — Resumen (referencia)
