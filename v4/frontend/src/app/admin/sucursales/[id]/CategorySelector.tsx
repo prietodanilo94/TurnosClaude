@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import type { ShiftCategory } from "@/types";
 
 interface Props {
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export default function CategorySelector({ teamId, current, options, compact }: Props) {
+  const router = useRouter();
   const [value, setValue] = useState<string>(current ?? "");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -35,6 +37,7 @@ export default function CategorySelector({ teamId, current, options, compact }: 
       }
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
+      router.refresh();
     } catch {
       setError("Error de conexión");
     } finally {
