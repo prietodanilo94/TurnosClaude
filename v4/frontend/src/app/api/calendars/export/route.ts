@@ -220,10 +220,9 @@ function buildRrhhExcel(
   workerMap: Record<string, string>,
   workerRutMap: Record<string, string>,
 ): Buffer {
-  const lastDay = new Date(year, month, 0).getDate();
-
+  // Siempre 31 columnas de días (días inexistentes quedan vacíos)
   const header: string[] = ["RUT"];
-  for (let d = 1; d <= lastDay; d++) header.push(`DIA${d}`);
+  for (let d = 1; d <= 31; d++) header.push(`DIA${d}`);
 
   const wsData: (string | number)[][] = [header];
 
@@ -235,16 +234,17 @@ function buildRrhhExcel(
     if (!rut) continue;
 
     const row: (string | number)[] = [rut];
-    for (let d = 1; d <= lastDay; d++) {
+    for (let d = 1; d <= 31; d++) {
       const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
       const shift: DayShift | null = slot.days[dateStr] ?? null;
+      // libre = celda vacía; turno = "HH:MM a HH:MM"
       row.push(shift ? `${shift.start} a ${shift.end}` : "");
     }
     wsData.push(row);
   }
 
   const ws = XLSX.utils.aoa_to_sheet(wsData);
-  ws["!cols"] = [{ wch: 12 }, ...Array(lastDay).fill({ wch: 14 })];
+  ws["!cols"] = [{ wch: 12 }, ...Array(31).fill({ wch: 14 })];
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Turnos RRHH");

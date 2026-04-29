@@ -218,3 +218,17 @@ export function getPatternsByArea(area: "ventas" | "postventa"): ShiftPatternDef
 export const CATEGORY_LABELS: Record<ShiftCategory, string> = Object.fromEntries(
   PATTERNS.map((p) => [p.id, p.label]),
 ) as Record<ShiftCategory, string>;
+
+export function getOperatingHours(id: ShiftCategory): string {
+  const pattern = getPattern(id);
+  let minStart = "23:59";
+  let maxEnd = "00:00";
+  for (const week of pattern.rotationWeeks) {
+    for (const shift of week) {
+      if (!shift) continue;
+      if (shift.start < minStart) minStart = shift.start;
+      if (shift.end > maxEnd) maxEnd = shift.end;
+    }
+  }
+  return minStart === "23:59" ? "" : `${minStart}–${maxEnd}`;
+}

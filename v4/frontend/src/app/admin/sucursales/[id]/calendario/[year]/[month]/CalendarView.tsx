@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { workerColor } from "@/components/calendar/worker-colors";
 import type { CalendarSlot, DayShift, ShiftCategory, WorkerInfo } from "@/types";
-import { CATEGORY_LABELS } from "@/lib/patterns/catalog";
+import { getOperatingHours } from "@/lib/patterns/catalog";
 
 const DOW_LABELS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 const MONTH_NAMES = [
@@ -98,7 +98,7 @@ export default function CalendarView({
 
   const weeks = useMemo(() => buildIsoWeeks(year, month), [year, month]);
 
-  async function handleSave() {
+  async function handleSave(): Promise<string | null> {
     setSaving(true);
     try {
       const res = await fetch("/api/calendars", {
@@ -110,7 +110,9 @@ export default function CalendarView({
         const d = await res.json();
         setCalId(d.id);
         setDirty(false);
+        return d.id as string;
       }
+      return null;
     } finally {
       setSaving(false);
     }
@@ -139,9 +141,17 @@ export default function CalendarView({
     setDialogSlot(null);
   }
 
-  function handleExport(mode: "calendar" | "rrhh") {
-    const url = `/api/calendars/export?teamId=${teamId}&year=${year}&month=${month}&mode=${mode}`;
-    window.open(url, "_blank");
+  async function handleExport(mode: "calendar" | "rrhh") {
+    if (mode === "rrhh") {
+      const unassigned = slots.filter((s) => !assign[String(s.slotNumber)]);
+      if (unassigned.length > 0) {
+        alert(`Hay ${unassigned.length} vendedor(es) sin asignar. Asigna todos los slots antes de exportar el Excel RRHH.`);
+        return;
+      }
+    }
+    const id = await handleSave();
+    if (!id) return;
+    window.open(`/api/calendars/export?teamId=${teamId}&year=${year}&month=${month}&mode=${mode}`, "_blank");
   }
 
   // Vendedores ya asignados a otros slots (para mostrar quiénes están ocupados)
@@ -166,13 +176,13 @@ export default function CalendarView({
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">{branchName}</h1>
           <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-            <span>Código {branchCodigo}</span>
+            <span>{branchCodigo}</span>
             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
               areaNegocio === "ventas" ? "bg-blue-100 text-blue-800" : "bg-emerald-100 text-emerald-800"
             }`}>
               {areaNegocio === "ventas" ? "Ventas" : "Postventa"}
             </span>
-            <span>{CATEGORY_LABELS[categoria]}</span>
+            <span>{getOperatingHours(categoria)}</span>
           </div>
         </div>
 
