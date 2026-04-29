@@ -30,6 +30,14 @@ function parseAreaCodigo(raw: string): { codigo: string; nombre: string } | null
   return { codigo: match[1].trim(), nombre: match[2].trim() };
 }
 
+function normalizeBranchName(raw: string): string {
+  return raw
+    .replace(/\bseminuevos\b/gi, "Usados")
+    .replace(/\blocal\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function normalizeAreaNegocio(raw: string): AreaNegocio | null {
   const v = raw.trim().toLowerCase();
   if (v.includes("venta")) return "ventas";
@@ -107,7 +115,7 @@ export function parseDotacionExcel(buffer: ArrayBuffer): ParseResult {
       rut,
       nombre: rawNombre,
       codigoBranch: area.codigo,
-      nombreBranch: area.nombre,
+      nombreBranch: normalizeBranchName(area.nombre),
       areaNegocio,
       supervisor: rawSupervisor || undefined,
       filaExcel: fila,

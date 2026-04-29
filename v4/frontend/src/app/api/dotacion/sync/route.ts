@@ -3,6 +3,14 @@ import { parseDotacionExcel } from "@/lib/excel/parser";
 import { prisma } from "@/lib/db/prisma";
 import type { AreaNegocio } from "@/types";
 
+function normalizeBranchName(raw: string): string {
+  return raw
+    .replace(/\bseminuevos\b/gi, "Usados")
+    .replace(/\blocal\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export async function POST(req: NextRequest) {
   try {
     const form = await req.formData();
@@ -75,6 +83,15 @@ export async function POST(req: NextRequest) {
           });
           workersDeactivated += toDeactivate.length;
         }
+      }
+    }
+
+    // Normalizar nombres de sucursales existentes (quitar "local", "Seminuevos" → "Usados")
+    const allBranches = await prisma.branch.findMany({ select: { id: true, nombre: true } });
+    for (const b of allBranches) {
+      const normalized = normalizeBranchName(b.nombre);
+      if (normalized !== b.nombre) {
+        await prisma.branch.update({ where: { id: b.id }, data: { nombre: normalized } });
       }
     }
 

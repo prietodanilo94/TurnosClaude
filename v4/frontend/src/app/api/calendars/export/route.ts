@@ -193,7 +193,7 @@ function buildCalendarExcel(
       });
 
       ws[XLSX.utils.encode_cell({ r: row - 1, c: 8 })] = {
-        v: totalH > 0 ? `${totalH.toFixed(1)}h` : "—", t: "s",
+        v: totalH > 0 ? `${Number.isInteger(totalH) ? totalH : totalH.toFixed(1)}h` : "—", t: "s",
         s: { font: { bold: true, sz: 9 }, fill: altFill, alignment: { horizontal: "right" } },
       };
       row++;
