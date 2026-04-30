@@ -47,6 +47,20 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
 
   const workerCount = team.workers.length;
 
+  // Meses vecinos (para herencia de asignaciones y días de frontera)
+  const prevYear  = month === 1  ? year - 1 : year;
+  const prevMonth = month === 1  ? 12 : month - 1;
+  const nextYear  = month === 12 ? year + 1 : year;
+  const nextMonth = month === 12 ? 1  : month + 1;
+
+  const [prevCal, nextCal] = await Promise.all([
+    prisma.calendar.findFirst({ where: { branchTeamId: team.id, year: prevYear,  month: prevMonth } }),
+    prisma.calendar.findFirst({ where: { branchTeamId: team.id, year: nextYear,  month: nextMonth } }),
+  ]);
+
+  const prevAssignments: Record<string, string | null> = prevCal ? JSON.parse(prevCal.assignments) : {};
+  const nextAssignments: Record<string, string | null> = nextCal ? JSON.parse(nextCal.assignments) : {};
+
   // Generar o recuperar slots
   let slots: CalendarSlot[];
   let assignments: Record<string, string | null> = {};
@@ -62,6 +76,10 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
     const result = generateCalendar(team.categoria as ShiftCategory, year, month, workerCount);
     slots = result.slots;
     alert = result.alert;
+    // Heredar asignaciones del mes anterior como punto de partida
+    if (Object.keys(prevAssignments).length > 0) {
+      assignments = { ...prevAssignments };
+    }
   }
 
   const workerMap = Object.fromEntries(team.workers.map((w) => [w.id, w.nombre]));
@@ -82,6 +100,10 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
       workerMap={workerMap}
       calendarId={calendarId}
       generateAlert={alert}
+      prevAssignments={prevAssignments}
+      nextAssignments={nextAssignments}
+      currentYear={year}
+      currentMonth={month}
     />
   );
 }

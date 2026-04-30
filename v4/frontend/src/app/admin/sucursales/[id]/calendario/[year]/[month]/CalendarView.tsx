@@ -94,11 +94,16 @@ interface Props {
   workerMap: Record<string, string>;
   calendarId?: string;
   generateAlert?: string;
+  prevAssignments?: Record<string, string | null>;
+  nextAssignments?: Record<string, string | null>;
+  currentYear?: number;
+  currentMonth?: number;
 }
 
 export default function CalendarView({
   branchId, branchName, branchCodigo, teamId, areaNegocio, categoria,
   year, month, slots, assignments, workers, workerMap, calendarId, generateAlert,
+  prevAssignments = {}, nextAssignments = {}, currentYear, currentMonth,
 }: Props) {
   const router = useRouter();
   const [assign, setAssign] = useState<Record<string, string | null>>(assignments);
@@ -301,9 +306,11 @@ export default function CalendarView({
             <WeekBlock
               key={wi}
               week={week}
-              month={month}
+              month={currentMonth ?? month}
               slots={slots}
               assign={assign}
+              prevAssignments={prevAssignments}
+              nextAssignments={nextAssignments}
               workerMap={workerMap}
               onSlotClick={(n) => setDialogSlot(n)}
               selectedDay={selectedDay}
@@ -348,13 +355,22 @@ interface WeekBlockProps {
   month: number;
   slots: CalendarSlot[];
   assign: Record<string, string | null>;
+  prevAssignments: Record<string, string | null>;
+  nextAssignments: Record<string, string | null>;
   workerMap: Record<string, string>;
   onSlotClick: (slotNum: number) => void;
   selectedDay: string | null;
   onDayClick: (dateStr: string) => void;
 }
 
-function WeekBlock({ week, month, slots, assign, workerMap, onSlotClick, selectedDay, onDayClick }: WeekBlockProps) {
+function WeekBlock({ week, month, slots, assign, prevAssignments, nextAssignments, workerMap, onSlotClick, selectedDay, onDayClick }: WeekBlockProps) {
+  // Determinar asignaciones según si el día es del mes actual, anterior o siguiente
+  function assignForDay(d: Date): Record<string, string | null> {
+    const dm = d.getMonth() + 1;
+    if (dm < month || (dm === 12 && month === 1)) return prevAssignments;
+    if (dm > month || (dm === 1 && month === 12)) return nextAssignments;
+    return assign;
+  }
   const isoWeek = isoWeekNumber(week[0]);
   const rangeLabel = fmtDateRange(week[0], week[6]);
   const weekDateStrs = week.map(fmt);
@@ -435,7 +451,10 @@ function WeekBlock({ week, month, slots, assign, workerMap, onSlotClick, selecte
                 const inMonth = d.getMonth() + 1 === month;
                 const feriado = isFeriadoIrrenunciable(d);
                 if (shift && !feriado) totalHours += shiftDuration(shift);
-                return { dateStr, shift, inMonth, ci, feriado };
+                const dayAssign = assignForDay(d);
+                const dayWorkerId = dayAssign[String(slot.slotNumber)] ?? null;
+                const dayWorkerName = dayWorkerId ? (workerMap[dayWorkerId] ?? "?") : null;
+                return { dateStr, shift, inMonth, ci, feriado, dayWorkerId, dayWorkerName };
               });
 
               return (
@@ -452,20 +471,23 @@ function WeekBlock({ week, month, slots, assign, workerMap, onSlotClick, selecte
                       </span>
                     </div>
                   </td>
-                  {cells.map(({ shift, inMonth, ci, feriado }) => (
+                  {cells.map(({ shift, inMonth, ci, feriado, dayWorkerId, dayWorkerName }) => (
                     <td
                       key={ci}
-                      className={`px-1 py-1.5 text-center text-xs border-l border-gray-100 ${inMonth ? "" : "opacity-40"} ${feriado ? "bg-red-50/60" : ""}`}
+                      className={`px-1 py-1.5 text-center text-xs border-l border-gray-100 ${inMonth ? "" : "opacity-50"} ${feriado ? "bg-red-50/60" : ""}`}
                     >
                       {feriado ? (
                         <span className="text-[10px] font-medium text-red-400 italic">Feriado</span>
                       ) : shift ? (
                         <div className={`px-1 py-1 rounded border text-xs ${
-                          workerId
+                          dayWorkerId
                             ? `${color.bg} ${color.text} ${color.border}`
                             : "bg-gray-50 text-gray-400 border-gray-200"
                         }`}>
                           {shift.start}–{shift.end}
+                          {!inMonth && dayWorkerName && (
+                            <div className="text-[8px] leading-none mt-0.5 opacity-70 truncate">{dayWorkerName.split(" ")[0]}</div>
+                          )}
                         </div>
                       ) : (
                         <span className="text-gray-300 italic text-[11px]">libre</span>
