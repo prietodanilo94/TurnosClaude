@@ -56,7 +56,10 @@
 - `v4/frontend/src/lib/excel/parser.ts` — Columnas `Rut`, `Nombre`, `Área`, `Área de Negocio` (acepta `Servicios` como Postventa). Categoría asignada por combinación Sucursal + Área de Negocio.
 - `v4/frontend/src/app/admin/sucursales/[id]/calendario/[year]/[month]/CalendarView.tsx` — Vistas global + por trabajador. Celdas muestran primer nombre del worker asignado (click = seleccionar slot).
 - 2 exports Excel: `plantilla` (slots genéricos) / `asignado` (nombres reales).
-- Auth: `/api/auth/login` valida bcrypt, setea cookie. Middleware protege `/admin/*`.
+- Auth: `/api/auth/login` acepta email (admin/jefe) o RUT (vendedor). Middleware protege `/admin/*` y `/vendedor/*`. Vendedores redirigen a `/vendedor`.
+- `Worker.passwordHash String?` — opcional, habilitado por admin/jefe desde `/admin/sucursales/[id]` (WorkerAccessManager).
+- `/vendedor/[year]/[month]` — vista mensual personal con semanas ISO, horas/sem, navegación mes. Solo muestra el slot asignado al worker logueado.
+- Sucursales listado: link "Accesos" (admin only) → gestión de contraseñas de vendedores por equipo.
 
 **Despliegue v4 — gotchas conocidos** (NO repetir):
 1. Next.js `@next/env` expande `$VAR` en `.env`: escapar bcrypt hash como `\$2a\$12\$...` localmente.
@@ -75,6 +78,12 @@
 - UI: Trabajador → Vendedor en todos los textos.
 - Exports: "Exportar Calendario" = visual semanal estilo v1 (xlsx con colores y Hrs Sem); "Exportar Excel" = formato RRHH (RUT sin DV, DIA1-DIA31, `HH:MM a HH:MM`).
 - API: `DELETE /api/calendars?id=` para recalcular (borra calendar y regenera limpio).
+
+**Update 2026-04-30 — rol vendedor + login RUT**:
+- Calendario: Gantt se abre entre cabecera y filas (colSpan tr), columna Hrs muestra horas laborales (−1h colación), indicador ▾ en todos los días.
+- Auth: login por RUT para vendedores; sesión incluye `workerId` + `nombre`; middleware redirige vendedor → `/vendedor`, jefe desde `/admin` → `/sucursales`.
+- Vendedor: `/vendedor/[year]/[month]` calendario mensual personal con semanas ISO y totales; WorkerAccessManager en detalle sucursal para set/clear contraseñas.
+- Admin UI: buscador en modal Usuarios; endpoint `normalize-branches` para limpiar nombres en DB; link "Accesos" (admin only) en listado sucursales.
 
 ---
 
