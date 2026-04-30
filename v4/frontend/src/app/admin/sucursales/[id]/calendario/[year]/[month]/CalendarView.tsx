@@ -394,7 +394,7 @@ function WeekBlock({ week, month, slots, assign, workerMap, onSlotClick, selecte
                     ) : isFeriado ? (
                       <div className="text-[9px] font-normal text-red-500 leading-none mt-0.5">feriado</div>
                     ) : (
-                      <div className="text-[8px] opacity-25 leading-none mt-0.5">▾</div>
+                      <div className="text-[9px] text-blue-400 opacity-60 leading-none mt-0.5">⌄</div>
                     )}
                   </th>
                 );
@@ -697,31 +697,20 @@ function VendedorCalendar({ slot, year, month, weeks, assign, workerMap }: Vende
 
   const weekData = weeks.map((week) => {
     const isoWeek = isoWeekNumber(week[0]);
-    let weekHours = 0;
     const days = week.map((d) => {
       const dateStr = fmt(d);
       const shift = slot.days[dateStr] ?? null;
       const inMonth = d.getMonth() + 1 === month;
       const feriado = isFeriadoIrrenunciable(d);
-      if (shift && !feriado && inMonth) weekHours += shiftDuration(shift);
       return { d, shift, inMonth, feriado };
     });
-    return { isoWeek, days, weekHours };
+    return { isoWeek, days };
   });
-
-  const totalHours = weekData.reduce((s, w) => s + w.weekHours, 0);
-  const totalDays  = weekData.reduce(
-    (s, w) => s + w.days.filter(({ shift, feriado, inMonth }) => shift && !feriado && inMonth).length,
-    0,
-  );
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
       <div className={`px-4 py-2 flex items-center gap-3 border-b ${color.border} ${color.bg}`}>
         <span className={`text-sm font-semibold ${color.text}`}>{workerName}</span>
-        <span className={`text-xs ${color.text} opacity-70 ml-auto`}>
-          {totalDays} días · {fmtHours(totalHours)} mensuales
-        </span>
       </div>
 
       <div className="overflow-x-auto">
@@ -732,11 +721,10 @@ function VendedorCalendar({ slot, year, month, weeks, assign, workerMap }: Vende
               {DOW_LABELS.map((d) => (
                 <th key={d} className="px-2 py-1.5 text-center text-gray-400 font-medium">{d}</th>
               ))}
-              <th className="px-2 py-1.5 text-center text-gray-400 font-medium border-l border-gray-100">Hrs</th>
             </tr>
           </thead>
           <tbody>
-            {weekData.map(({ isoWeek, days, weekHours }, wi) => (
+            {weekData.map(({ isoWeek, days }, wi) => (
               <tr key={wi} className="border-t border-gray-50">
                 <td className="px-3 py-1.5 text-gray-300 font-medium text-center">{isoWeek}</td>
                 {days.map(({ d, shift, inMonth, feriado }, ci) => {
@@ -762,9 +750,6 @@ function VendedorCalendar({ slot, year, month, weeks, assign, workerMap }: Vende
                     </td>
                   );
                 })}
-                <td className="px-2 py-1.5 text-center text-xs font-semibold text-gray-500 border-l border-gray-100">
-                  {weekHours > 0 ? fmtHours(weekHours) : "—"}
-                </td>
               </tr>
             ))}
           </tbody>
