@@ -394,7 +394,7 @@ function WeekBlock({ week, month, slots, assign, workerMap, onSlotClick, selecte
                     ) : isFeriado ? (
                       <div className="text-[9px] font-normal text-red-500 leading-none mt-0.5">feriado</div>
                     ) : (
-                      <div className="text-[9px] text-blue-400 opacity-60 leading-none mt-0.5">⌄</div>
+                      <div className="text-[10px] text-blue-400 leading-none mt-0.5">▾</div>
                     )}
                   </th>
                 );
