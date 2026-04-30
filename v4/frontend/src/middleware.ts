@@ -12,6 +12,16 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(new URL("/login", req.url));
     }
 
+    // Vendedores no pueden acceder a /admin
+    if (session.role === "vendedor") {
+      return NextResponse.redirect(new URL("/vendedor", req.url));
+    }
+
+    // Jefes van directo a sucursales desde el dashboard
+    if (pathname === "/admin" && session.role === "jefe") {
+      return NextResponse.redirect(new URL("/admin/sucursales", req.url));
+    }
+
     const isAdminOnly = ADMIN_ONLY.some((p) => pathname === p || pathname.startsWith(p + "/"));
     if (isAdminOnly && session.role !== "admin") {
       return NextResponse.redirect(new URL("/admin/sucursales", req.url));
@@ -23,9 +33,17 @@ export async function middleware(req: NextRequest) {
     return res;
   }
 
+  if (pathname.startsWith("/vendedor")) {
+    const session = await getSessionFromRequest(req);
+    if (!session || session.role !== "vendedor") {
+      return NextResponse.redirect(new URL("/login", req.url));
+    }
+    return NextResponse.next();
+  }
+
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: ["/admin/:path*", "/vendedor/:path*"],
 };

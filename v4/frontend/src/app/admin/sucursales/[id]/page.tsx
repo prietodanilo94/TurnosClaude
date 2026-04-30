@@ -1,9 +1,11 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/db/prisma";
-import { getAllPatterns, CATEGORY_LABELS } from "@/lib/patterns/catalog";
+import { getAllPatterns } from "@/lib/patterns/catalog";
+import { getSession } from "@/lib/auth/session";
 import type { ShiftCategory } from "@/types";
 import CategorySelector from "./CategorySelector";
+import WorkerAccessManager from "./WorkerAccessManager";
 
 interface Props {
   params: { id: string };
@@ -13,6 +15,15 @@ interface Props {
 export const dynamic = "force-dynamic";
 
 export default async function BranchDetailPage({ params, searchParams }: Props) {
+  const session = await getSession();
+  const isAdmin = session?.role === "admin";
+
+  // Verificar acceso para jefes
+  if (session?.role === "jefe") {
+    const allowed = session.branchIds ?? [];
+    if (!allowed.includes(params.id)) notFound();
+  }
+
   const branch = await prisma.branch.findUnique({
     where: { id: params.id },
     include: {
@@ -27,7 +38,6 @@ export default async function BranchDetailPage({ params, searchParams }: Props) 
 
   if (!branch) notFound();
 
-  // Si hay query ?team=, mostrar solo ese equipo; si no, mostrar todos
   const teams = searchParams.team
     ? branch.teams.filter((t) => t.id === searchParams.team)
     : branch.teams;
@@ -58,6 +68,13 @@ export default async function BranchDetailPage({ params, searchParams }: Props) 
             workerCount === 3 &&
             allPatterns.find((p) => p.id === team.categoria)?.rotationWeeks.length === 4;
 
+          const workersForAccess = team.workers.map((w) => ({
+            id: w.id,
+            nombre: w.nombre,
+            rut: w.rut,
+            hasPassword: !!w.passwordHash,
+          }));
+
           return (
             <div key={team.id} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
               <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
@@ -68,51 +85,41 @@ export default async function BranchDetailPage({ params, searchParams }: Props) 
                 }`}>
                   {team.areaNegocio === "ventas" ? "Ventas" : "Postventa"}
                 </span>
-                <span className="text-xs text-gray-500">{workerCount} trabajador{workerCount !== 1 ? "es" : ""}</span>
+                <span className="text-xs text-gray-500">{workerCount} vendedor{workerCount !== 1 ? "es" : ""}</span>
               </div>
 
               <div className="p-4 space-y-4">
-                {/* Selector de categoría */}
-                <div>
-                  <p className="text-xs font-medium text-gray-700 mb-2">Categoría de turno</p>
-                  <CategorySelector
-                    teamId={team.id}
-                    current={team.categoria as ShiftCategory | null}
-                    options={allPatterns
-                      .filter((p) => p.areaNegocio === team.areaNegocio)
-                      .map((p) => ({ id: p.id, label: p.label }))}
-                  />
-                </div>
+                {/* Selector de horario */}
+                {isAdmin && (
+                  <div>
+                    <p className="text-xs font-medium text-gray-700 mb-2">Horario</p>
+                    <CategorySelector
+                      teamId={team.id}
+                      current={team.categoria as ShiftCategory | null}
+                      options={allPatterns
+                        .filter((p) => p.areaNegocio === team.areaNegocio)
+                        .map((p) => ({ id: p.id, label: p.label }))}
+                    />
+                  </div>
+                )}
 
-                {/* Alertas */}
                 {needsVirtual && (
                   <div className="bg-orange-50 border border-orange-200 rounded p-3 text-xs text-orange-800">
-                    Solo hay 2 trabajadores. Para generar el calendario se necesita al menos 1 más.
-                    {/* TODO etapa 2: botón agregar trabajador virtual */}
+                    Solo hay 2 vendedores. Para generar el calendario se necesita al menos 1 más.
                     <span className="ml-1 font-medium">(Función disponible próximamente)</span>
                   </div>
                 )}
 
                 {alert3 && (
                   <div className="bg-yellow-50 border border-yellow-200 rounded p-3 text-xs text-yellow-800">
-                    Con 3 trabajadores en rotación de 4 semanas, queda un puesto descubierto.
+                    Con 3 vendedores en rotación de 4 semanas, queda un puesto descubierto.
                     El administrador o jefe debe cubrir ese turno manualmente.
                   </div>
                 )}
 
-                {/* Lista de trabajadores */}
+                {/* Acceso vendedores */}
                 {team.workers.length > 0 && (
-                  <div>
-                    <p className="text-xs font-medium text-gray-700 mb-2">Trabajadores</p>
-                    <ul className="divide-y divide-gray-100 rounded border border-gray-200">
-                      {team.workers.map((w) => (
-                        <li key={w.id} className="flex items-center justify-between px-3 py-2">
-                          <span className="text-sm text-gray-800">{w.nombre}</span>
-                          <span className="text-xs text-gray-400">{w.rut}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+                  <WorkerAccessManager workers={workersForAccess} />
                 )}
 
                 {/* Ir al calendario */}

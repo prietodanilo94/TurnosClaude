@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [credential, setCredential] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -18,14 +18,19 @@ export default function LoginPage() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: credential, password }),
       });
       if (!res.ok) {
         const data = await res.json();
         setError(data.error ?? "Credenciales incorrectas");
         return;
       }
-      router.replace("/admin");
+      const data = await res.json();
+      if (data.role === "vendedor") {
+        router.replace("/vendedor");
+      } else {
+        router.replace("/admin");
+      }
     } catch {
       setError("Error de conexión");
     } finally {
@@ -37,21 +42,21 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="bg-white rounded-lg shadow-md w-full max-w-sm p-8">
         <h1 className="text-lg font-semibold text-gray-900 mb-1">Shift Optimizer</h1>
-        <p className="text-xs text-gray-400 mb-6">Acceso administrador</p>
+        <p className="text-xs text-gray-400 mb-6">Ingresa con tu email o RUT</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">
-              Correo electrónico
+              Email o RUT
             </label>
             <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              type="text"
+              value={credential}
+              onChange={(e) => setCredential(e.target.value)}
               required
               autoFocus
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="admin@ejemplo.cl"
+              placeholder="admin@ejemplo.cl o 12345678-9"
             />
           </div>
 

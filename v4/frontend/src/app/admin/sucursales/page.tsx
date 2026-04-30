@@ -62,7 +62,7 @@ export default async function SucursalesPage() {
                   Área
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Categoría de turno
+                  Horario
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Vendedores
@@ -114,25 +114,35 @@ export default async function SucursalesPage() {
                         {workerCount}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        {canView ? (
-                          <Link
-                            href={`/admin/sucursales/${branch.id}/calendario/${year}/${month}?team=${team.id}`}
-                            className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-                          >
-                            Ver calendario →
-                          </Link>
-                        ) : (
-                          <span
-                            className="text-sm text-gray-300 cursor-not-allowed"
-                            title={
-                              !team.categoria
-                                ? "Selecciona una categoría primero"
-                                : "Se requieren al menos 3 vendedores"
-                            }
-                          >
-                            Ver calendario
-                          </span>
-                        )}
+                        <div className="flex items-center justify-end gap-3">
+                          {isAdmin && (
+                            <Link
+                              href={`/admin/sucursales/${branch.id}`}
+                              className="text-xs text-gray-400 hover:text-gray-600"
+                            >
+                              Accesos
+                            </Link>
+                          )}
+                          {canView ? (
+                            <Link
+                              href={`/admin/sucursales/${branch.id}/calendario/${year}/${month}?team=${team.id}`}
+                              className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                            >
+                              Ver calendario →
+                            </Link>
+                          ) : (
+                            <span
+                              className="text-sm text-gray-300 cursor-not-allowed"
+                              title={
+                                !team.categoria
+                                  ? "Selecciona una categoría primero"
+                                  : "Se requieren al menos 3 vendedores"
+                              }
+                            >
+                              Ver calendario
+                            </span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );

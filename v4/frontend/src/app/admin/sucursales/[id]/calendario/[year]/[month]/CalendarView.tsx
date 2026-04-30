@@ -341,7 +341,7 @@ export default function CalendarView({
   );
 }
 
-// ─── Bloque de semana (con Gantt inline) ──────────────────────────────────────
+// ─── Bloque de semana (con Gantt inline entre header y filas) ─────────────────
 
 interface WeekBlockProps {
   week: Date[];
@@ -389,11 +389,12 @@ function WeekBlock({ week, month, slots, assign, workerMap, onSlotClick, selecte
                     } ${inMonth ? "" : "opacity-50"}`}
                   >
                     {DOW_LABELS[i]} {String(d.getDate()).padStart(2, "0")}
-                    {isFeriado && !isSelected && (
-                      <div className="text-[9px] font-normal text-red-500 leading-none mt-0.5">feriado</div>
-                    )}
-                    {isSelected && (
+                    {isSelected ? (
                       <div className="text-[9px] font-normal leading-none mt-0.5 opacity-80">▼ horarios</div>
+                    ) : isFeriado ? (
+                      <div className="text-[9px] font-normal text-red-500 leading-none mt-0.5">feriado</div>
+                    ) : (
+                      <div className="text-[8px] opacity-25 leading-none mt-0.5">▾</div>
                     )}
                   </th>
                 );
@@ -403,6 +404,23 @@ function WeekBlock({ week, month, slots, assign, workerMap, onSlotClick, selecte
               </th>
             </tr>
           </thead>
+
+          {/* Gantt panel — entre header y filas de vendedores */}
+          {ganttDay && (
+            <tbody>
+              <tr>
+                <td colSpan={9} className="p-0 border-b border-blue-100">
+                  <GanttInline
+                    dateStr={ganttDay}
+                    slots={slots}
+                    assign={assign}
+                    workerMap={workerMap}
+                  />
+                </td>
+              </tr>
+            </tbody>
+          )}
+
           <tbody>
             {slots.map((slot, idx) => {
               const workerId = assign[String(slot.slotNumber)] ?? null;
@@ -463,16 +481,6 @@ function WeekBlock({ week, month, slots, assign, workerMap, onSlotClick, selecte
           </tbody>
         </table>
       </div>
-
-      {/* Gantt inline */}
-      {ganttDay && (
-        <GanttInline
-          dateStr={ganttDay}
-          slots={slots}
-          assign={assign}
-          workerMap={workerMap}
-        />
-      )}
     </div>
   );
 }
@@ -490,7 +498,6 @@ function GanttInline({ dateStr, slots, assign, workerMap }: GanttInlineProps) {
   const date = new Date(dateStr + "T12:00:00");
   const feriado = isFeriadoIrrenunciable(date);
 
-  // Solo slots con turno ese día
   const activeSlots = slots
     .map((slot) => ({
       slot,
@@ -501,13 +508,13 @@ function GanttInline({ dateStr, slots, assign, workerMap }: GanttInlineProps) {
 
   if (activeSlots.length === 0) {
     return (
-      <div className="border-t border-gray-100 px-4 py-3 bg-gray-50 text-xs text-gray-400 italic text-center">
+      <div className="px-4 py-3 bg-blue-50/40 text-xs text-gray-400 italic text-center">
         {feriado ? "Feriado irrenunciable" : "Sin turnos asignados este día"}
       </div>
     );
   }
 
-  // Eje en horas presenciales (sin descontar colación)
+  // Eje en minutos presenciales
   const allStarts = activeSlots.map(({ shift }) => minutesFromTime(shift!.start));
   const allEnds   = activeSlots.map(({ shift }) => minutesFromTime(shift!.end));
   const axisStart = Math.floor(Math.min(...allStarts) / 60) * 60;
@@ -522,13 +529,13 @@ function GanttInline({ dateStr, slots, assign, workerMap }: GanttInlineProps) {
   const NAME_W = "w-28";
 
   return (
-    <div className="border-t border-blue-100 bg-blue-50/30 px-4 pt-2 pb-3">
-      <div className="text-[10px] text-blue-600 font-medium mb-2 uppercase tracking-wide">
-        Horarios del día — {DOW_LABELS[dowIndex(date)]} {String(date.getDate()).padStart(2, "0")}/{String(date.getMonth() + 1).padStart(2, "0")}
+    <div className="bg-gradient-to-b from-blue-50/60 to-white px-4 pt-2.5 pb-3">
+      <div className="text-[10px] text-blue-600 font-semibold mb-2 uppercase tracking-wide">
+        {DOW_LABELS[dowIndex(date)]} {String(date.getDate()).padStart(2, "0")}/{String(date.getMonth() + 1).padStart(2, "0")} — horarios del día
       </div>
 
       {/* Eje de tiempo */}
-      <div className={`flex mb-1`}>
+      <div className="flex mb-1">
         <div className={`${NAME_W} shrink-0`} />
         <div className="flex-1 relative h-4">
           {hourMarks.map((h) => (
@@ -541,7 +548,7 @@ function GanttInline({ dateStr, slots, assign, workerMap }: GanttInlineProps) {
             </div>
           ))}
         </div>
-        <div className="w-10 shrink-0" />
+        <div className="w-12 shrink-0" />
       </div>
 
       {/* Barras */}
@@ -551,7 +558,7 @@ function GanttInline({ dateStr, slots, assign, workerMap }: GanttInlineProps) {
           const color = workerColor(slot.slotNumber);
           const startMin = minutesFromTime(shift!.start);
           const endMin   = minutesFromTime(shift!.end);
-          const presHours = (endMin - startMin) / 60;
+          const labHours = shiftDuration(shift!); // horas laborales (−1h colación si ≥ 6h)
 
           return (
             <div key={slot.slotNumber} className="flex items-center gap-2">
@@ -560,7 +567,6 @@ function GanttInline({ dateStr, slots, assign, workerMap }: GanttInlineProps) {
                 <span className="text-[11px] text-gray-700 truncate">{workerName.split(" ")[0]}</span>
               </div>
               <div className="flex-1 relative h-6 bg-white rounded border border-gray-200">
-                {/* Líneas de hora */}
                 {hourMarks.map((h) => (
                   <div
                     key={h}
@@ -568,7 +574,7 @@ function GanttInline({ dateStr, slots, assign, workerMap }: GanttInlineProps) {
                     style={{ left: `${pct(h * 60)}%` }}
                   />
                 ))}
-                {/* Barra presencial */}
+                {/* Barra presencial (ancho = horas presenciales) */}
                 <div
                   className={`absolute top-0.5 bottom-0.5 rounded ${color.bg} ${color.border} border flex items-center justify-center overflow-hidden`}
                   style={{
@@ -581,8 +587,9 @@ function GanttInline({ dateStr, slots, assign, workerMap }: GanttInlineProps) {
                   </span>
                 </div>
               </div>
-              <div className="w-10 text-right text-[10px] text-gray-500 shrink-0">
-                {fmtHours(presHours)}
+              {/* Columna derecha: horas laborales */}
+              <div className="w-12 text-right text-[10px] font-medium text-gray-600 shrink-0">
+                {fmtHours(labHours)}
               </div>
             </div>
           );
@@ -615,7 +622,6 @@ function VendedorTabView({
 
   return (
     <div>
-      {/* Selector de vendedores */}
       <div className="mb-4 bg-white border border-gray-200 rounded-lg p-3 flex flex-wrap items-center gap-2">
         <span className="text-xs text-gray-500 font-medium mr-1">Mostrar:</span>
         <button
@@ -650,7 +656,6 @@ function VendedorTabView({
         })}
       </div>
 
-      {/* Calendarios por vendedor */}
       {selectedSlots.size === 0 ? (
         <div className="text-center py-12 text-sm text-gray-400">Selecciona al menos un vendedor</div>
       ) : (

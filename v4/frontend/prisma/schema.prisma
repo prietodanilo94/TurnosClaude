@@ -63,6 +63,7 @@ model Worker {
   branchTeam   BranchTeam @relation(fields: [branchTeamId], references: [id], onDelete: Cascade)
   activo       Boolean    @default(true)
   esVirtual    Boolean    @default(false)
+  passwordHash String?
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 }

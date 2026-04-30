@@ -8,7 +8,7 @@ interface Props {
   branches: BranchInfo[];
 }
 
-const EMPTY_FORM = { nombre: "", email: "", password: "", branchIds: [] as string[] };
+const EMPTY_FORM = { nombre: "", email: "", password: "", branchIds: [] as string[], branchSearch: "" };
 
 export default function UsuariosClient({ initialUsers, branches }: Props) {
   const [users, setUsers] = useState(initialUsers);
@@ -32,6 +32,7 @@ export default function UsuariosClient({ initialUsers, branches }: Props) {
       email: u.email,
       password: "",
       branchIds: u.branches.map((b) => b.branch.id),
+      branchSearch: "",
     });
     setError("");
     setShowForm(true);
@@ -225,23 +226,36 @@ export default function UsuariosClient({ initialUsers, branches }: Props) {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-2">Sucursales asignadas</label>
-                <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-md divide-y divide-gray-100">
+                <label className="block text-xs font-medium text-gray-700 mb-1">Sucursales asignadas</label>
+                <input
+                  type="text"
+                  value={form.branchSearch}
+                  onChange={(e) => setForm((f) => ({ ...f, branchSearch: e.target.value }))}
+                  placeholder="Buscar sucursal…"
+                  className="w-full px-3 py-1.5 border border-gray-300 rounded-t-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 border-b-0"
+                />
+                <div className="max-h-44 overflow-y-auto border border-gray-200 rounded-b-md divide-y divide-gray-100">
                   {branches.length === 0 ? (
                     <p className="px-3 py-2 text-xs text-gray-400">No hay sucursales cargadas.</p>
                   ) : (
-                    branches.map((b) => (
-                      <label key={b.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-gray-50">
-                        <input
-                          type="checkbox"
-                          checked={form.branchIds.includes(b.id)}
-                          onChange={() => toggleBranch(b.id)}
-                          className="accent-blue-600"
-                        />
-                        <span className="text-sm text-gray-700">{b.nombre}</span>
-                        <span className="text-xs text-gray-400 ml-auto">{b.codigo}</span>
-                      </label>
-                    ))
+                    branches
+                      .filter((b) =>
+                        !form.branchSearch ||
+                        b.nombre.toLowerCase().includes(form.branchSearch.toLowerCase()) ||
+                        b.codigo.includes(form.branchSearch)
+                      )
+                      .map((b) => (
+                        <label key={b.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-gray-50">
+                          <input
+                            type="checkbox"
+                            checked={form.branchIds.includes(b.id)}
+                            onChange={() => toggleBranch(b.id)}
+                            className="accent-blue-600"
+                          />
+                          <span className="text-sm text-gray-700">{b.nombre}</span>
+                          <span className="text-xs text-gray-400 ml-auto">{b.codigo}</span>
+                        </label>
+                      ))
                   )}
                 </div>
               </div>

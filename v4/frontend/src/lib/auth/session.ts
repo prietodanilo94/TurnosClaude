@@ -13,9 +13,11 @@ function secret() {
 
 export interface SessionPayload {
   email: string;
-  role: "admin" | "jefe";
+  role: "admin" | "jefe" | "vendedor";
   userId?: string;
   branchIds?: string[];
+  workerId?: string;
+  nombre?: string;
 }
 
 export async function createSession(payload: SessionPayload): Promise<string> {
