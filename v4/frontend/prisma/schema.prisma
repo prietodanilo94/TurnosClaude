@@ -15,6 +15,28 @@ model Branch {
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
   teams     BranchTeam[]
+  userAccess UserBranch[]
+}
+
+model User {
+  id           String       @id @default(cuid())
+  email        String       @unique
+  nombre       String
+  passwordHash String
+  activo       Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  branches     UserBranch[]
+}
+
+model UserBranch {
+  id       String @id @default(cuid())
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  branchId String
+  branch   Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, branchId])
 }
 
 // Una sucursal puede tener equipo de Ventas y/o Postventa

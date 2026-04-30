@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { generateCalendar } from "@/lib/calendar/generator";
+import { getSession } from "@/lib/auth/session";
 import type { ShiftCategory, CalendarSlot } from "@/types";
 import CalendarView from "./CalendarView";
 
@@ -16,6 +17,13 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
   const month = parseInt(params.month);
 
   if (!searchParams.team) notFound();
+
+  // Verificar acceso para jefes
+  const session = await getSession();
+  if (session?.role === "jefe") {
+    const allowed = session.branchIds ?? [];
+    if (!allowed.includes(params.id)) notFound();
+  }
 
   const team = await prisma.branchTeam.findUnique({
     where: { id: searchParams.team },

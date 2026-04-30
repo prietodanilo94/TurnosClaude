@@ -1,13 +1,19 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db/prisma";
 import { getAllPatterns } from "@/lib/patterns/catalog";
+import { getSession } from "@/lib/auth/session";
 import type { ShiftCategory } from "@/types";
 import CategorySelector from "./[id]/CategorySelector";
 
 export const dynamic = "force-dynamic";
 
 export default async function SucursalesPage() {
+  const session = await getSession();
+  const isAdmin = session?.role === "admin";
+  const allowedIds = session?.branchIds ?? [];
+
   const branches = await prisma.branch.findMany({
+    where: isAdmin ? undefined : { id: { in: allowedIds } },
     include: {
       teams: {
         include: { _count: { select: { workers: { where: { activo: true } } } } },
@@ -33,14 +39,16 @@ export default async function SucursalesPage() {
       {branches.length === 0 ? (
         <div className="bg-white border border-gray-200 rounded-lg p-8 text-center">
           <p className="text-sm text-gray-500 mb-3">
-            No hay sucursales cargadas aún.
+            {isAdmin ? "No hay sucursales cargadas aún." : "No tienes sucursales asignadas."}
           </p>
-          <Link
-            href="/admin/dotacion"
-            className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-          >
-            Subir dotación →
-          </Link>
+          {isAdmin && (
+            <Link
+              href="/admin/dotacion"
+              className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+            >
+              Subir dotación →
+            </Link>
+          )}
         </div>
       ) : (
         <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
@@ -87,12 +95,20 @@ export default async function SucursalesPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-700">
-                        <CategorySelector
-                          teamId={team.id}
-                          current={team.categoria as ShiftCategory | null}
-                          options={categoryOptions}
-                          compact
-                        />
+                        {isAdmin ? (
+                          <CategorySelector
+                            teamId={team.id}
+                            current={team.categoria as ShiftCategory | null}
+                            options={categoryOptions}
+                            compact
+                          />
+                        ) : (
+                          <span className="text-xs text-gray-600">
+                            {team.categoria
+                              ? (categoryOptions.find((o) => o.id === team.categoria)?.label ?? team.categoria)
+                              : <span className="text-gray-400 italic">Sin asignar</span>}
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">
                         {workerCount}
