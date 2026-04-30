@@ -41,4 +41,4 @@ ENV HOSTNAME="0.0.0.0"
 ENV DATABASE_URL="file:/data/v4.db"
 
 # Aplica schema al SQLite del volumen al iniciar (idempotente)
-CMD ["sh", "-c", "node ./node_modules/prisma/build/index.js db push --schema=./prisma/schema.prisma --accept-data-loss --skip-generate && node server.js"]
+CMD ["sh", "-c", "node ./node_modules/prisma/build/index.js db push --schema=./prisma/schema.prisma --accept-data-loss --skip-generate && node ./prisma/normalize.js && node server.js"]

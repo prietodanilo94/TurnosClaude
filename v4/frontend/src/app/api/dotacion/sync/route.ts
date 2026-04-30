@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
 
     // Upsert branches y teams
     for (const [codigo, branchRows] of byBranch) {
-      const nombre = branchRows[0].nombreBranch;
+      const nombre = normalizeBranchName(branchRows[0].nombreBranch);
 
       const existing = await prisma.branch.findUnique({ where: { codigo } });
       const branch = await prisma.branch.upsert({
@@ -83,15 +83,6 @@ export async function POST(req: NextRequest) {
           });
           workersDeactivated += toDeactivate.length;
         }
-      }
-    }
-
-    // Normalizar nombres de sucursales existentes (quitar "local", "Seminuevos" → "Usados")
-    const allBranches = await prisma.branch.findMany({ select: { id: true, nombre: true } });
-    for (const b of allBranches) {
-      const normalized = normalizeBranchName(b.nombre);
-      if (normalized !== b.nombre) {
-        await prisma.branch.update({ where: { id: b.id }, data: { nombre: normalized } });
       }
     }
 
