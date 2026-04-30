@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { workerColor } from "@/components/calendar/worker-colors";
 import type { CalendarSlot, DayShift, ShiftCategory, WorkerInfo } from "@/types";
-import { getOperatingHours } from "@/lib/patterns/catalog";
+import { getOperatingHours, getOperatingWindow } from "@/lib/patterns/catalog";
 
 const DOW_LABELS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 const MONTH_NAMES = [
@@ -41,6 +41,22 @@ function minutesFromTime(t: string): number {
 
 function fmtHours(h: number): string {
   return Number.isInteger(h) ? `${h}h` : `${h.toFixed(1)}h`;
+}
+
+function addMinutesToTime(t: string, mins: number): string {
+  const total = minutesFromTime(t) + mins;
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+function validateConsecutiveDays(days: Record<string, DayShift | null>): boolean {
+  const dates = Object.keys(days).sort();
+  let run = 0;
+  for (const d of dates) {
+    if (days[d] !== null) { run++; if (run > 6) return false; } else { run = 0; }
+  }
+  return true;
 }
 
 function isoWeekNumber(d: Date): number {
@@ -106,11 +122,15 @@ export default function CalendarView({
   prevAssignments = {}, nextAssignments = {}, currentYear, currentMonth,
 }: Props) {
   const router = useRouter();
+  const [localSlots, setLocalSlots] = useState<CalendarSlot[]>(() =>
+    slots.map(s => ({ ...s, days: { ...s.days } }))
+  );
   const [assign, setAssign] = useState<Record<string, string | null>>(assignments);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [calId, setCalId] = useState(calendarId);
   const [dialogSlot, setDialogSlot] = useState<number | null>(null);
+  const [shiftEditDialog, setShiftEditDialog] = useState<{ slotNum: number; dateStr: string } | null>(null);
   const [recalculating, setRecalculating] = useState(false);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [view, setView] = useState<"semanas" | "vendedor">("semanas");
@@ -119,6 +139,7 @@ export default function CalendarView({
   );
 
   const weeks = useMemo(() => buildIsoWeeks(year, month), [year, month]);
+  const operatingWindow = useMemo(() => getOperatingWindow(categoria), [categoria]);
 
   async function handleSave(): Promise<string | null> {
     setSaving(true);
@@ -126,7 +147,7 @@ export default function CalendarView({
       const res = await fetch("/api/calendars", {
         method: calId ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ teamId, year, month, slotsData: slots, assignments: assign, id: calId }),
+        body: JSON.stringify({ teamId, year, month, slotsData: localSlots, assignments: assign, id: calId }),
       });
       if (res.ok) {
         const d = await res.json();
@@ -161,9 +182,44 @@ export default function CalendarView({
     setDialogSlot(null);
   }
 
+  function handleShiftSave(slotNum: number, dateStr: string, newShift: DayShift, redistributeDate?: string | null) {
+    setLocalSlots(prev => prev.map(s => {
+      if (s.slotNumber !== slotNum) return s;
+      const origShift = s.days[dateStr];
+      const newDays: Record<string, DayShift | null> = { ...s.days, [dateStr]: newShift };
+      if (redistributeDate && origShift) {
+        const target = s.days[redistributeDate];
+        if (target) {
+          const diffMins = Math.round((shiftDuration(origShift) - shiftDuration(newShift)) * 60);
+          newDays[redistributeDate] = { ...target, end: addMinutesToTime(target.end, diffMins) };
+        }
+      }
+      return { ...s, days: newDays };
+    }));
+    setDirty(true);
+    setShiftEditDialog(null);
+  }
+
+  function handleLibreSwap(slotNum: number, d1: string, d2: string) {
+    const slot = localSlots.find(s => s.slotNumber === slotNum);
+    if (!slot) return;
+    const sh1 = slot.days[d1] ?? null;
+    const sh2 = slot.days[d2] ?? null;
+    if (sh1 === null && sh2 === null) return;
+    const newDays: Record<string, DayShift | null> = { ...slot.days, [d1]: sh2, [d2]: sh1 };
+    if (!validateConsecutiveDays(newDays)) {
+      alert("Este cambio genera más de 6 días laborales consecutivos.");
+      return;
+    }
+    setLocalSlots(prev => prev.map(s =>
+      s.slotNumber !== slotNum ? s : { ...s, days: { ...s.days, [d1]: sh2, [d2]: sh1 } }
+    ));
+    setDirty(true);
+  }
+
   async function handleExport(mode: "calendar" | "rrhh") {
     if (mode === "rrhh") {
-      const unassigned = slots.filter((s) => !assign[String(s.slotNumber)]);
+      const unassigned = localSlots.filter((s) => !assign[String(s.slotNumber)]);
       if (unassigned.length > 0) {
         alert(`Hay ${unassigned.length} vendedor(es) sin asignar. Asigna todos los slots antes de exportar el Excel RRHH.`);
         return;
@@ -189,6 +245,29 @@ export default function CalendarView({
     }
     return set;
   };
+
+  // Datos para ShiftEditDialog
+  const shiftForEdit = shiftEditDialog
+    ? (localSlots.find(s => s.slotNumber === shiftEditDialog.slotNum)?.days[shiftEditDialog.dateStr] ?? null)
+    : null;
+  const weekForEdit = shiftEditDialog
+    ? (weeks.find(w => w.some(d => fmt(d) === shiftEditDialog.dateStr)) ?? null)
+    : null;
+  const redistributeDays: Array<{ dateStr: string; shift: DayShift; d: Date }> =
+    shiftEditDialog && weekForEdit
+      ? (weekForEdit
+          .map(d => ({
+            dateStr: fmt(d),
+            shift: localSlots.find(s => s.slotNumber === shiftEditDialog.slotNum)?.days[fmt(d)] ?? null,
+            d,
+          }))
+          .filter((x): x is { dateStr: string; shift: DayShift; d: Date } =>
+            x.dateStr !== shiftEditDialog.dateStr &&
+            x.shift !== null &&
+            !isFeriadoIrrenunciable(x.d) &&
+            x.d.getMonth() + 1 === month
+          ))
+      : [];
 
   return (
     <div className="p-6">
@@ -307,7 +386,7 @@ export default function CalendarView({
               key={wi}
               week={week}
               month={currentMonth ?? month}
-              slots={slots}
+              slots={localSlots}
               assign={assign}
               prevAssignments={prevAssignments}
               nextAssignments={nextAssignments}
@@ -315,6 +394,8 @@ export default function CalendarView({
               onSlotClick={(n) => setDialogSlot(n)}
               selectedDay={selectedDay}
               onDayClick={(ds) => setSelectedDay((prev) => prev === ds ? null : ds)}
+              onShiftCellClick={(slotNum, dateStr) => setShiftEditDialog({ slotNum, dateStr })}
+              onLibreSwap={handleLibreSwap}
             />
           ))}
         </div>
@@ -323,12 +404,12 @@ export default function CalendarView({
           year={year}
           month={month}
           weeks={weeks}
-          slots={slots}
+          slots={localSlots}
           assign={assign}
           workerMap={workerMap}
           selectedSlots={selectedSlots}
           onToggleSlot={toggleSlot}
-          onSelectAll={() => setSelectedSlots(new Set(slots.map((s) => s.slotNumber)))}
+          onSelectAll={() => setSelectedSlots(new Set(localSlots.map((s) => s.slotNumber)))}
           onDeselectAll={() => setSelectedSlots(new Set())}
         />
       )}
@@ -344,11 +425,26 @@ export default function CalendarView({
           onAssign={(wid) => handleAssign(dialogSlot, wid)}
         />
       )}
+
+      {/* Modal editar turno */}
+      {shiftEditDialog && shiftForEdit && (
+        <ShiftEditDialog
+          slotNumber={shiftEditDialog.slotNum}
+          dateStr={shiftEditDialog.dateStr}
+          currentShift={shiftForEdit}
+          redistributeDays={redistributeDays}
+          operatingWindow={operatingWindow}
+          onSave={(newShift, redistributeDate) =>
+            handleShiftSave(shiftEditDialog.slotNum, shiftEditDialog.dateStr, newShift, redistributeDate)
+          }
+          onClose={() => setShiftEditDialog(null)}
+        />
+      )}
     </div>
   );
 }
 
-// ─── Bloque de semana (con Gantt inline entre header y filas) ─────────────────
+// ─── Bloque de semana ─────────────────────────────────────────────────────────
 
 interface WeekBlockProps {
   week: Date[];
@@ -361,20 +457,50 @@ interface WeekBlockProps {
   onSlotClick: (slotNum: number) => void;
   selectedDay: string | null;
   onDayClick: (dateStr: string) => void;
+  onShiftCellClick: (slotNum: number, dateStr: string) => void;
+  onLibreSwap: (slotNum: number, d1: string, d2: string) => void;
 }
 
-function WeekBlock({ week, month, slots, assign, prevAssignments, nextAssignments, workerMap, onSlotClick, selectedDay, onDayClick }: WeekBlockProps) {
-  // Determinar asignaciones según si el día es del mes actual, anterior o siguiente
+function WeekBlock({
+  week, month, slots, assign, prevAssignments, nextAssignments, workerMap,
+  onSlotClick, selectedDay, onDayClick, onShiftCellClick, onLibreSwap,
+}: WeekBlockProps) {
+  const [dragSource, setDragSource] = useState<{ slotNum: number; dateStr: string } | null>(null);
+  const [dragOver, setDragOver] = useState<{ slotNum: number; dateStr: string } | null>(null);
+
   function assignForDay(d: Date): Record<string, string | null> {
     const dm = d.getMonth() + 1;
     if (dm < month || (dm === 12 && month === 1)) return prevAssignments;
     if (dm > month || (dm === 1 && month === 12)) return nextAssignments;
     return assign;
   }
+
   const isoWeek = isoWeekNumber(week[0]);
   const rangeLabel = fmtDateRange(week[0], week[6]);
   const weekDateStrs = week.map(fmt);
   const ganttDay = selectedDay && weekDateStrs.includes(selectedDay) ? selectedDay : null;
+
+  function handleDragStart(slotNum: number, dateStr: string) {
+    setDragSource({ slotNum, dateStr });
+  }
+
+  function handleDragOver(e: React.DragEvent, slotNum: number, dateStr: string) {
+    e.preventDefault();
+    if (dragSource?.slotNum === slotNum) setDragOver({ slotNum, dateStr });
+  }
+
+  function handleDrop(slotNum: number, targetDateStr: string) {
+    if (dragSource && dragSource.slotNum === slotNum && dragSource.dateStr !== targetDateStr) {
+      onLibreSwap(slotNum, dragSource.dateStr, targetDateStr);
+    }
+    setDragSource(null);
+    setDragOver(null);
+  }
+
+  function handleDragEnd() {
+    setDragSource(null);
+    setDragOver(null);
+  }
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
@@ -421,7 +547,7 @@ function WeekBlock({ week, month, slots, assign, prevAssignments, nextAssignment
             </tr>
           </thead>
 
-          {/* Gantt panel — entre header y filas de vendedores */}
+          {/* Gantt panel */}
           {ganttDay && (
             <tbody>
               <tr>
@@ -447,7 +573,7 @@ function WeekBlock({ week, month, slots, assign, prevAssignments, nextAssignment
               let totalHours = 0;
               const cells = week.map((d, ci) => {
                 const dateStr = fmt(d);
-                const shift = slot.days[dateStr];
+                const shift = slot.days[dateStr] ?? null;
                 const inMonth = d.getMonth() + 1 === month;
                 const feriado = isFeriadoIrrenunciable(d);
                 if (shift && !feriado) totalHours += shiftDuration(shift);
@@ -471,29 +597,59 @@ function WeekBlock({ week, month, slots, assign, prevAssignments, nextAssignment
                       </span>
                     </div>
                   </td>
-                  {cells.map(({ shift, inMonth, ci, feriado, dayWorkerId, dayWorkerName }) => (
-                    <td
-                      key={ci}
-                      className={`px-1 py-1.5 text-center text-xs border-l border-gray-100 ${inMonth ? "" : "opacity-50"} ${feriado ? "bg-red-50/60" : ""}`}
-                    >
-                      {feriado ? (
-                        <span className="text-[10px] font-medium text-red-400 italic">Feriado</span>
-                      ) : shift ? (
-                        <div className={`px-1 py-1 rounded border text-xs ${
-                          dayWorkerId
-                            ? `${color.bg} ${color.text} ${color.border}`
-                            : "bg-gray-50 text-gray-400 border-gray-200"
-                        }`}>
-                          {shift.start}–{shift.end}
-                          {!inMonth && dayWorkerName && (
-                            <div className="text-[8px] leading-none mt-0.5 opacity-70 truncate">{dayWorkerName.split(" ")[0]}</div>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-gray-300 italic text-[11px]">libre</span>
-                      )}
-                    </td>
-                  ))}
+                  {cells.map(({ dateStr, shift, inMonth, ci, feriado, dayWorkerId, dayWorkerName }) => {
+                    const canDrag = inMonth && !feriado;
+                    const isBeingDragged = dragSource?.slotNum === slot.slotNumber && dragSource?.dateStr === dateStr;
+                    const isDropTarget = dragOver?.slotNum === slot.slotNumber && dragOver?.dateStr === dateStr;
+                    return (
+                      <td
+                        key={ci}
+                        className={`px-1 py-1.5 text-center text-xs border-l border-gray-100 ${inMonth ? "" : "opacity-50"} ${feriado ? "bg-red-50/60" : ""} ${isDropTarget ? "bg-blue-100 rounded" : ""}`}
+                      >
+                        {feriado ? (
+                          <span className="text-[10px] font-medium text-red-400 italic">Feriado</span>
+                        ) : shift ? (
+                          <div
+                            draggable={canDrag}
+                            onClick={inMonth ? () => onShiftCellClick(slot.slotNumber, dateStr) : undefined}
+                            onDragStart={canDrag ? () => handleDragStart(slot.slotNumber, dateStr) : undefined}
+                            onDragEnd={handleDragEnd}
+                            onDragOver={canDrag ? (e) => handleDragOver(e, slot.slotNumber, dateStr) : undefined}
+                            onDrop={canDrag ? () => handleDrop(slot.slotNumber, dateStr) : undefined}
+                            className={`px-1 py-1 rounded border text-xs select-none transition-opacity ${
+                              isBeingDragged ? "opacity-30" : ""
+                            } ${
+                              inMonth ? "cursor-pointer hover:brightness-95 active:scale-95" : ""
+                            } ${
+                              dayWorkerId
+                                ? `${color.bg} ${color.text} ${color.border}`
+                                : "bg-blue-50 text-blue-600 border-blue-200"
+                            }`}
+                          >
+                            {shift.start}–{shift.end}
+                            {!inMonth && dayWorkerName && (
+                              <div className="text-[8px] leading-none mt-0.5 opacity-70 truncate">{dayWorkerName.split(" ")[0]}</div>
+                            )}
+                          </div>
+                        ) : (
+                          <div
+                            draggable={canDrag}
+                            onDragStart={canDrag ? () => handleDragStart(slot.slotNumber, dateStr) : undefined}
+                            onDragEnd={handleDragEnd}
+                            onDragOver={canDrag ? (e) => handleDragOver(e, slot.slotNumber, dateStr) : undefined}
+                            onDrop={canDrag ? () => handleDrop(slot.slotNumber, dateStr) : undefined}
+                            className={`text-[11px] italic select-none transition-all ${
+                              isBeingDragged ? "opacity-30" : ""
+                            } ${
+                              isDropTarget ? "text-blue-500 font-medium" : "text-gray-300"
+                            } ${canDrag ? "cursor-grab" : ""}`}
+                          >
+                            libre
+                          </div>
+                        )}
+                      </td>
+                    );
+                  })}
                   <td className="px-2 py-2 text-center text-xs font-semibold text-gray-700 border-l border-gray-100">
                     {totalHours > 0 ? fmtHours(totalHours) : "—"}
                   </td>
@@ -536,7 +692,6 @@ function GanttInline({ dateStr, slots, assign, workerMap }: GanttInlineProps) {
     );
   }
 
-  // Eje en minutos presenciales
   const allStarts = activeSlots.map(({ shift }) => minutesFromTime(shift!.start));
   const allEnds   = activeSlots.map(({ shift }) => minutesFromTime(shift!.end));
   const axisStart = Math.floor(Math.min(...allStarts) / 60) * 60;
@@ -556,7 +711,6 @@ function GanttInline({ dateStr, slots, assign, workerMap }: GanttInlineProps) {
         {DOW_LABELS[dowIndex(date)]} {String(date.getDate()).padStart(2, "0")}/{String(date.getMonth() + 1).padStart(2, "0")} — horarios del día
       </div>
 
-      {/* Eje de tiempo */}
       <div className="flex mb-1">
         <div className={`${NAME_W} shrink-0`} />
         <div className="flex-1 relative h-4">
@@ -573,14 +727,13 @@ function GanttInline({ dateStr, slots, assign, workerMap }: GanttInlineProps) {
         <div className="w-12 shrink-0" />
       </div>
 
-      {/* Barras */}
       <div className="space-y-1.5">
         {activeSlots.map(({ slot, shift, workerId }) => {
           const workerName = workerId ? (workerMap[workerId] ?? "?") : `Vendedor ${slot.slotNumber}`;
           const color = workerColor(slot.slotNumber);
           const startMin = minutesFromTime(shift!.start);
           const endMin   = minutesFromTime(shift!.end);
-          const labHours = shiftDuration(shift!); // horas laborales (−1h colación si ≥ 6h)
+          const labHours = shiftDuration(shift!);
 
           return (
             <div key={slot.slotNumber} className="flex items-center gap-2">
@@ -596,7 +749,6 @@ function GanttInline({ dateStr, slots, assign, workerMap }: GanttInlineProps) {
                     style={{ left: `${pct(h * 60)}%` }}
                   />
                 ))}
-                {/* Barra presencial (ancho = horas presenciales) */}
                 <div
                   className={`absolute top-0.5 bottom-0.5 rounded ${color.bg} ${color.border} border flex items-center justify-center overflow-hidden`}
                   style={{
@@ -609,7 +761,6 @@ function GanttInline({ dateStr, slots, assign, workerMap }: GanttInlineProps) {
                   </span>
                 </div>
               </div>
-              {/* Columna derecha: horas laborales */}
               <div className="w-12 text-right text-[10px] font-medium text-gray-600 shrink-0">
                 {fmtHours(labHours)}
               </div>
@@ -842,6 +993,242 @@ function AssignDialog({ slotNumber, currentWorkerId, workers, occupied, onClose,
             </button>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Modal de edición de turno ────────────────────────────────────────────────
+
+interface ShiftEditDialogProps {
+  slotNumber: number;
+  dateStr: string;
+  currentShift: DayShift;
+  redistributeDays: Array<{ dateStr: string; shift: DayShift; d: Date }>;
+  operatingWindow: { start: string; end: string };
+  onSave: (newShift: DayShift, redistributeDate?: string | null) => void;
+  onClose: () => void;
+}
+
+function ShiftEditDialog({
+  slotNumber, dateStr, currentShift, redistributeDays, operatingWindow, onSave, onClose,
+}: ShiftEditDialogProps) {
+  const color = workerColor(slotNumber);
+  const [start, setStart] = useState(currentShift.start);
+  const [end, setEnd] = useState(currentShift.end);
+  const [step, setStep] = useState<"edit" | "redistribute">("edit");
+  const [selectedRedist, setSelectedRedist] = useState<string | null>(null);
+
+  const winStartMin = minutesFromTime(operatingWindow.start);
+  const winEndMin   = minutesFromTime(operatingWindow.end);
+  const curStartMin = minutesFromTime(start);
+  const curEndMin   = minutesFromTime(end);
+
+  const canBack    = curStartMin - 60 >= winStartMin;
+  const canForward = curEndMin   + 60 <= winEndMin;
+  const validShift = curStartMin < curEndMin;
+
+  const origHours = shiftDuration(currentShift);
+  const newHours  = validShift ? shiftDuration({ start, end }) : 0;
+  const diffHours = origHours - newHours; // positivo = nuevo es más corto
+  const diffMins  = Math.round(diffHours * 60);
+
+  function moveShift(dir: -1 | 1) {
+    setStart(addMinutesToTime(start, dir * 60));
+    setEnd(addMinutesToTime(end, dir * 60));
+  }
+
+  function handleSaveClick() {
+    if (!validShift) return;
+    if (diffHours > 0.01) {
+      setStep("redistribute");
+    } else {
+      onSave({ start, end });
+    }
+  }
+
+  const date = new Date(dateStr + "T12:00:00");
+  const dayLabel = `${DOW_LABELS[dowIndex(date)]} ${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}`;
+
+  // ── Paso 2: redistribuir horas ──────────────────────────────────────────────
+  if (step === "redistribute") {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
+        <div className="bg-white rounded-lg shadow-xl w-full max-w-sm mx-4" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+            <h3 className="text-sm font-semibold text-gray-900">
+              Este turno tiene {fmtHours(diffHours)} menos
+            </h3>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg leading-none">×</button>
+          </div>
+
+          <div className="px-4 py-3">
+            <p className="text-xs text-gray-500 mb-3">
+              ¿A qué día de la semana deseas agregar {fmtHours(diffHours)}?
+            </p>
+            {redistributeDays.length === 0 ? (
+              <p className="text-xs text-gray-400 italic py-2 text-center">
+                No hay días con turno disponibles esta semana.
+              </p>
+            ) : (
+              <div className="space-y-1.5">
+                {redistributeDays.map(({ dateStr: ds, shift, d }) => {
+                  const canAdd = minutesFromTime(shift.end) + diffMins <= winEndMin;
+                  const newEnd = canAdd ? addMinutesToTime(shift.end, diffMins) : null;
+                  const selected = selectedRedist === ds;
+                  const dow = DOW_LABELS[dowIndex(d)];
+                  const dayNum = String(d.getDate()).padStart(2, "0");
+                  return (
+                    <button
+                      key={ds}
+                      disabled={!canAdd}
+                      onClick={() => setSelectedRedist(selected ? null : ds)}
+                      className={`w-full text-left px-3 py-2 rounded border text-xs transition-colors ${
+                        !canAdd
+                          ? "opacity-40 cursor-not-allowed bg-gray-50 border-gray-200 text-gray-400"
+                          : selected
+                            ? "bg-blue-50 border-blue-400 text-blue-800"
+                            : "border-gray-200 hover:bg-gray-50 text-gray-700"
+                      }`}
+                    >
+                      <span className="font-medium">{dow} {dayNum}</span>
+                      <span className="mx-1.5 text-gray-300">·</span>
+                      <span>{shift.start}–{shift.end}</span>
+                      {canAdd
+                        ? <span className="text-blue-500 ml-1.5">→ hasta {newEnd}</span>
+                        : <span className="text-gray-400 ml-1.5">(supera límite {operatingWindow.end})</span>
+                      }
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="border-t border-gray-200 px-4 py-3 flex items-center justify-between gap-2">
+            <button
+              onClick={() => onSave({ start, end })}
+              className="text-xs text-gray-400 hover:text-gray-600 underline"
+            >
+              No agregar horas
+            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setStep("edit")}
+                className="px-3 py-1.5 text-xs border border-gray-300 rounded hover:bg-gray-50"
+              >
+                Volver
+              </button>
+              <button
+                onClick={() => onSave({ start, end }, selectedRedist)}
+                disabled={!selectedRedist}
+                className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Guardar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Paso 1: editar turno ────────────────────────────────────────────────────
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-sm mx-4" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+          <div className="flex items-center gap-2">
+            <span className={`w-3 h-3 rounded-full ${color.bg} border ${color.border}`} />
+            <h3 className="text-sm font-semibold text-gray-900">
+              Editar turno — Slot {slotNumber} · {dayLabel}
+            </h3>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg leading-none">×</button>
+        </div>
+
+        <div className="px-4 py-4 space-y-4">
+          <div className="text-[11px] text-gray-400 text-center">
+            Franja del establecimiento: <span className="font-medium text-gray-600">{operatingWindow.start} – {operatingWindow.end}</span>
+          </div>
+
+          {/* Mover turno completo */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => moveShift(-1)}
+              disabled={!canBack}
+              className="flex-1 py-2 text-xs font-medium border rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed border-gray-300 hover:bg-gray-50 text-gray-700"
+            >
+              ◀ Atrasar 1h
+            </button>
+            <div className={`px-3 py-2 rounded border text-sm font-semibold text-center min-w-[110px] shrink-0 ${color.bg} ${color.text} ${color.border}`}>
+              {start} → {end}
+            </div>
+            <button
+              onClick={() => moveShift(1)}
+              disabled={!canForward}
+              className="flex-1 py-2 text-xs font-medium border rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed border-gray-300 hover:bg-gray-50 text-gray-700"
+            >
+              Adelantar 1h ▶
+            </button>
+          </div>
+
+          {/* Inputs manuales */}
+          <div className="flex items-center gap-3">
+            <div className="flex-1">
+              <label className="block text-[10px] text-gray-400 mb-1 text-center">Inicio</label>
+              <input
+                type="time"
+                value={start}
+                onChange={(e) => setStart(e.target.value)}
+                className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <span className="text-gray-300 text-lg mt-4">→</span>
+            <div className="flex-1">
+              <label className="block text-[10px] text-gray-400 mb-1 text-center">Final</label>
+              <input
+                type="time"
+                value={end}
+                onChange={(e) => setEnd(e.target.value)}
+                className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          {/* Resumen horas */}
+          <div className="bg-gray-50 rounded px-3 py-2 text-xs text-center">
+            {validShift ? (
+              <>
+                <span className="font-semibold text-gray-700">{fmtHours(newHours)}</span>
+                <span className="text-gray-400"> laborales</span>
+                {Math.abs(diffHours) > 0.01 && (
+                  <span className={`ml-2 font-medium ${diffHours > 0 ? "text-amber-600" : "text-green-600"}`}>
+                    ({diffHours > 0 ? `−${fmtHours(diffHours)}` : `+${fmtHours(-diffHours)}`} vs original)
+                  </span>
+                )}
+              </>
+            ) : (
+              <span className="text-red-500">Horario inválido</span>
+            )}
+          </div>
+        </div>
+
+        <div className="border-t border-gray-200 px-4 py-3 flex justify-end gap-2">
+          <button
+            onClick={onClose}
+            className="px-3 py-1.5 text-xs border border-gray-300 rounded hover:bg-gray-50"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleSaveClick}
+            disabled={!validShift}
+            className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {diffHours > 0.01 ? "Continuar →" : "Guardar"}
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -232,3 +232,20 @@ export function getOperatingHours(id: ShiftCategory): string {
   }
   return minStart === "23:59" ? "" : `${minStart}–${maxEnd}`;
 }
+
+export function getOperatingWindow(id: ShiftCategory): { start: string; end: string } {
+  const pattern = getPattern(id);
+  let minStart = "23:59";
+  let maxEnd = "00:00";
+  for (const week of pattern.rotationWeeks) {
+    for (const shift of week) {
+      if (!shift) continue;
+      if (shift.start < minStart) minStart = shift.start;
+      if (shift.end > maxEnd) maxEnd = shift.end;
+    }
+  }
+  return {
+    start: minStart === "23:59" ? "08:00" : minStart,
+    end:   maxEnd  === "00:00" ? "20:00" : maxEnd,
+  };
+}
