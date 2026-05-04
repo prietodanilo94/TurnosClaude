@@ -313,6 +313,38 @@ export const CATEGORY_LABELS: Record<ShiftCategory, string> = Object.fromEntries
   PATTERNS.map((p) => [p.id, p.label]),
 ) as Record<ShiftCategory, string>;
 
+const DOW_ABBR = ["L", "M", "X", "J", "V", "S", "D"] as const;
+
+export function getWeeklyScheduleSummary(id: ShiftCategory): string {
+  const pattern = getPattern(id);
+
+  // Para cada día de la semana, calcular la cobertura total (todos los slots/semanas)
+  const coverage: (string | null)[] = DOW_ABBR.map((_, dow) => {
+    let minStart: string | null = null;
+    let maxEnd: string | null = null;
+    for (const week of pattern.rotationWeeks) {
+      const shift = week[dow];
+      if (shift) {
+        if (!minStart || shift.start < minStart) minStart = shift.start;
+        if (!maxEnd || shift.end > maxEnd) maxEnd = shift.end;
+      }
+    }
+    return minStart ? `${minStart}–${maxEnd}` : null;
+  });
+
+  // Agrupar días con mismo rango (omitir libres)
+  const groups = new Map<string, string[]>();
+  const order: string[] = [];
+  for (let i = 0; i < 7; i++) {
+    const cov = coverage[i];
+    if (!cov) continue;
+    if (!groups.has(cov)) { groups.set(cov, []); order.push(cov); }
+    groups.get(cov)!.push(DOW_ABBR[i]);
+  }
+
+  return order.map((cov) => `${groups.get(cov)!.join("")} ${cov}`).join(" · ");
+}
+
 export function getOperatingHours(id: ShiftCategory): string {
   const pattern = getPattern(id);
   let minStart = "23:59";

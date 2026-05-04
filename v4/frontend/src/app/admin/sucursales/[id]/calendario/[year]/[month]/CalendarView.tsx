@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { workerColor } from "@/components/calendar/worker-colors";
 import type { CalendarSlot, DayShift, ShiftCategory, WorkerInfo } from "@/types";
-import { getOperatingWindow, CATEGORY_LABELS } from "@/lib/patterns/catalog";
+import { getOperatingWindow, CATEGORY_LABELS, getWeeklyScheduleSummary } from "@/lib/patterns/catalog";
 
 const DOW_LABELS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 const MONTH_NAMES = [
@@ -315,6 +315,8 @@ export default function CalendarView({
               {areaNegocio === "ventas" ? "Ventas" : "Postventa"}
             </span>
             <span className="text-gray-600">{CATEGORY_LABELS[categoria]}</span>
+            <span className="text-gray-400">·</span>
+            <span className="text-gray-500">{getWeeklyScheduleSummary(categoria)}</span>
           </div>
         </div>
 
