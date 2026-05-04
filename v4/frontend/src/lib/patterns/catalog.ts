@@ -193,6 +193,131 @@ const PATTERNS: ShiftPatternDef[] = [
     weeklyHours: [42, 42],
   },
 
+  // ── Óptimo Autoplaza (4 semanas) — L-J 10:30-20:30 · V-S 10:30-21:00 · D 11:00-20:00 ──
+  {
+    id: "optimo_autoplaza",
+    label: "Óptimo Autoplaza",
+    areaNegocio: "ventas",
+    rotationWeeks: [
+      // Sem 1: 42h — Dom libre
+      semana(
+        turno("10:30","19:30"), L,
+        turno("10:30","20:30"), turno("10:30","20:30"),
+        turno("10:30","20:30"), turno("12:30","20:30"), L,
+      ),
+      // Sem 2: 42h — Dom trabajado
+      semana(
+        turno("12:30","20:30"), turno("13:30","20:30"),
+        turno("12:30","20:30"), L,
+        turno("13:00","21:00"), turno("13:00","21:00"), turno("11:00","20:00"),
+      ),
+      // Sem 3: 36h — Sáb+Dom libres (fin de semana libre)
+      semana(
+        turno("10:30","20:30"), turno("10:30","20:30"),
+        L,
+        turno("10:30","20:30"), turno("10:30","20:30"), L, L,
+      ),
+      // Sem 4: 42h — Dom trabajado
+      semana(
+        turno("11:30","20:30"), turno("13:30","20:30"),
+        turno("13:30","20:30"), turno("13:30","20:30"),
+        L, turno("12:00","21:00"), turno("11:00","20:00"),
+      ),
+    ],
+    weeklyHours: [42, 42, 36, 42],
+  },
+
+  // ── Óptimo Arauco Maipú (4 semanas) — L-J 10:00-20:30 · V-S 10:00-21:00 · D 10:30-20:30 ──
+  {
+    id: "optimo_arauco_maipu",
+    label: "Óptimo Arauco Maipú",
+    areaNegocio: "ventas",
+    rotationWeeks: [
+      // Sem 1: 42h — Dom libre
+      semana(
+        turno("10:00","19:00"), L,
+        turno("10:00","20:00"), turno("10:00","20:00"),
+        turno("10:00","20:00"), turno("12:00","20:00"), L,
+      ),
+      // Sem 2: 42h — Dom trabajado
+      semana(
+        turno("12:00","20:00"), turno("13:00","20:00"),
+        turno("13:00","20:00"), L,
+        turno("13:00","21:00"), turno("13:00","21:00"), turno("10:30","20:30"),
+      ),
+      // Sem 3: 36h — Sáb+Dom libres (fin de semana libre)
+      semana(
+        turno("10:00","20:00"), turno("10:00","20:00"),
+        L,
+        turno("10:00","20:00"), turno("10:00","20:00"), L, L,
+      ),
+      // Sem 4: 42h — Dom trabajado
+      semana(
+        turno("12:30","20:30"), turno("13:30","20:30"),
+        turno("13:30","20:30"), turno("13:30","20:30"),
+        L, turno("12:00","21:00"), turno("10:30","20:30"),
+      ),
+    ],
+    weeklyHours: [42, 42, 36, 42],
+  },
+
+  // ── Óptimo Movicenter (4 semanas) — igual a ventas_mall_7d — 10:00-20:00 7 días ──
+  {
+    id: "optimo_movicenter",
+    label: "Óptimo Movicenter",
+    areaNegocio: "ventas",
+    rotationWeeks: [
+      // Sem 1: 42h — Dom libre
+      semana(
+        turno("10:00","19:00"), L,
+        turno("10:00","20:00"), turno("10:00","20:00"),
+        turno("10:00","20:00"), turno("12:00","20:00"), L,
+      ),
+      // Sem 2: 42h — Dom trabajado
+      semana(
+        turno("10:00","18:00"), turno("12:00","20:00"),
+        turno("12:00","20:00"), L,
+        turno("12:00","20:00"), turno("12:00","20:00"), turno("12:00","20:00"),
+      ),
+      // Sem 3: 36h — Sáb+Dom libres (fin de semana libre)
+      semana(
+        turno("10:00","20:00"), turno("10:00","20:00"),
+        L,
+        turno("10:00","20:00"), turno("10:00","20:00"), L, L,
+      ),
+      // Sem 4: 42h — Dom trabajado
+      semana(
+        turno("10:00","18:00"), turno("10:00","17:00"),
+        turno("10:00","17:00"), turno("10:00","17:00"),
+        L, turno("10:00","19:00"), turno("10:00","20:00"),
+      ),
+    ],
+    weeklyHours: [42, 42, 36, 42],
+  },
+
+  // ── Óptimo Autopark (fijo apertura/cierre) — L-S 10:00-19:00 · Dom cerrado ──
+  {
+    id: "optimo_autopark",
+    label: "Óptimo Autopark",
+    areaNegocio: "ventas",
+    fixedSlots: true,
+    rotationWeeks: [
+      // Slot Apertura: L-S 10:00-18:00, Dom libre
+      semana(
+        turno("10:00","18:00"), turno("10:00","18:00"),
+        turno("10:00","18:00"), turno("10:00","18:00"),
+        turno("10:00","18:00"), turno("10:00","18:00"), L,
+      ),
+      // Slot Cierre: L-S 11:00-19:00, Dom libre
+      semana(
+        turno("11:00","19:00"), turno("11:00","19:00"),
+        turno("11:00","19:00"), turno("11:00","19:00"),
+        turno("11:00","19:00"), turno("11:00","19:00"), L,
+      ),
+    ],
+    weeklyHours: [42, 42],
+  },
+
   // ── Postventa Vista Hermosa (fijo, sin rotación) ─────────────────────────
   {
     id: "postventa_vista_hermosa",
