@@ -203,7 +203,7 @@ const PATTERNS: ShiftPatternDef[] = [
       semana(
         turno("10:30","19:30"), L,
         turno("10:30","20:30"), turno("10:30","20:30"),
-        turno("10:30","20:30"), turno("13:00","21:00"), L,
+        turno("10:30","20:30"), turno("10:30","18:30"), L,
       ),
       // Sem 2: 42h — Dom trabajado
       semana(
@@ -221,7 +221,7 @@ const PATTERNS: ShiftPatternDef[] = [
       semana(
         turno("11:30","20:30"), turno("13:30","20:30"),
         turno("13:30","20:30"), turno("13:30","20:30"),
-        L, turno("12:00","21:00"), turno("11:00","20:00"),
+        L, turno("10:30","19:30"), turno("11:00","20:00"),
       ),
     ],
     weeklyHours: [42, 42, 36, 42],
@@ -233,13 +233,13 @@ const PATTERNS: ShiftPatternDef[] = [
     label: "Óptimo Arauco Maipú",
     areaNegocio: "ventas",
     rotationWeeks: [
-      // Sem 1: 42h — Dom libre
+      // Sem 1: 42h — Dom libre — Sáb apertura
       semana(
         turno("10:00","19:00"), L,
         turno("10:00","20:00"), turno("10:00","20:00"),
-        turno("10:00","20:00"), turno("12:00","20:00"), L,
+        turno("10:00","20:00"), turno("10:00","18:00"), L,
       ),
-      // Sem 2: 42h — Dom trabajado
+      // Sem 2: 42h — Dom trabajado — Sáb cierre
       semana(
         turno("12:00","20:00"), turno("13:00","20:00"),
         turno("13:00","20:00"), L,
@@ -251,11 +251,11 @@ const PATTERNS: ShiftPatternDef[] = [
         L,
         turno("10:00","20:00"), turno("10:00","20:00"), L, L,
       ),
-      // Sem 4: 42h — Dom trabajado
+      // Sem 4: 42h — Dom trabajado — Sáb apertura extendida
       semana(
         turno("12:30","20:30"), turno("13:30","20:30"),
         turno("13:30","20:30"), turno("13:30","20:30"),
-        L, turno("12:00","21:00"), turno("10:30","20:30"),
+        L, turno("10:00","19:00"), turno("10:30","20:30"),
       ),
     ],
     weeklyHours: [42, 42, 36, 42],
@@ -267,13 +267,13 @@ const PATTERNS: ShiftPatternDef[] = [
     label: "Óptimo Movicenter",
     areaNegocio: "ventas",
     rotationWeeks: [
-      // Sem 1: 42h — Dom libre
+      // Sem 1: 42h — Dom libre — Sáb apertura
       semana(
         turno("10:00","19:00"), L,
         turno("10:00","20:00"), turno("10:00","20:00"),
-        turno("10:00","20:00"), turno("12:00","20:00"), L,
+        turno("10:00","20:00"), turno("10:00","18:00"), L,
       ),
-      // Sem 2: 42h — Dom trabajado
+      // Sem 2: 42h — Dom trabajado — Sáb cierre
       semana(
         turno("10:00","18:00"), turno("12:00","20:00"),
         turno("12:00","20:00"), L,
