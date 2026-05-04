@@ -5,6 +5,7 @@ export type ShiftCategory =
   | "ventas_autopark"
   | "ventas_mall_7d"
   | "ventas_mall_apertura_cierre"
+  | "ventas_mall_arauco"
   | "postventa_vista_hermosa"
   | "postventa_standalone"
   | "postventa_cap"

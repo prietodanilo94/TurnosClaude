@@ -124,6 +124,29 @@ const PATTERNS: ShiftPatternDef[] = [
     weeklyHours: [42, 42],
   },
 
+  // ── Ventas Arauco (fixedSlots: Slot1=Apertura libre Jue, Slot2=Cierre libre Vie) ──
+  {
+    id: "ventas_mall_arauco",
+    label: "Ventas Arauco",
+    areaNegocio: "ventas",
+    fixedSlots: true,
+    rotationWeeks: [
+      // T.Apertura: libre Jue
+      semana(
+        turno("10:00","18:00"), turno("10:00","18:00"),
+        turno("10:00","18:00"), L,
+        turno("10:00","18:00"), turno("10:00","18:00"), turno("10:30","18:30"),
+      ),
+      // T.Cierre: libre Vie
+      semana(
+        turno("12:30","20:30"), turno("12:30","20:30"),
+        turno("12:30","20:30"), turno("12:30","20:30"),
+        L, turno("13:00","21:00"), turno("12:30","20:30"),
+      ),
+    ],
+    weeklyHours: [42, 42],
+  },
+
   // ── Postventa Vista Hermosa (fijo, sin rotación) ─────────────────────────
   {
     id: "postventa_vista_hermosa",
