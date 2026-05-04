@@ -203,7 +203,7 @@ const PATTERNS: ShiftPatternDef[] = [
       semana(
         turno("10:30","19:30"), L,
         turno("10:30","20:30"), turno("10:30","20:30"),
-        turno("10:30","20:30"), turno("12:30","20:30"), L,
+        turno("10:30","20:30"), turno("13:00","21:00"), L,
       ),
       // Sem 2: 42h — Dom trabajado
       semana(
