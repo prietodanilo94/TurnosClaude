@@ -104,7 +104,7 @@ const PATTERNS: ShiftPatternDef[] = [
   // El jefe asigna manualmente semana a semana; el sistema genera la plantilla base.
   {
     id: "ventas_mall_apertura_cierre",
-    label: "Ventas Mall Apertura/Cierre",
+    label: "Ventas Mall OTVES",
     areaNegocio: "ventas",
     fixedSlots: true,
     rotationWeeks: [
