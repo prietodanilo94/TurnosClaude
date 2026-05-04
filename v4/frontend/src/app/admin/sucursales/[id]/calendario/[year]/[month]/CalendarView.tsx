@@ -696,35 +696,135 @@ function CoberturaDelMesView({ year, month, slots, assign, workerMap }: Cobertur
     days.push(new Date(year, month - 1, d));
   }
 
-  return (
-    <div className="space-y-3">
-      {days.map((d) => {
-        const dateStr = fmt(d);
-        const dow = dowIndex(d);
-        const isWeekend = dow >= 5;
-        const feriado = isFeriadoIrrenunciable(d);
-        const hasShifts = slots.some((s) => s.days[dateStr] != null);
+  const allDateStrs = days.map(fmt);
+  const [selectedDays, setSelectedDays] = useState<Set<string>>(() => new Set(allDateStrs));
 
-        return (
-          <div key={dateStr} className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
-            <div className={`px-3 py-1.5 text-sm font-medium flex items-center gap-2 ${
-              feriado ? "bg-red-600 text-white" :
-              isWeekend ? "bg-orange-500 text-white" :
-              "bg-blue-700 text-white"
-            }`}>
-              <span>{DOW_LABELS[dow]} {String(d.getDate()).padStart(2, "0")} — {MONTH_NAMES[month]} {year}</span>
-              {feriado && <span className="text-xs font-normal opacity-90 ml-1">· Feriado irrenunciable</span>}
-            </div>
-            {hasShifts && !feriado ? (
-              <GanttInline dateStr={dateStr} slots={slots} assign={assign} workerMap={workerMap} />
-            ) : (
-              <div className="px-4 py-3 text-xs text-gray-400 italic text-center">
-                {feriado ? "Feriado irrenunciable — sin turnos" : "Sin turnos este día"}
+  function toggleDay(ds: string) {
+    setSelectedDays((prev) => {
+      const next = new Set(prev);
+      if (next.has(ds)) next.delete(ds); else next.add(ds);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    if (selectedDays.size === allDateStrs.length) {
+      setSelectedDays(new Set());
+    } else {
+      setSelectedDays(new Set(allDateStrs));
+    }
+  }
+
+  const calWeeks = buildIsoWeeks(year, month);
+
+  const visibleDays = days.filter((d) => selectedDays.has(fmt(d)));
+
+  return (
+    <div className="space-y-4">
+      {/* Mini calendario filtro */}
+      <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4">
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+            Filtrar días
+          </span>
+          <button
+            onClick={toggleAll}
+            className="text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors"
+          >
+            {selectedDays.size === allDateStrs.length ? "Quitar todos" : "Seleccionar todos"}
+          </button>
+        </div>
+
+        <div className="w-full">
+          {/* Cabecera días */}
+          <div className="grid grid-cols-7 mb-1">
+            {["L", "M", "X", "J", "V", "S", "D"].map((d, i) => (
+              <div
+                key={i}
+                className={`text-center text-[11px] font-semibold py-1 ${
+                  i >= 5 ? "text-orange-400" : "text-gray-400"
+                }`}
+              >
+                {d}
               </div>
-            )}
+            ))}
           </div>
-        );
-      })}
+
+          {/* Semanas */}
+          <div className="space-y-1">
+            {calWeeks.map((week, wi) => (
+              <div key={wi} className="grid grid-cols-7 gap-1">
+                {week.map((d, di) => {
+                  const ds = fmt(d);
+                  const inMonth = d.getMonth() + 1 === month;
+                  const selected = selectedDays.has(ds);
+                  const isWeekend = di >= 5;
+                  const feriado = isFeriadoIrrenunciable(d);
+
+                  if (!inMonth) {
+                    return <div key={di} className="aspect-square" />;
+                  }
+
+                  return (
+                    <button
+                      key={di}
+                      onClick={() => toggleDay(ds)}
+                      className={`aspect-square rounded-lg text-xs font-medium transition-all select-none flex items-center justify-center ${
+                        selected
+                          ? feriado
+                            ? "bg-red-500 text-white shadow-sm"
+                            : isWeekend
+                              ? "bg-orange-400 text-white shadow-sm"
+                              : "bg-blue-600 text-white shadow-sm"
+                          : "bg-gray-100 text-gray-300 hover:bg-gray-200 hover:text-gray-500"
+                      }`}
+                    >
+                      {d.getDate()}
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-3 text-[11px] text-gray-400 text-right">
+          {selectedDays.size} de {allDateStrs.length} días seleccionados
+        </div>
+      </div>
+
+      {/* Lista de días con Gantt */}
+      {visibleDays.length === 0 ? (
+        <div className="text-center py-12 text-sm text-gray-400">No hay días seleccionados</div>
+      ) : (
+        visibleDays.map((d) => {
+          const dateStr = fmt(d);
+          const dow = dowIndex(d);
+          const isWeekend = dow >= 5;
+          const feriado = isFeriadoIrrenunciable(d);
+          const hasShifts = slots.some((s) => s.days[dateStr] != null);
+
+          return (
+            <div key={dateStr} className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+              <div className={`px-3 py-1.5 text-sm font-medium flex items-center gap-2 ${
+                feriado ? "bg-red-600 text-white" :
+                isWeekend ? "bg-orange-500 text-white" :
+                "bg-blue-700 text-white"
+              }`}>
+                <span>{DOW_LABELS[dow]} {String(d.getDate()).padStart(2, "0")} — {MONTH_NAMES[month]} {year}</span>
+                {feriado && <span className="text-xs font-normal opacity-90 ml-1">· Feriado irrenunciable</span>}
+              </div>
+              {hasShifts && !feriado ? (
+                <GanttInline dateStr={dateStr} slots={slots} assign={assign} workerMap={workerMap} />
+              ) : (
+                <div className="px-4 py-3 text-xs text-gray-400 italic text-center">
+                  {feriado ? "Feriado irrenunciable — sin turnos" : "Sin turnos este día"}
+                </div>
+              )}
+            </div>
+          );
+        })
+      )}
     </div>
   );
 }
