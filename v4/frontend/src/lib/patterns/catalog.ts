@@ -127,7 +127,7 @@ const PATTERNS: ShiftPatternDef[] = [
   // ── Ventas Arauco (fixedSlots: Slot1=Apertura libre Jue, Slot2=Cierre libre Vie) ──
   {
     id: "ventas_mall_arauco",
-    label: "Ventas Arauco",
+    label: "Ventas Mall Arauco Maipu",
     areaNegocio: "ventas",
     fixedSlots: true,
     rotationWeeks: [
