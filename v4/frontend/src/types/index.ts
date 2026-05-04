@@ -6,6 +6,8 @@ export type ShiftCategory =
   | "ventas_mall_7d"
   | "ventas_mall_apertura_cierre"
   | "ventas_mall_arauco"
+  | "ventas_mall_movicenter"
+  | "ventas_mall_autopark"
   | "postventa_vista_hermosa"
   | "postventa_standalone"
   | "postventa_cap"

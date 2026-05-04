@@ -147,6 +147,52 @@ const PATTERNS: ShiftPatternDef[] = [
     weeklyHours: [42, 42],
   },
 
+  // ── Ventas Mall Movicenter (fixedSlots: Slot1=Apertura libre Jue, Slot2=Cierre libre Vie) ──
+  {
+    id: "ventas_mall_movicenter",
+    label: "Ventas Mall Movicenter",
+    areaNegocio: "ventas",
+    fixedSlots: true,
+    rotationWeeks: [
+      // T.Apertura: libre Jue
+      semana(
+        turno("10:00","18:00"), turno("10:00","18:00"),
+        turno("10:00","18:00"), L,
+        turno("10:00","18:00"), turno("10:00","18:00"), turno("10:00","18:00"),
+      ),
+      // T.Cierre: libre Vie
+      semana(
+        turno("12:00","20:00"), turno("12:00","20:00"),
+        turno("12:00","20:00"), turno("12:00","20:00"),
+        L, turno("12:00","20:00"), turno("12:00","20:00"),
+      ),
+    ],
+    weeklyHours: [42, 42],
+  },
+
+  // ── Ventas Mall Autopark (fixedSlots: Slot1=Apertura, Slot2=Cierre, Do siempre libre) ──
+  {
+    id: "ventas_mall_autopark",
+    label: "Ventas Mall Autopark",
+    areaNegocio: "ventas",
+    fixedSlots: true,
+    rotationWeeks: [
+      // T.Apertura: Lu-Sa 10:00-18:00, Do libre
+      semana(
+        turno("10:00","18:00"), turno("10:00","18:00"),
+        turno("10:00","18:00"), turno("10:00","18:00"),
+        turno("10:00","18:00"), turno("10:00","18:00"), L,
+      ),
+      // T.Cierre: Lu-Sa 11:00-19:00, Do libre
+      semana(
+        turno("11:00","19:00"), turno("11:00","19:00"),
+        turno("11:00","19:00"), turno("11:00","19:00"),
+        turno("11:00","19:00"), turno("11:00","19:00"), L,
+      ),
+    ],
+    weeklyHours: [42, 42],
+  },
+
   // ── Postventa Vista Hermosa (fijo, sin rotación) ─────────────────────────
   {
     id: "postventa_vista_hermosa",
