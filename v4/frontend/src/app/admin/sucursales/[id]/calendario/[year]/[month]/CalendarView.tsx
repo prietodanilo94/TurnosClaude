@@ -698,6 +698,7 @@ function CoberturaDelMesView({ year, month, slots, assign, workerMap }: Cobertur
 
   const allDateStrs = days.map(fmt);
   const [selectedDays, setSelectedDays] = useState<Set<string>>(() => new Set(allDateStrs));
+  const [calOpen, setCalOpen] = useState(true);
 
   function toggleDay(ds: string) {
     setSelectedDays((prev) => {
@@ -722,64 +723,78 @@ function CoberturaDelMesView({ year, month, slots, assign, workerMap }: Cobertur
   return (
     <div className="space-y-4">
       {/* Mini calendario filtro */}
-      <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-3 flex items-start gap-4 flex-wrap">
-        <div>
-          {/* Cabecera días */}
-          <div className="grid grid-cols-7 mb-0.5" style={{ width: 196 }}>
-            {["L", "M", "X", "J", "V", "S", "D"].map((d, i) => (
-              <div key={i} className={`w-7 text-center text-[10px] font-semibold ${i >= 5 ? "text-orange-400" : "text-gray-400"}`}>
-                {d}
-              </div>
-            ))}
-          </div>
-          {/* Semanas */}
-          <div className="space-y-0.5">
-            {calWeeks.map((week, wi) => (
-              <div key={wi} className="flex gap-0">
-                {week.map((d, di) => {
-                  const ds = fmt(d);
-                  const inMonth = d.getMonth() + 1 === month;
-                  const selected = selectedDays.has(ds);
-                  const isWeekend = di >= 5;
-                  const feriado = isFeriadoIrrenunciable(d);
-
-                  if (!inMonth) return <div key={di} className="w-7 h-7" />;
-
-                  return (
-                    <button
-                      key={di}
-                      onClick={() => toggleDay(ds)}
-                      title={ds}
-                      className={`w-7 h-7 rounded text-[11px] font-medium transition-all select-none flex items-center justify-center ${
-                        selected
-                          ? feriado
-                            ? "bg-red-500 text-white"
-                            : isWeekend
-                              ? "bg-orange-400 text-white"
-                              : "bg-blue-600 text-white"
-                          : "text-gray-300 hover:bg-gray-100 hover:text-gray-500"
-                      }`}
-                    >
-                      {d.getDate()}
-                    </button>
-                  );
-                })}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex flex-col justify-between self-stretch py-0.5 gap-2">
-          <div className="text-[11px] text-gray-400">
-            <span className="font-medium text-gray-600">{selectedDays.size}</span> / {allDateStrs.length} días
-          </div>
+      <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+        {/* Cabecera colapsable */}
+        <div className="flex items-center justify-between px-3 py-2">
           <button
-            onClick={toggleAll}
-            className="text-[11px] text-blue-600 hover:text-blue-800 font-medium transition-colors whitespace-nowrap"
+            onClick={() => setCalOpen((v) => !v)}
+            className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-gray-900 transition-colors"
           >
-            {selectedDays.size === allDateStrs.length ? "Quitar todos" : "Todos"}
+            <span className={`transition-transform duration-200 ${calOpen ? "rotate-90" : ""}`}>▶</span>
+            Filtrar días
+            {!calOpen && (
+              <span className="ml-1 text-gray-400 font-normal">
+                {selectedDays.size === allDateStrs.length ? "(todos)" : `(${selectedDays.size}/${allDateStrs.length})`}
+              </span>
+            )}
           </button>
+          {calOpen && (
+            <div className="flex items-center gap-3">
+              <span className="text-[11px] text-gray-400">
+                <span className="font-medium text-gray-600">{selectedDays.size}</span> / {allDateStrs.length}
+              </span>
+              <button
+                onClick={toggleAll}
+                className="text-[11px] text-blue-600 hover:text-blue-800 font-medium transition-colors"
+              >
+                {selectedDays.size === allDateStrs.length ? "Quitar todos" : "Todos"}
+              </button>
+            </div>
+          )}
         </div>
+
+        {/* Cuerpo */}
+        {calOpen && (
+          <div className="px-3 pb-3">
+            <div className="grid grid-cols-7 mb-0.5" style={{ width: 196 }}>
+              {["L", "M", "X", "J", "V", "S", "D"].map((d, i) => (
+                <div key={i} className={`w-7 text-center text-[10px] font-semibold ${i >= 5 ? "text-orange-400" : "text-gray-400"}`}>
+                  {d}
+                </div>
+              ))}
+            </div>
+            <div className="space-y-0.5">
+              {calWeeks.map((week, wi) => (
+                <div key={wi} className="flex gap-0">
+                  {week.map((d, di) => {
+                    const ds = fmt(d);
+                    const inMonth = d.getMonth() + 1 === month;
+                    const selected = selectedDays.has(ds);
+                    const isWeekend = di >= 5;
+                    const feriado = isFeriadoIrrenunciable(d);
+                    if (!inMonth) return <div key={di} className="w-7 h-7" />;
+                    return (
+                      <button
+                        key={di}
+                        onClick={() => toggleDay(ds)}
+                        title={ds}
+                        className={`w-7 h-7 rounded text-[11px] font-medium transition-all select-none flex items-center justify-center ${
+                          selected
+                            ? feriado ? "bg-red-500 text-white"
+                              : isWeekend ? "bg-orange-400 text-white"
+                              : "bg-blue-600 text-white"
+                            : "text-gray-300 hover:bg-gray-100 hover:text-gray-500"
+                        }`}
+                      >
+                        {d.getDate()}
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Lista de días con Gantt */}
