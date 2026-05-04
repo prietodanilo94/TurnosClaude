@@ -67,8 +67,9 @@ export function generateCalendar(
       monday.setDate(cur.getDate() - dowIndex(cur));
       const isoWeek = Math.floor(monday.getTime() / (7 * 24 * 3600 * 1000));
 
-      const baseOffset = rotLen === 1 ? 0 : slotNum - 1;
-      const weekIdx = (isoWeek + baseOffset) % rotLen;
+      const weekIdx = pattern.fixedSlots
+        ? (slotNum - 1) % rotLen
+        : rotLen === 1 ? 0 : (isoWeek + slotNum - 1) % rotLen;
 
       const dow = dowIndex(cur);
       days[dateStr] = pattern.rotationWeeks[weekIdx][dow] ?? null;

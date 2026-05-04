@@ -4,6 +4,7 @@ export type ShiftCategory =
   | "ventas_standalone"
   | "ventas_autopark"
   | "ventas_mall_7d"
+  | "ventas_mall_apertura_cierre"
   | "postventa_vista_hermosa"
   | "postventa_standalone"
   | "postventa_cap"
@@ -25,6 +26,7 @@ export interface ShiftPatternDef {
   areaNegocio: AreaNegocio;
   rotationWeeks: WeekPattern[]; // 1, 2 o 4 semanas
   weeklyHours: number[];
+  fixedSlots?: boolean; // cada slot tiene patrón fijo (sin rotación semanal)
 }
 
 export interface BranchSummary {

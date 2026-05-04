@@ -99,6 +99,31 @@ const PATTERNS: ShiftPatternDef[] = [
     weeklyHours: [42, 42, 36, 42],
   },
 
+  // ── Ventas Mall Apertura/Cierre (Oeste, Tobalaba, Vespucio, Egaña, Sur) ──
+  // Slot 1 = siempre T.Apertura (libre Jue), Slot 2 = siempre T.Cierre (libre Vie).
+  // El jefe asigna manualmente semana a semana; el sistema genera la plantilla base.
+  {
+    id: "ventas_mall_apertura_cierre",
+    label: "Ventas Mall Apertura/Cierre",
+    areaNegocio: "ventas",
+    fixedSlots: true,
+    rotationWeeks: [
+      // T.Apertura: libre Jue
+      semana(
+        turno("10:30","18:30"), turno("10:30","18:30"),
+        turno("10:30","18:30"), L,
+        turno("10:30","18:30"), turno("10:30","18:30"), turno("11:00","19:00"),
+      ),
+      // T.Cierre: libre Vie
+      semana(
+        turno("12:00","20:00"), turno("12:00","20:00"),
+        turno("12:00","20:00"), turno("12:00","20:00"),
+        L, turno("12:00","20:00"), turno("11:00","19:00"),
+      ),
+    ],
+    weeklyHours: [42, 42],
+  },
+
   // ── Postventa Vista Hermosa (fijo, sin rotación) ─────────────────────────
   {
     id: "postventa_vista_hermosa",
