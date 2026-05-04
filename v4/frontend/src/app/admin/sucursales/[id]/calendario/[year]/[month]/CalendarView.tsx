@@ -725,12 +725,12 @@ function CoberturaDelMesView({ year, month, slots, assign, workerMap }: Cobertur
       {/* Mini calendario filtro */}
       <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
         {/* Cabecera colapsable */}
-        <div className="flex items-center justify-between px-3 py-2">
+        <div className="flex items-center px-3 py-2">
           <button
             onClick={() => setCalOpen((v) => !v)}
             className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-gray-900 transition-colors"
           >
-            <span className={`transition-transform duration-200 ${calOpen ? "rotate-90" : ""}`}>▶</span>
+            <span className={`transition-transform duration-200 inline-block ${calOpen ? "rotate-90" : ""}`}>▶</span>
             Filtrar días
             {!calOpen && (
               <span className="ml-1 text-gray-400 font-normal">
@@ -738,19 +738,6 @@ function CoberturaDelMesView({ year, month, slots, assign, workerMap }: Cobertur
               </span>
             )}
           </button>
-          {calOpen && (
-            <div className="flex items-center gap-3">
-              <span className="text-[11px] text-gray-400">
-                <span className="font-medium text-gray-600">{selectedDays.size}</span> / {allDateStrs.length}
-              </span>
-              <button
-                onClick={toggleAll}
-                className="text-[11px] text-blue-600 hover:text-blue-800 font-medium transition-colors"
-              >
-                {selectedDays.size === allDateStrs.length ? "Quitar todos" : "Todos"}
-              </button>
-            </div>
-          )}
         </div>
 
         {/* Cuerpo */}
@@ -792,6 +779,17 @@ function CoberturaDelMesView({ year, month, slots, assign, workerMap }: Cobertur
                   })}
                 </div>
               ))}
+            </div>
+            <div className="flex items-center justify-between mt-2" style={{ width: 196 }}>
+              <span className="text-[11px] text-gray-400">
+                <span className="font-medium text-gray-600">{selectedDays.size}</span> / {allDateStrs.length} días
+              </span>
+              <button
+                onClick={toggleAll}
+                className="text-[11px] text-blue-600 hover:text-blue-800 font-medium transition-colors"
+              >
+                {selectedDays.size === allDateStrs.length ? "Quitar todos" : "Todos"}
+              </button>
             </div>
           </div>
         )}
