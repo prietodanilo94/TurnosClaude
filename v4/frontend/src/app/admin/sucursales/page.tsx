@@ -128,7 +128,7 @@ export default async function SucursalesPage() {
                               href={`/admin/sucursales/${branch.id}/calendario/${year}/${month}?team=${team.id}`}
                               className="text-sm text-blue-600 hover:text-blue-800 font-medium"
                             >
-                              Ver calendario →
+                              Asignación de Turnos →
                             </Link>
                           ) : (
                             <span
@@ -139,7 +139,7 @@ export default async function SucursalesPage() {
                                   : "Se requieren al menos 3 vendedores"
                               }
                             >
-                              Ver calendario
+                              Asignación de Turnos
                             </span>
                           )}
                         </div>
