@@ -162,7 +162,10 @@ export default function CalendarView({
   }
 
   async function handleRecalcular() {
-    if (!confirm("Esto borrará el calendario guardado y volverá a generar la plantilla limpia. ¿Continuar?")) return;
+    const msg = calId
+      ? "Esto borrará el calendario guardado y regenerará la plantilla limpia. ¿Continuar?"
+      : "Esto regenerará la plantilla limpia descartando los cambios actuales. ¿Continuar?";
+    if (!confirm(msg)) return;
     setRecalculating(true);
     try {
       if (calId) await fetch(`/api/calendars?id=${calId}`, { method: "DELETE" });
@@ -295,11 +298,11 @@ export default function CalendarView({
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={handleRecalcular}
-            disabled={recalculating || !calId}
+            disabled={recalculating}
             className="px-3 py-1.5 text-sm border border-rose-300 text-rose-700 rounded hover:bg-rose-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            title={!calId ? "No hay calendario guardado" : "Borrar y regenerar plantilla"}
+            title="Regenerar plantilla limpia desde cero"
           >
-            {recalculating ? "Borrando…" : "Recalcular"}
+            {recalculating ? "Regenerando…" : "Recalcular"}
           </button>
           <button
             onClick={handleSave}
@@ -308,7 +311,7 @@ export default function CalendarView({
               dirty ? "bg-blue-600 text-white hover:bg-blue-700" : "border border-gray-300 text-gray-400 cursor-default"
             }`}
           >
-            {saving ? "Guardando…" : dirty ? "Guardar" : "Guardado"}
+            {saving ? "Guardando…" : dirty ? "Guardar" : calId ? "Guardado" : "Sin guardar"}
           </button>
           <button
             onClick={() => handleExport("calendar")}
