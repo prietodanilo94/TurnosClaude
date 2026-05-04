@@ -295,24 +295,23 @@ const PATTERNS: ShiftPatternDef[] = [
     weeklyHours: [42, 42, 36, 42],
   },
 
-  // ── Óptimo Autopark (fijo apertura/cierre) — L-S 10:00-19:00 · Dom cerrado ──
+  // ── Óptimo Autopark (2 semanas) — L-V 09:30-19:00 · S 10:00-19:00 · D cerrado ──
   {
     id: "optimo_autopark",
     label: "Óptimo Autopark",
     areaNegocio: "ventas",
-    fixedSlots: true,
     rotationWeeks: [
-      // Slot Apertura: L-S 10:00-18:00, Dom libre
+      // Sem 1: Lun libre
       semana(
-        turno("10:00","18:00"), turno("10:00","18:00"),
-        turno("10:00","18:00"), turno("10:00","18:00"),
-        turno("10:00","18:00"), turno("10:00","18:00"), L,
+        L, turno("09:30","19:00"),
+        turno("09:30","19:00"), turno("09:30","19:00"),
+        turno("09:30","19:00"), turno("10:00","19:00"), L,
       ),
-      // Slot Cierre: L-S 11:00-19:00, Dom libre
+      // Sem 2: Jue libre
       semana(
-        turno("11:00","19:00"), turno("11:00","19:00"),
-        turno("11:00","19:00"), turno("11:00","19:00"),
-        turno("11:00","19:00"), turno("11:00","19:00"), L,
+        turno("09:30","19:00"), turno("09:30","19:00"),
+        turno("09:30","19:00"), L,
+        turno("09:30","19:00"), turno("10:00","19:00"), L,
       ),
     ],
     weeklyHours: [42, 42],
