@@ -157,6 +157,13 @@ export default function CalendarView({
     });
   }, [localSlots]);
 
+  // Mapa slotNumber → número de display según orden de sortedSlots
+  const slotDisplayNum = useMemo<Record<number, number>>(() => {
+    const map: Record<number, number> = {};
+    sortedSlots.forEach((s, i) => { map[s.slotNumber] = i + 1; });
+    return map;
+  }, [sortedSlots]);
+
   async function handleSave(): Promise<string | null> {
     setSaving(true);
     try {
@@ -418,6 +425,7 @@ export default function CalendarView({
               prevAssignments={prevAssignments}
               nextAssignments={nextAssignments}
               workerMap={workerMap}
+              slotDisplayNum={slotDisplayNum}
               onSlotClick={(n) => setDialogSlot(n)}
               selectedDay={selectedDay}
               onDayClick={(ds) => setSelectedDay((prev) => prev === ds ? null : ds)}
@@ -434,6 +442,7 @@ export default function CalendarView({
           slots={sortedSlots}
           assign={assign}
           workerMap={workerMap}
+          slotDisplayNum={slotDisplayNum}
           selectedSlots={selectedSlots}
           onToggleSlot={toggleSlot}
           onSelectAll={() => setSelectedSlots(new Set(sortedSlots.map((s) => s.slotNumber)))}
@@ -445,6 +454,7 @@ export default function CalendarView({
           month={month}
           slots={sortedSlots}
           assign={assign}
+          slotDisplayNum={slotDisplayNum}
           workerMap={workerMap}
         />
       )}
@@ -489,6 +499,7 @@ interface WeekBlockProps {
   prevAssignments: Record<string, string | null>;
   nextAssignments: Record<string, string | null>;
   workerMap: Record<string, string>;
+  slotDisplayNum: Record<number, number>;
   onSlotClick: (slotNum: number) => void;
   selectedDay: string | null;
   onDayClick: (dateStr: string) => void;
@@ -497,7 +508,7 @@ interface WeekBlockProps {
 }
 
 function WeekBlock({
-  week, month, slots, assign, prevAssignments, nextAssignments, workerMap,
+  week, month, slots, assign, prevAssignments, nextAssignments, workerMap, slotDisplayNum,
   onSlotClick, selectedDay, onDayClick, onShiftCellClick, onLibreSwap,
 }: WeekBlockProps) {
   const [dragSource, setDragSource] = useState<{ slotNum: number; dateStr: string } | null>(null);
@@ -592,6 +603,7 @@ function WeekBlock({
                     slots={slots}
                     assign={assign}
                     workerMap={workerMap}
+                    slotDisplayNum={slotDisplayNum}
                   />
                 </td>
               </tr>
@@ -601,7 +613,7 @@ function WeekBlock({
           <tbody>
             {slots.map((slot, idx) => {
               const workerId = assign[String(slot.slotNumber)] ?? null;
-              const workerName = workerId ? (workerMap[workerId] ?? "?") : `Vendedor ${slot.slotNumber}`;
+              const workerName = workerId ? (workerMap[workerId] ?? "?") : `Vendedor ${slotDisplayNum[slot.slotNumber] ?? slot.slotNumber}`;
               const color = workerColor(slot.slotNumber);
               const altRow = idx % 2 === 1 ? "bg-gray-50/30" : "";
 
@@ -706,9 +718,10 @@ interface CoberturaDelMesViewProps {
   slots: CalendarSlot[];
   assign: Record<string, string | null>;
   workerMap: Record<string, string>;
+  slotDisplayNum: Record<number, number>;
 }
 
-function CoberturaDelMesView({ year, month, slots, assign, workerMap }: CoberturaDelMesViewProps) {
+function CoberturaDelMesView({ year, month, slots, assign, workerMap, slotDisplayNum }: CoberturaDelMesViewProps) {
   const daysInMonth = new Date(year, month, 0).getDate();
   const days: Date[] = [];
   for (let d = 1; d <= daysInMonth; d++) {
@@ -836,7 +849,7 @@ function CoberturaDelMesView({ year, month, slots, assign, workerMap }: Cobertur
                 {feriado && <span className="text-xs font-normal opacity-90 ml-1">· Feriado irrenunciable</span>}
               </div>
               {hasShifts && !feriado ? (
-                <GanttInline dateStr={dateStr} slots={slots} assign={assign} workerMap={workerMap} />
+                <GanttInline dateStr={dateStr} slots={slots} assign={assign} workerMap={workerMap} slotDisplayNum={slotDisplayNum}/>
               ) : (
                 <div className="px-4 py-3 text-xs text-gray-400 italic text-center">
                   {feriado ? "Feriado irrenunciable — sin turnos" : "Sin turnos este día"}
@@ -857,9 +870,10 @@ interface GanttInlineProps {
   slots: CalendarSlot[];
   assign: Record<string, string | null>;
   workerMap: Record<string, string>;
+  slotDisplayNum: Record<number, number>;
 }
 
-function GanttInline({ dateStr, slots, assign, workerMap }: GanttInlineProps) {
+function GanttInline({ dateStr, slots, assign, workerMap, slotDisplayNum }: GanttInlineProps) {
   const date = new Date(dateStr + "T12:00:00");
   const feriado = isFeriadoIrrenunciable(date);
 
@@ -916,7 +930,7 @@ function GanttInline({ dateStr, slots, assign, workerMap }: GanttInlineProps) {
 
       <div className="space-y-1.5">
         {activeSlots.map(({ slot, shift, workerId }) => {
-          const workerName = workerId ? (workerMap[workerId] ?? "?") : `Vendedor ${slot.slotNumber}`;
+          const workerName = workerId ? (workerMap[workerId] ?? "?") : `Vendedor ${slotDisplayNum[slot.slotNumber] ?? slot.slotNumber}`;
           const color = workerColor(slot.slotNumber);
           const startMin = minutesFromTime(shift!.start);
           const endMin   = minutesFromTime(shift!.end);
@@ -968,6 +982,7 @@ interface VendedorTabViewProps {
   slots: CalendarSlot[];
   assign: Record<string, string | null>;
   workerMap: Record<string, string>;
+  slotDisplayNum: Record<number, number>;
   selectedSlots: Set<number>;
   onToggleSlot: (n: number) => void;
   onSelectAll: () => void;
@@ -975,7 +990,7 @@ interface VendedorTabViewProps {
 }
 
 function VendedorTabView({
-  year, month, weeks, slots, assign, workerMap,
+  year, month, weeks, slots, assign, workerMap, slotDisplayNum,
   selectedSlots, onToggleSlot, onSelectAll, onDeselectAll,
 }: VendedorTabViewProps) {
   const allSelected = selectedSlots.size === slots.length;
@@ -997,7 +1012,7 @@ function VendedorTabView({
         {slots.map((s) => {
           const color = workerColor(s.slotNumber);
           const wid = assign[String(s.slotNumber)] ?? null;
-          const name = wid ? (workerMap[wid] ?? `Vendedor ${s.slotNumber}`) : `Vendedor ${s.slotNumber}`;
+          const name = wid ? (workerMap[wid] ?? `Vendedor ${slotDisplayNum[s.slotNumber] ?? s.slotNumber}`) : `Vendedor ${slotDisplayNum[s.slotNumber] ?? s.slotNumber}`;
           const sel = selectedSlots.has(s.slotNumber);
           return (
             <button
@@ -1031,6 +1046,7 @@ function VendedorTabView({
                 weeks={weeks}
                 assign={assign}
                 workerMap={workerMap}
+                slotDisplayNum={slotDisplayNum}
               />
             ))}
         </div>
@@ -1048,11 +1064,13 @@ interface VendedorCalendarProps {
   weeks: Date[][];
   assign: Record<string, string | null>;
   workerMap: Record<string, string>;
+  slotDisplayNum: Record<number, number>;
 }
 
-function VendedorCalendar({ slot, year, month, weeks, assign, workerMap }: VendedorCalendarProps) {
+function VendedorCalendar({ slot, year, month, weeks, assign, workerMap, slotDisplayNum }: VendedorCalendarProps) {
   const workerId = assign[String(slot.slotNumber)] ?? null;
-  const workerName = workerId ? (workerMap[workerId] ?? `Vendedor ${slot.slotNumber}`) : `Vendedor ${slot.slotNumber}`;
+  const displayN = slotDisplayNum[slot.slotNumber] ?? slot.slotNumber;
+  const workerName = workerId ? (workerMap[workerId] ?? `Vendedor ${displayN}`) : `Vendedor ${displayN}`;
   const color = workerColor(slot.slotNumber);
 
   const weekData = weeks.map((week) => {
