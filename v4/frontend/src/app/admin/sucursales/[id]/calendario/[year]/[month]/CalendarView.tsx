@@ -133,7 +133,7 @@ export default function CalendarView({
   const [shiftEditDialog, setShiftEditDialog] = useState<{ slotNum: number; dateStr: string } | null>(null);
   const [recalculating, setRecalculating] = useState(false);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
-  const [view, setView] = useState<"semanas" | "vendedor">("semanas");
+  const [view, setView] = useState<"mensual" | "vendedor" | "diario">("mensual");
   const [selectedSlots, setSelectedSlots] = useState<Set<number>>(
     () => new Set(slots.map((s) => s.slotNumber)),
   );
@@ -329,12 +329,12 @@ export default function CalendarView({
       <div className="mb-4 flex items-center gap-3 bg-white border border-gray-200 rounded-lg p-2.5">
         <div className="flex gap-0.5 bg-gray-100 rounded-md p-0.5">
           <button
-            onClick={() => setView("semanas")}
+            onClick={() => setView("mensual")}
             className={`px-3 py-1 text-sm rounded font-medium transition-colors ${
-              view === "semanas" ? "bg-white text-blue-700 shadow-sm" : "text-gray-500 hover:text-gray-700"
+              view === "mensual" ? "bg-white text-blue-700 shadow-sm" : "text-gray-500 hover:text-gray-700"
             }`}
           >
-            Semanas
+            Calendario Mensual
           </button>
           <button
             onClick={() => setView("vendedor")}
@@ -342,7 +342,15 @@ export default function CalendarView({
               view === "vendedor" ? "bg-white text-blue-700 shadow-sm" : "text-gray-500 hover:text-gray-700"
             }`}
           >
-            Por vendedor
+            Turno por Vendedor
+          </button>
+          <button
+            onClick={() => setView("diario")}
+            className={`px-3 py-1 text-sm rounded font-medium transition-colors ${
+              view === "diario" ? "bg-white text-blue-700 shadow-sm" : "text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            Cobertura del Día
           </button>
         </div>
 
@@ -379,7 +387,7 @@ export default function CalendarView({
       )}
 
       {/* Contenido según tab */}
-      {view === "semanas" ? (
+      {view === "mensual" ? (
         <div className="space-y-4">
           {weeks.map((week, wi) => (
             <WeekBlock
@@ -399,7 +407,7 @@ export default function CalendarView({
             />
           ))}
         </div>
-      ) : (
+      ) : view === "vendedor" ? (
         <VendedorTabView
           year={year}
           month={month}
@@ -411,6 +419,14 @@ export default function CalendarView({
           onToggleSlot={toggleSlot}
           onSelectAll={() => setSelectedSlots(new Set(localSlots.map((s) => s.slotNumber)))}
           onDeselectAll={() => setSelectedSlots(new Set())}
+        />
+      ) : (
+        <CoberturaDelMesView
+          year={year}
+          month={month}
+          slots={localSlots}
+          assign={assign}
+          workerMap={workerMap}
         />
       )}
 
@@ -659,6 +675,56 @@ function WeekBlock({
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+// ─── Tab: Cobertura del Día ───────────────────────────────────────────────────
+
+interface CoberturaDelMesViewProps {
+  year: number;
+  month: number;
+  slots: CalendarSlot[];
+  assign: Record<string, string | null>;
+  workerMap: Record<string, string>;
+}
+
+function CoberturaDelMesView({ year, month, slots, assign, workerMap }: CoberturaDelMesViewProps) {
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const days: Date[] = [];
+  for (let d = 1; d <= daysInMonth; d++) {
+    days.push(new Date(year, month - 1, d));
+  }
+
+  return (
+    <div className="space-y-3">
+      {days.map((d) => {
+        const dateStr = fmt(d);
+        const dow = dowIndex(d);
+        const isWeekend = dow >= 5;
+        const feriado = isFeriadoIrrenunciable(d);
+        const hasShifts = slots.some((s) => s.days[dateStr] != null);
+
+        return (
+          <div key={dateStr} className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+            <div className={`px-3 py-1.5 text-sm font-medium flex items-center gap-2 ${
+              feriado ? "bg-red-600 text-white" :
+              isWeekend ? "bg-orange-500 text-white" :
+              "bg-blue-700 text-white"
+            }`}>
+              <span>{DOW_LABELS[dow]} {String(d.getDate()).padStart(2, "0")} — {MONTH_NAMES[month]} {year}</span>
+              {feriado && <span className="text-xs font-normal opacity-90 ml-1">· Feriado irrenunciable</span>}
+            </div>
+            {hasShifts && !feriado ? (
+              <GanttInline dateStr={dateStr} slots={slots} assign={assign} workerMap={workerMap} />
+            ) : (
+              <div className="px-4 py-3 text-xs text-gray-400 italic text-center">
+                {feriado ? "Feriado irrenunciable — sin turnos" : "Sin turnos este día"}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
