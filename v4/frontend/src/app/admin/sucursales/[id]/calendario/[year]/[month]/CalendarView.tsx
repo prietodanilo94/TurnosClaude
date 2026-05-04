@@ -141,6 +141,22 @@ export default function CalendarView({
   const weeks = useMemo(() => buildIsoWeeks(year, month), [year, month]);
   const operatingWindow = useMemo(() => getOperatingWindow(categoria), [categoria]);
 
+  // Slots ordenados por horario de inicio dominante en el mes (agrupa turnos iguales)
+  const sortedSlots = useMemo(() => {
+    function dominantStart(slot: CalendarSlot): string {
+      const counts: Record<string, number> = {};
+      for (const shift of Object.values(slot.days)) {
+        if (shift) counts[shift.start] = (counts[shift.start] ?? 0) + 1;
+      }
+      const best = Object.entries(counts).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0];
+      return best ? best[0] : "99:99";
+    }
+    return [...localSlots].sort((a, b) => {
+      const diff = dominantStart(a).localeCompare(dominantStart(b));
+      return diff !== 0 ? diff : a.slotNumber - b.slotNumber;
+    });
+  }, [localSlots]);
+
   async function handleSave(): Promise<string | null> {
     setSaving(true);
     try {
@@ -397,7 +413,7 @@ export default function CalendarView({
               key={wi}
               week={week}
               month={currentMonth ?? month}
-              slots={localSlots}
+              slots={sortedSlots}
               assign={assign}
               prevAssignments={prevAssignments}
               nextAssignments={nextAssignments}
@@ -415,19 +431,19 @@ export default function CalendarView({
           year={year}
           month={month}
           weeks={weeks}
-          slots={localSlots}
+          slots={sortedSlots}
           assign={assign}
           workerMap={workerMap}
           selectedSlots={selectedSlots}
           onToggleSlot={toggleSlot}
-          onSelectAll={() => setSelectedSlots(new Set(localSlots.map((s) => s.slotNumber)))}
+          onSelectAll={() => setSelectedSlots(new Set(sortedSlots.map((s) => s.slotNumber)))}
           onDeselectAll={() => setSelectedSlots(new Set())}
         />
       ) : (
         <CoberturaDelMesView
           year={year}
           month={month}
-          slots={localSlots}
+          slots={sortedSlots}
           assign={assign}
           workerMap={workerMap}
         />
