@@ -83,5 +83,5 @@ Las specs viven en `v4/specs/`. Cada una tiene `spec.md` y `tasks.md`.
 |----|---------|--------|------|
 | F1 | Supervisores como entidad central (reemplaza jefes de sucursal) | **Completo** | `v4/specs/F1-supervisores/` |
 | F2 | Bloqueo de vendedores por rango de fechas | **Completo** | `v4/specs/F2-bloqueos/` |
-| F3 | Nombres visibles en calendario | Pendiente | `v4/specs/F3-nombres-calendario/` |
-| F4 | Historial de movimientos + webhook N8N | Pendiente | `v4/specs/F4-historial/` |
+| F3 | Nombres visibles en calendario | **Completo** | `v4/specs/F3-nombres-calendario/` |
+| F4 | Historial de movimientos + webhook N8N | **Completo** | `v4/specs/F4-historial/` |
