@@ -1,10 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [credential, setCredential] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -26,11 +24,8 @@ export default function LoginPage() {
         return;
       }
       const data = await res.json();
-      if (data.role === "vendedor") {
-        router.replace("/vendedor");
-      } else {
-        router.replace("/admin");
-      }
+      // Hard navigation to ensure cookie is committed before the request
+      window.location.href = data.role === "vendedor" ? "/vendedor" : "/admin";
     } catch {
       setError("Error de conexión");
     } finally {
