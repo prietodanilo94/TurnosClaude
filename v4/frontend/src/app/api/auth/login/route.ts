@@ -19,42 +19,66 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Campos requeridos" }, { status: 400 });
   }
 
-  // ── Admin (env vars) ──
+  const normalizedEmail = String(email).trim().toLowerCase();
+
   const adminEmail = process.env.ADMIN_EMAIL ?? "";
-  const adminHash  = process.env.ADMIN_PASSWORD_HASH ?? "";
+  const adminHash = process.env.ADMIN_PASSWORD_HASH ?? "";
   const isAdmin =
-    email.toLowerCase() === adminEmail.toLowerCase() &&
+    normalizedEmail === adminEmail.toLowerCase() &&
     (adminHash ? await bcrypt.compare(password, adminHash) : password === process.env.ADMIN_PASSWORD);
 
   if (isAdmin) {
-    const token = await createSession({ email, role: "admin" });
+    const token = await createSession({ email: normalizedEmail, role: "admin" });
     const res = NextResponse.json({ ok: true, role: "admin" });
     res.cookies.set(sessionCookieOptions(token));
     return res;
   }
 
-  // ── Jefe de sucursal (DB User) ──
-  if (email.includes("@")) {
-    const user = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() },
+  if (normalizedEmail.includes("@")) {
+    const supervisor = await prisma.supervisor.findUnique({
+      where: { email: normalizedEmail },
       include: { branches: { select: { branchId: true } } },
     });
 
-    if (user && user.activo && await bcrypt.compare(password, user.passwordHash)) {
+    if (
+      supervisor &&
+      supervisor.activo &&
+      supervisor.passwordHash &&
+      await bcrypt.compare(password, supervisor.passwordHash)
+    ) {
       const token = await createSession({
-        email: user.email,
-        role: "jefe",
-        userId: user.id,
-        branchIds: user.branches.map((b) => b.branchId),
+        email: supervisor.email ?? normalizedEmail,
+        role: "supervisor",
+        supervisorId: supervisor.id,
+        branchIds: supervisor.branches.map((branch) => branch.branchId),
+        nombre: supervisor.nombre,
       });
-      const res = NextResponse.json({ ok: true, role: "jefe" });
+      const res = NextResponse.json({ ok: true, role: "supervisor" });
       res.cookies.set(sessionCookieOptions(token));
       return res;
     }
+
+    const legacyUser = await prisma.user.findUnique({
+      where: { email: normalizedEmail },
+      include: { branches: { select: { branchId: true } } },
+    });
+
+    if (legacyUser && legacyUser.activo && await bcrypt.compare(password, legacyUser.passwordHash)) {
+      const token = await createSession({
+        email: legacyUser.email,
+        role: "supervisor",
+        userId: legacyUser.id,
+        branchIds: legacyUser.branches.map((branch) => branch.branchId),
+        nombre: legacyUser.nombre,
+      });
+      const res = NextResponse.json({ ok: true, role: "supervisor" });
+      res.cookies.set(sessionCookieOptions(token));
+      return res;
+    }
+
     return NextResponse.json({ error: "Credenciales incorrectas" }, { status: 401 });
   }
 
-  // ── Vendedor (Worker por RUT) ──
   const rut = normalizeRut(email);
   if (rut) {
     const worker = await prisma.worker.findUnique({

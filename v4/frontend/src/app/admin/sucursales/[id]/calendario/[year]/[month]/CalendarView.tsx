@@ -4,8 +4,14 @@ import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { workerColor } from "@/components/calendar/worker-colors";
-import type { CalendarSlot, DayShift, ShiftCategory, WorkerInfo } from "@/types";
+import type { CalendarSlot, DayShift, ShiftCategory, WorkerInfo, WorkerBlockInfo } from "@/types";
 import { getOperatingWindow, CATEGORY_LABELS, getWeeklyScheduleSummary } from "@/lib/patterns/catalog";
+import {
+  buildWorkerBlockDateMap,
+  getWorkerBlockReason,
+  isWorkerBlockedOnDate,
+  type WorkerBlockDateMap,
+} from "@/lib/calendar/generator";
 
 const DOW_LABELS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 const MONTH_NAMES = [
@@ -95,6 +101,12 @@ function fmtDateRange(d1: Date, d2: Date): string {
   return `${String(d1.getDate()).padStart(2, "0")} ${MONTH_ABBR[d1.getMonth() + 1]} – ${String(d2.getDate()).padStart(2, "0")} ${MONTH_ABBR[d2.getMonth() + 1]}`;
 }
 
+function shortWorkerName(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length <= 1) return parts[0] ?? "";
+  return `${parts[0]} ${parts[1].charAt(0)}.`;
+}
+
 interface Props {
   branchId: string;
   branchName: string;
@@ -108,6 +120,7 @@ interface Props {
   assignments: Record<string, string | null>;
   workers: WorkerInfo[];
   workerMap: Record<string, string>;
+  workerBlocks?: WorkerBlockInfo[];
   calendarId?: string;
   generateAlert?: string;
   prevAssignments?: Record<string, string | null>;
@@ -119,7 +132,7 @@ interface Props {
 export default function CalendarView({
   branchId, branchName, branchCodigo, teamId, areaNegocio, categoria,
   year, month, slots, assignments, workers, workerMap, calendarId, generateAlert,
-  prevAssignments = {}, nextAssignments = {}, currentYear, currentMonth,
+  workerBlocks = [], prevAssignments = {}, nextAssignments = {}, currentYear, currentMonth,
 }: Props) {
   const router = useRouter();
   const [localSlots, setLocalSlots] = useState<CalendarSlot[]>(() =>
@@ -140,6 +153,7 @@ export default function CalendarView({
 
   const weeks = useMemo(() => buildIsoWeeks(year, month), [year, month]);
   const operatingWindow = useMemo(() => getOperatingWindow(categoria), [categoria]);
+  const blockMap = useMemo(() => buildWorkerBlockDateMap(workerBlocks), [workerBlocks]);
 
   // Slots ordenados por horario de inicio dominante en el mes (agrupa turnos iguales)
   const sortedSlots = useMemo(() => {
@@ -427,6 +441,7 @@ export default function CalendarView({
               prevAssignments={prevAssignments}
               nextAssignments={nextAssignments}
               workerMap={workerMap}
+              blockMap={blockMap}
               slotDisplayNum={slotDisplayNum}
               onSlotClick={(n) => setDialogSlot(n)}
               selectedDay={selectedDay}
@@ -444,6 +459,7 @@ export default function CalendarView({
           slots={sortedSlots}
           assign={assign}
           workerMap={workerMap}
+          blockMap={blockMap}
           slotDisplayNum={slotDisplayNum}
           selectedSlots={selectedSlots}
           onToggleSlot={toggleSlot}
@@ -458,6 +474,7 @@ export default function CalendarView({
           assign={assign}
           slotDisplayNum={slotDisplayNum}
           workerMap={workerMap}
+          blockMap={blockMap}
         />
       )}
 
@@ -501,6 +518,7 @@ interface WeekBlockProps {
   prevAssignments: Record<string, string | null>;
   nextAssignments: Record<string, string | null>;
   workerMap: Record<string, string>;
+  blockMap: WorkerBlockDateMap;
   slotDisplayNum: Record<number, number>;
   onSlotClick: (slotNum: number) => void;
   selectedDay: string | null;
@@ -510,7 +528,7 @@ interface WeekBlockProps {
 }
 
 function WeekBlock({
-  week, month, slots, assign, prevAssignments, nextAssignments, workerMap, slotDisplayNum,
+  week, month, slots, assign, prevAssignments, nextAssignments, workerMap, blockMap, slotDisplayNum,
   onSlotClick, selectedDay, onDayClick, onShiftCellClick, onLibreSwap,
 }: WeekBlockProps) {
   const [dragSource, setDragSource] = useState<{ slotNum: number; dateStr: string } | null>(null);
@@ -605,6 +623,7 @@ function WeekBlock({
                     slots={slots}
                     assign={assign}
                     workerMap={workerMap}
+                    blockMap={blockMap}
                     slotDisplayNum={slotDisplayNum}
                   />
                 </td>
@@ -625,11 +644,12 @@ function WeekBlock({
                 const shift = slot.days[dateStr] ?? null;
                 const inMonth = d.getMonth() + 1 === month;
                 const feriado = isFeriadoIrrenunciable(d);
-                if (shift && !feriado) totalHours += shiftDuration(shift);
                 const dayAssign = assignForDay(d);
                 const dayWorkerId = dayAssign[String(slot.slotNumber)] ?? null;
                 const dayWorkerName = dayWorkerId ? (workerMap[dayWorkerId] ?? "?") : null;
-                return { dateStr, shift, inMonth, ci, feriado, dayWorkerId, dayWorkerName };
+                const blockReason = getWorkerBlockReason(blockMap, dayWorkerId, dateStr);
+                if (shift && !feriado && blockReason === null) totalHours += shiftDuration(shift);
+                return { dateStr, shift, inMonth, ci, feriado, dayWorkerId, dayWorkerName, blockReason };
               });
 
               return (
@@ -646,7 +666,7 @@ function WeekBlock({
                       </span>
                     </div>
                   </td>
-                  {cells.map(({ dateStr, shift, inMonth, ci, feriado, dayWorkerId, dayWorkerName }) => {
+                  {cells.map(({ dateStr, shift, inMonth, ci, feriado, dayWorkerId, dayWorkerName, blockReason }) => {
                     const canDrag = inMonth && !feriado;
                     const isBeingDragged = dragSource?.slotNum === slot.slotNumber && dragSource?.dateStr === dateStr;
                     const isDropTarget = dragOver?.slotNum === slot.slotNumber && dragOver?.dateStr === dateStr;
@@ -657,6 +677,18 @@ function WeekBlock({
                       >
                         {feriado ? (
                           <span className="text-[10px] font-medium text-red-400 italic">Feriado</span>
+                        ) : blockReason !== null ? (
+                          <div
+                            title={blockReason || "Bloqueado"}
+                            className="px-1 py-1 rounded border border-gray-300 bg-gray-200 text-gray-700"
+                          >
+                            <div className="text-[10px] font-medium">Bloq.</div>
+                            {dayWorkerName && (
+                              <div className="text-[8px] leading-none mt-0.5 truncate">
+                                {shortWorkerName(dayWorkerName)}
+                              </div>
+                            )}
+                          </div>
                         ) : shift ? (
                           <div
                             draggable={canDrag}
@@ -678,6 +710,11 @@ function WeekBlock({
                             {shift.start}–{shift.end}
                             {!inMonth && dayWorkerName && (
                               <div className="text-[8px] leading-none mt-0.5 opacity-70 truncate">{dayWorkerName.split(" ")[0]}</div>
+                            )}
+                            {inMonth && dayWorkerName && (
+                              <div className="text-[8px] leading-none mt-0.5 opacity-80 truncate">
+                                {shortWorkerName(dayWorkerName)}
+                              </div>
                             )}
                           </div>
                         ) : (
@@ -720,10 +757,11 @@ interface CoberturaDelMesViewProps {
   slots: CalendarSlot[];
   assign: Record<string, string | null>;
   workerMap: Record<string, string>;
+  blockMap: WorkerBlockDateMap;
   slotDisplayNum: Record<number, number>;
 }
 
-function CoberturaDelMesView({ year, month, slots, assign, workerMap, slotDisplayNum }: CoberturaDelMesViewProps) {
+function CoberturaDelMesView({ year, month, slots, assign, workerMap, blockMap, slotDisplayNum }: CoberturaDelMesViewProps) {
   const daysInMonth = new Date(year, month, 0).getDate();
   const days: Date[] = [];
   for (let d = 1; d <= daysInMonth; d++) {
@@ -851,7 +889,14 @@ function CoberturaDelMesView({ year, month, slots, assign, workerMap, slotDispla
                 {feriado && <span className="text-xs font-normal opacity-90 ml-1">· Feriado irrenunciable</span>}
               </div>
               {hasShifts && !feriado ? (
-                <GanttInline dateStr={dateStr} slots={slots} assign={assign} workerMap={workerMap} slotDisplayNum={slotDisplayNum}/>
+                <GanttInline
+                  dateStr={dateStr}
+                  slots={slots}
+                  assign={assign}
+                  workerMap={workerMap}
+                  blockMap={blockMap}
+                  slotDisplayNum={slotDisplayNum}
+                />
               ) : (
                 <div className="px-4 py-3 text-xs text-gray-400 italic text-center">
                   {feriado ? "Feriado irrenunciable — sin turnos" : "Sin turnos este día"}
@@ -872,10 +917,11 @@ interface GanttInlineProps {
   slots: CalendarSlot[];
   assign: Record<string, string | null>;
   workerMap: Record<string, string>;
+  blockMap: WorkerBlockDateMap;
   slotDisplayNum: Record<number, number>;
 }
 
-function GanttInline({ dateStr, slots, assign, workerMap, slotDisplayNum }: GanttInlineProps) {
+function GanttInline({ dateStr, slots, assign, workerMap, blockMap, slotDisplayNum }: GanttInlineProps) {
   const date = new Date(dateStr + "T12:00:00");
   const feriado = isFeriadoIrrenunciable(date);
 
@@ -885,7 +931,7 @@ function GanttInline({ dateStr, slots, assign, workerMap, slotDisplayNum }: Gant
       shift: slot.days[dateStr] ?? null,
       workerId: assign[String(slot.slotNumber)] ?? null,
     }))
-    .filter(({ shift }) => shift !== null && !feriado);
+    .filter(({ shift, workerId }) => shift !== null && !feriado && !isWorkerBlockedOnDate(blockMap, workerId, dateStr));
 
   if (activeSlots.length === 0) {
     return (
@@ -942,7 +988,7 @@ function GanttInline({ dateStr, slots, assign, workerMap, slotDisplayNum }: Gant
             <div key={slot.slotNumber} className="flex items-center gap-2">
               <div className={`${NAME_W} flex items-center gap-1.5 shrink-0`}>
                 <span className={`w-2 h-2 rounded-full ${color.bg} border ${color.border} shrink-0`} />
-                <span className="text-[11px] text-gray-700 truncate">{workerName.split(" ")[0]}</span>
+                <span className="text-[11px] text-gray-700 truncate">{shortWorkerName(workerName)}</span>
               </div>
               <div className="flex-1 relative h-6 bg-white rounded border border-gray-200">
                 {hourMarks.map((h) => (
@@ -984,6 +1030,7 @@ interface VendedorTabViewProps {
   slots: CalendarSlot[];
   assign: Record<string, string | null>;
   workerMap: Record<string, string>;
+  blockMap: WorkerBlockDateMap;
   slotDisplayNum: Record<number, number>;
   selectedSlots: Set<number>;
   onToggleSlot: (n: number) => void;
@@ -992,7 +1039,7 @@ interface VendedorTabViewProps {
 }
 
 function VendedorTabView({
-  year, month, weeks, slots, assign, workerMap, slotDisplayNum,
+  year, month, weeks, slots, assign, workerMap, blockMap, slotDisplayNum,
   selectedSlots, onToggleSlot, onSelectAll, onDeselectAll,
 }: VendedorTabViewProps) {
   const allSelected = selectedSlots.size === slots.length;
@@ -1048,6 +1095,7 @@ function VendedorTabView({
                 weeks={weeks}
                 assign={assign}
                 workerMap={workerMap}
+                blockMap={blockMap}
                 slotDisplayNum={slotDisplayNum}
               />
             ))}
@@ -1066,10 +1114,11 @@ interface VendedorCalendarProps {
   weeks: Date[][];
   assign: Record<string, string | null>;
   workerMap: Record<string, string>;
+  blockMap: WorkerBlockDateMap;
   slotDisplayNum: Record<number, number>;
 }
 
-function VendedorCalendar({ slot, year, month, weeks, assign, workerMap, slotDisplayNum }: VendedorCalendarProps) {
+function VendedorCalendar({ slot, year, month, weeks, assign, workerMap, blockMap, slotDisplayNum }: VendedorCalendarProps) {
   const workerId = assign[String(slot.slotNumber)] ?? null;
   const displayN = slotDisplayNum[slot.slotNumber] ?? slot.slotNumber;
   const workerName = workerId ? (workerMap[workerId] ?? `Vendedor ${displayN}`) : `Vendedor ${displayN}`;
@@ -1082,7 +1131,8 @@ function VendedorCalendar({ slot, year, month, weeks, assign, workerMap, slotDis
       const shift = slot.days[dateStr] ?? null;
       const inMonth = d.getMonth() + 1 === month;
       const feriado = isFeriadoIrrenunciable(d);
-      return { d, shift, inMonth, feriado };
+      const blockReason = getWorkerBlockReason(blockMap, workerId, dateStr);
+      return { d, shift, inMonth, feriado, blockReason };
     });
     return { isoWeek, days };
   });
@@ -1107,7 +1157,7 @@ function VendedorCalendar({ slot, year, month, weeks, assign, workerMap, slotDis
             {weekData.map(({ isoWeek, days }, wi) => (
               <tr key={wi} className="border-t border-gray-50">
                 <td className="px-3 py-1.5 text-gray-300 font-medium text-center">{isoWeek}</td>
-                {days.map(({ d, shift, inMonth, feriado }, ci) => {
+                {days.map(({ d, shift, inMonth, feriado, blockReason }, ci) => {
                   const isWeekend = ci >= 5;
                   return (
                     <td
@@ -1119,6 +1169,11 @@ function VendedorCalendar({ slot, year, month, weeks, assign, workerMap, slotDis
                       <div className="text-[9px] text-gray-300 leading-none mb-0.5">{d.getDate()}</div>
                       {feriado ? (
                         <div className="text-[8px] text-red-400 italic leading-none">fer.</div>
+                      ) : blockReason !== null ? (
+                        <div className="rounded text-[8px] leading-tight bg-gray-200 text-gray-700 px-0.5 py-0.5" title={blockReason || "Bloqueado"}>
+                          <div>bloq.</div>
+                          <div className="opacity-80 truncate">{workerName.split(" ")[0]}</div>
+                        </div>
                       ) : shift ? (
                         <div className={`rounded text-[8px] leading-tight ${color.bg} ${color.text} px-0.5 py-0.5`}>
                           <div>{shift.start}</div>

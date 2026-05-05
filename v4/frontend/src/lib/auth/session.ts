@@ -13,8 +13,9 @@ function secret() {
 
 export interface SessionPayload {
   email: string;
-  role: "admin" | "jefe" | "vendedor";
+  role: "admin" | "supervisor" | "vendedor";
   userId?: string;
+  supervisorId?: string;
   branchIds?: string[];
   workerId?: string;
   nombre?: string;

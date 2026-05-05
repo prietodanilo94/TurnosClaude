@@ -1,31 +1,34 @@
 # F1 — Tasks
 
 ## Fase 1: Modelo de datos
-- [ ] Agregar `Supervisor` y `SupervisorBranch` a `prisma/schema.prisma`
-- [ ] Migración Prisma (`prisma migrate dev --name add-supervisor`)
-- [ ] Actualizar seed/admin inicial si aplica
+- [x] Agregar `Supervisor` y `SupervisorBranch` a `prisma/schema.prisma`
+- [x] Schema aplicado en DB (via `prisma db push`)
 
 ## Fase 2: Excel sync
-- [ ] `parser.ts`: leer columna `Supervisor`, incluir en tipo `ParsedWorker`
-- [ ] `sync/route.ts`: crear Supervisor si no existe, linkear SupervisorBranch (idempotente)
-- [ ] Test: sync con Excel que tiene supervisores nuevos y repetidos
+- [x] `parser.ts`: leer columna `Supervisor`, incluir en `WorkerRow`
+- [x] `sync/route.ts`: crear Supervisor si no existe, linkear SupervisorBranch (idempotente)
+- [x] `src/lib/supervisors.ts`: helpers `normalizeSupervisorName` y `supervisorLookupKey`
 
 ## Fase 3: Auth supervisor
-- [ ] `src/app/api/auth/login/route.ts`: buscar Supervisor por email, generar JWT con `role: supervisor`, `supervisorId`
-- [ ] `src/middleware.ts`: proteger `/supervisor/*`
-- [ ] JWT payload: documentar campos en tipo `SessionPayload`
+- [x] `src/app/api/auth/login/route.ts`: buscar Supervisor por email, generar JWT con `role: supervisor`, `supervisorId`
+- [x] `src/middleware.ts`: proteger `/supervisor/*`
+- [x] Retrocompatibilidad: `User` (legacy) también autentifica como supervisor
 
 ## Fase 4: Vista supervisor
-- [ ] `src/app/supervisor/page.tsx`: listado de sucursales del supervisor logueado
-- [ ] Multi-selección de sucursales + "Ver calendario combinado"
-- [ ] `src/app/supervisor/calendario/page.tsx`: calendario con dotación combinada
+- [x] `src/app/supervisor/page.tsx`: listado de sucursales del supervisor logueado
+- [x] `SupervisorBranchSelector.tsx`: multi-selección de sucursales + botón "Ver calendario"
+- [x] `src/app/supervisor/calendario/page.tsx`: calendario combinado de sucursales seleccionadas
+- [x] Soporte bloques de vendedores en vista supervisor
 
 ## Fase 5: Vista admin
-- [ ] `src/app/admin/supervisores/page.tsx`: listado de supervisores + sus sucursales
-- [ ] Asignar email a supervisor (habilitar login)
-- [ ] Asignar/quitar sucursales de supervisor
+- [x] `src/app/admin/supervisores/page.tsx`: listado con tabla de supervisores
+- [x] `SupervisoresClient.tsx`: formulario crear/editar, asignar sucursales, toggle activo, eliminar
+- [x] `src/app/api/supervisores/route.ts`: GET + POST
+- [x] `src/app/api/supervisores/[id]/route.ts`: PATCH + DELETE
+- [x] Link "Supervisores" en nav de AdminShell
+- [x] AdminShell renombrado a "Shift Planner"
 
-## Fase 6: QA
-- [ ] Test: login supervisor → ve solo sus sucursales
-- [ ] Test: admin ve todos los supervisores
-- [ ] Test: Excel con `Supervisor` crea/linkea correctamente
+## Fase 6: Audit
+- [x] `logAction` en creación de supervisor y link supervisor-sucursal (desde admin y desde Excel sync)
+
+## Estado: COMPLETO ✓

@@ -1,5 +1,6 @@
 import { getPattern } from "@/lib/patterns/catalog";
-import type { CalendarSlot, ShiftCategory, DayShift } from "@/types";
+import { dateRangeInclusive } from "@/lib/dates";
+import type { CalendarSlot, ShiftCategory, DayShift, WorkerBlockInfo } from "@/types";
 
 // Devuelve índice de día de la semana: Lun=0 ... Dom=6
 function dowIndex(date: Date): number {
@@ -16,6 +17,8 @@ export interface GenerateResult {
   totalWorkers: number;
   alert?: string;
 }
+
+export type WorkerBlockDateMap = Record<string, Record<string, string | null>>;
 
 /**
  * Genera los slots del calendario para un mes completo.
@@ -42,7 +45,7 @@ export function generateCalendar(
   } else if (workerCount === 3 && rotLen === 4) {
     alert =
       "Con 3 vendedores en rotación de 4 semanas, queda un puesto descubierto. " +
-      "El jefe debe cubrir manualmente ese turno.";
+      "El supervisor debe cubrir manualmente ese turno.";
   }
 
   // Rango extendido: lunes de la semana del día 1 → domingo de la semana del último día.
@@ -81,4 +84,56 @@ export function generateCalendar(
   }
 
   return { slots, totalWorkers: workerCount, alert };
+}
+
+export function buildWorkerBlockDateMap(blocks: WorkerBlockInfo[]): WorkerBlockDateMap {
+  const result: WorkerBlockDateMap = {};
+
+  for (const block of blocks) {
+    if (!result[block.workerId]) {
+      result[block.workerId] = {};
+    }
+
+    for (const dateStr of dateRangeInclusive(block.startDate, block.endDate)) {
+      result[block.workerId][dateStr] = block.motivo ?? null;
+    }
+  }
+
+  return result;
+}
+
+export function isWorkerBlockedOnDate(
+  blockMap: WorkerBlockDateMap,
+  workerId: string | null | undefined,
+  dateStr: string,
+): boolean {
+  if (!workerId) return false;
+  return !!blockMap[workerId]?.[dateStr];
+}
+
+export function getWorkerBlockReason(
+  blockMap: WorkerBlockDateMap,
+  workerId: string | null | undefined,
+  dateStr: string,
+): string | null {
+  if (!workerId) return null;
+  return blockMap[workerId]?.[dateStr] ?? null;
+}
+
+export function applyWorkerBlocksToSlots(
+  slots: CalendarSlot[],
+  assignments: Record<string, string | null>,
+  blockMap: WorkerBlockDateMap,
+): CalendarSlot[] {
+  return slots.map((slot) => {
+    const workerId = assignments[String(slot.slotNumber)] ?? null;
+    if (!workerId || !blockMap[workerId]) return slot;
+
+    const days: Record<string, DayShift | null> = {};
+    for (const [dateStr, shift] of Object.entries(slot.days)) {
+      days[dateStr] = isWorkerBlockedOnDate(blockMap, workerId, dateStr) ? null : shift;
+    }
+
+    return { ...slot, days };
+  });
 }

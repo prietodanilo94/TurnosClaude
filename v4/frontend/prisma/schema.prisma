@@ -16,6 +16,8 @@ model Branch {
   updatedAt DateTime     @updatedAt
   teams     BranchTeam[]
   userAccess UserBranch[]
+  supervisors SupervisorBranch[]
+  auditLogs  AuditLog[]
 }
 
 model User {
@@ -66,6 +68,7 @@ model Worker {
   passwordHash String?
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
+  blocks       WorkerBlock[]
 }
 
 model Calendar {
@@ -82,4 +85,52 @@ model Calendar {
   updatedAt    DateTime   @updatedAt
 
   @@unique([branchTeamId, year, month])
+}
+
+model Supervisor {
+  id           String             @id @default(cuid())
+  nombre       String
+  email        String?            @unique
+  passwordHash String?
+  activo       Boolean            @default(true)
+  branches     SupervisorBranch[]
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+}
+
+model SupervisorBranch {
+  supervisorId String
+  branchId     String
+  supervisor   Supervisor @relation(fields: [supervisorId], references: [id], onDelete: Cascade)
+  branch       Branch     @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@id([supervisorId, branchId])
+}
+
+model WorkerBlock {
+  id        String   @id @default(cuid())
+  workerId  String
+  worker    Worker   @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  startDate DateTime
+  endDate   DateTime
+  motivo    String?
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  userEmail  String?
+  userRole   String?
+  action     String
+  entityType String
+  entityId   String?
+  metadata   String?
+  branchId   String?
+  branch     Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([action])
+  @@index([branchId])
 }

@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { getSession } from "@/lib/auth/session";
 import { generateCalendar } from "@/lib/calendar/generator";
-import type { ShiftCategory, CalendarSlot } from "@/types";
+import type { ShiftCategory, CalendarSlot, WorkerBlockInfo } from "@/types";
 import VendedorView from "./VendedorView";
 
 export const dynamic = "force-dynamic";
@@ -12,20 +12,40 @@ interface Props {
 }
 
 export default async function VendedorMesPage({ params }: Props) {
-  const year = parseInt(params.year);
-  const month = parseInt(params.month);
+  const year = parseInt(params.year, 10);
+  const month = parseInt(params.month, 10);
 
   const session = await getSession();
   if (!session?.workerId) notFound();
 
+  const monthStart = new Date(`${params.year}-${String(month).padStart(2, "0")}-01T00:00:00`);
+  const monthEnd = new Date(year, month, 0, 23, 59, 59, 999);
+
   const worker = await prisma.worker.findUnique({
     where: { id: session.workerId },
     include: {
+      blocks: {
+        where: {
+          startDate: { lte: monthEnd },
+          endDate: { gte: monthStart },
+        },
+        orderBy: [{ startDate: "asc" }, { endDate: "asc" }],
+      },
       branchTeam: {
         include: {
           branch: true,
           calendars: { where: { year, month } },
-          workers: { where: { activo: true } },
+          workers: {
+            where: { activo: true },
+            include: {
+              blocks: {
+                where: {
+                  startDate: { lte: monthEnd },
+                  endDate: { gte: monthStart },
+                },
+              },
+            },
+          },
         },
       },
     },
@@ -51,10 +71,17 @@ export default async function VendedorMesPage({ params }: Props) {
     slots = [];
   }
 
-  // Encontrar qué slot tiene asignado este worker
-  const mySlotEntry = Object.entries(assignments).find(([, wid]) => wid === worker.id);
+  const mySlotEntry = Object.entries(assignments).find(([, workerId]) => workerId === worker.id);
   const mySlotNumber = mySlotEntry ? Number(mySlotEntry[0]) : null;
-  const mySlot = mySlotNumber !== null ? slots.find((s) => s.slotNumber === mySlotNumber) ?? null : null;
+  const mySlot = mySlotNumber !== null ? slots.find((slot) => slot.slotNumber === mySlotNumber) ?? null : null;
+
+  const workerBlocks: WorkerBlockInfo[] = worker.blocks.map((block) => ({
+    id: block.id,
+    workerId: worker.id,
+    startDate: block.startDate.toISOString().slice(0, 10),
+    endDate: block.endDate.toISOString().slice(0, 10),
+    motivo: block.motivo,
+  }));
 
   return (
     <VendedorView
@@ -64,6 +91,7 @@ export default async function VendedorMesPage({ params }: Props) {
       year={year}
       month={month}
       slot={mySlot}
+      workerBlocks={workerBlocks}
       teamId={team.id}
       calendarId={calendarId}
     />

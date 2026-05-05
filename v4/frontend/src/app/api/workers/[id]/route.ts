@@ -5,19 +5,8 @@ import { getSession } from "@/lib/auth/session";
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getSession();
-  if (!session || (session.role !== "admin" && session.role !== "jefe")) {
+  if (!session || session.role !== "admin") {
     return NextResponse.json({ error: "Sin acceso" }, { status: 403 });
-  }
-
-  // Jefe solo puede modificar workers de sus branches
-  if (session.role === "jefe") {
-    const worker = await prisma.worker.findUnique({
-      where: { id: params.id },
-      include: { branchTeam: { select: { branchId: true } } },
-    });
-    if (!worker || !session.branchIds?.includes(worker.branchTeam.branchId)) {
-      return NextResponse.json({ error: "Sin acceso" }, { status: 403 });
-    }
   }
 
   const { password, clearPassword } = await req.json();

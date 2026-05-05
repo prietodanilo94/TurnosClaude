@@ -87,3 +87,16 @@ export interface WorkerInfo {
   activo: boolean;
   esVirtual: boolean;
 }
+
+export interface WorkerBlockInfo {
+  id: string;
+  workerId: string;
+  startDate: string;
+  endDate: string;
+  motivo?: string | null;
+}
+
+export interface CalendarAssignmentInfo {
+  workerId: string | null;
+  workerName?: string | null;
+}

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionFromRequest } from "@/lib/auth/session";
 
-const ADMIN_ONLY = ["/admin/dotacion", "/admin/usuarios"];
+const ADMIN_ONLY = ["/admin"];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -12,25 +12,28 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(new URL("/login", req.url));
     }
 
-    // Vendedores no pueden acceder a /admin
-    if (session.role === "vendedor") {
-      return NextResponse.redirect(new URL("/vendedor", req.url));
-    }
-
-    // Jefes van directo a sucursales desde el dashboard
-    if (pathname === "/admin" && session.role === "jefe") {
-      return NextResponse.redirect(new URL("/admin/sucursales", req.url));
+    if (session.role !== "admin") {
+      const redirectTo = session.role === "vendedor" ? "/vendedor" : "/supervisor";
+      return NextResponse.redirect(new URL(redirectTo, req.url));
     }
 
     const isAdminOnly = ADMIN_ONLY.some((p) => pathname === p || pathname.startsWith(p + "/"));
     if (isAdminOnly && session.role !== "admin") {
-      return NextResponse.redirect(new URL("/admin/sucursales", req.url));
+      return NextResponse.redirect(new URL("/supervisor", req.url));
     }
 
     const res = NextResponse.next();
     res.headers.set("x-user-role", session.role);
     res.headers.set("x-user-branch-ids", JSON.stringify(session.branchIds ?? []));
     return res;
+  }
+
+  if (pathname.startsWith("/supervisor")) {
+    const session = await getSessionFromRequest(req);
+    if (!session || (session.role !== "supervisor" && session.role !== "admin")) {
+      return NextResponse.redirect(new URL("/login", req.url));
+    }
+    return NextResponse.next();
   }
 
   if (pathname.startsWith("/vendedor")) {
@@ -45,5 +48,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/vendedor/:path*"],
+  matcher: ["/admin/:path*", "/supervisor/:path*", "/vendedor/:path*"],
 };

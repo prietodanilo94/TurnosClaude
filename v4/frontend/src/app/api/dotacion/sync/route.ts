@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { parseDotacionExcel } from "@/lib/excel/parser";
 import { prisma } from "@/lib/db/prisma";
 import type { AreaNegocio } from "@/types";
+import { normalizeSupervisorName, supervisorLookupKey } from "@/lib/supervisors";
+import { logAction } from "@/lib/audit/log";
 
 function normalizeBranchName(raw: string): string {
   return raw
@@ -24,34 +26,101 @@ export async function POST(req: NextRequest) {
     let branchesUpdated = 0;
     let workersUpserted = 0;
     let workersDeactivated = 0;
+    let supervisorsCreated = 0;
+    let supervisorLinksCreated = 0;
 
-    // Agrupar por sucursal
+    const supervisors = await prisma.supervisor.findMany();
+    const supervisorsByKey = new Map(
+      supervisors.map((supervisor) => [supervisorLookupKey(supervisor.nombre), supervisor]),
+    );
+
     const byBranch = new Map<string, typeof rows>();
     for (const row of rows) {
       const key = row.codigoBranch;
       if (!byBranch.has(key)) byBranch.set(key, []);
-      byBranch.get(key)!.push(row);
+      byBranch.get(key)?.push(row);
     }
 
-    // Upsert branches y teams
     for (const [codigo, branchRows] of byBranch) {
       const nombre = normalizeBranchName(branchRows[0].nombreBranch);
 
-      const existing = await prisma.branch.findUnique({ where: { codigo } });
+      const existingBranch = await prisma.branch.findUnique({ where: { codigo } });
       const branch = await prisma.branch.upsert({
         where: { codigo },
         create: { codigo, nombre },
         update: { nombre },
       });
 
-      if (existing) branchesUpdated++;
+      if (existingBranch) branchesUpdated++;
       else branchesCreated++;
 
-      // Agrupar por área de negocio
+      const supervisorNames = Array.from(
+        new Set(
+          branchRows
+            .map((row) => row.supervisor)
+            .filter((value): value is string => !!value)
+            .map((value) => normalizeSupervisorName(value)),
+        ),
+      );
+
+      for (const supervisorName of supervisorNames) {
+        const key = supervisorLookupKey(supervisorName);
+        let supervisor = supervisorsByKey.get(key) ?? null;
+
+        if (!supervisor) {
+          supervisor = await prisma.supervisor.create({
+            data: { nombre: supervisorName },
+          });
+          supervisorsByKey.set(key, supervisor);
+          supervisorsCreated++;
+
+          await logAction({
+            action: "supervisor.create",
+            entityType: "supervisor",
+            entityId: supervisor.id,
+            metadata: { nombre: supervisor.nombre, origen: "dotacion.sync" },
+            req,
+          });
+        }
+
+        const existingLink = await prisma.supervisorBranch.findUnique({
+          where: {
+            supervisorId_branchId: {
+              supervisorId: supervisor.id,
+              branchId: branch.id,
+            },
+          },
+        });
+
+        if (!existingLink) {
+          await prisma.supervisorBranch.create({
+            data: {
+              supervisorId: supervisor.id,
+              branchId: branch.id,
+            },
+          });
+          supervisorLinksCreated++;
+
+          await logAction({
+            action: "supervisor.link",
+            entityType: "supervisor",
+            entityId: supervisor.id,
+            branchId: branch.id,
+            metadata: {
+              supervisorNombre: supervisor.nombre,
+              branchCodigo: branch.codigo,
+              branchNombre: branch.nombre,
+              origen: "dotacion.sync",
+            },
+            req,
+          });
+        }
+      }
+
       const byArea = new Map<AreaNegocio, typeof rows>();
       for (const row of branchRows) {
         if (!byArea.has(row.areaNegocio)) byArea.set(row.areaNegocio, []);
-        byArea.get(row.areaNegocio)!.push(row);
+        byArea.get(row.areaNegocio)?.push(row);
       }
 
       for (const [areaNegocio, areaRows] of byArea) {
@@ -61,24 +130,35 @@ export async function POST(req: NextRequest) {
           update: {},
         });
 
-        // Upsert workers
-        const incomingRuts = new Set<string>(areaRows.map((r) => r.rut));
+        const incomingRuts = new Set<string>(areaRows.map((row) => row.rut));
         for (const row of areaRows) {
           await prisma.worker.upsert({
             where: { rut: row.rut },
-            create: { rut: row.rut, nombre: row.nombre, branchTeamId: team.id },
-            update: { nombre: row.nombre, branchTeamId: team.id, activo: true },
+            create: {
+              rut: row.rut,
+              nombre: row.nombre,
+              branchTeamId: team.id,
+            },
+            update: {
+              nombre: row.nombre,
+              branchTeamId: team.id,
+              activo: true,
+            },
           });
           workersUpserted++;
         }
 
-        // Desactivar vendedores que ya no están en el archivo (para este equipo)
         const toDeactivate = await prisma.worker.findMany({
-          where: { branchTeamId: team.id, activo: true, rut: { notIn: [...incomingRuts] } },
+          where: {
+            branchTeamId: team.id,
+            activo: true,
+            rut: { notIn: [...incomingRuts] },
+          },
         });
+
         if (toDeactivate.length > 0) {
           await prisma.worker.updateMany({
-            where: { id: { in: toDeactivate.map((w) => w.id) } },
+            where: { id: { in: toDeactivate.map((worker) => worker.id) } },
             data: { activo: false },
           });
           workersDeactivated += toDeactivate.length;
@@ -86,10 +166,33 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ branchesCreated, branchesUpdated, workersUpserted, workersDeactivated, errors });
-  } catch (e: unknown) {
+    await logAction({
+      action: "dotacion.sync",
+      entityType: "branch",
+      metadata: {
+        branchesCreated,
+        branchesUpdated,
+        workersUpserted,
+        workersDeactivated,
+        supervisorsCreated,
+        supervisorLinksCreated,
+        errorCount: errors.length,
+      },
+      req,
+    });
+
+    return NextResponse.json({
+      branchesCreated,
+      branchesUpdated,
+      workersUpserted,
+      workersDeactivated,
+      supervisorsCreated,
+      supervisorLinksCreated,
+      errors,
+    });
+  } catch (error: unknown) {
     return NextResponse.json(
-      { error: e instanceof Error ? e.message : "Error al sincronizar" },
+      { error: error instanceof Error ? error.message : "Error al sincronizar" },
       { status: 500 },
     );
   }

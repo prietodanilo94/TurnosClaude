@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { generateCalendar } from "@/lib/calendar/generator";
 import { getSession } from "@/lib/auth/session";
-import type { ShiftCategory, CalendarSlot } from "@/types";
+import type { ShiftCategory, CalendarSlot, WorkerBlockInfo } from "@/types";
 import CalendarView from "./CalendarView";
 
 interface Props {
@@ -13,23 +13,32 @@ interface Props {
 export const dynamic = "force-dynamic";
 
 export default async function CalendarioPage({ params, searchParams }: Props) {
-  const year = parseInt(params.year);
-  const month = parseInt(params.month);
+  const year = parseInt(params.year, 10);
+  const month = parseInt(params.month, 10);
 
   if (!searchParams.team) notFound();
+  await getSession();
 
-  // Verificar acceso para jefes
-  const session = await getSession();
-  if (session?.role === "jefe") {
-    const allowed = session.branchIds ?? [];
-    if (!allowed.includes(params.id)) notFound();
-  }
+  const monthStart = new Date(`${params.year}-${String(month).padStart(2, "0")}-01T00:00:00`);
+  const monthEnd = new Date(year, month, 0, 23, 59, 59, 999);
 
   const team = await prisma.branchTeam.findUnique({
     where: { id: searchParams.team },
     include: {
       branch: true,
-      workers: { where: { activo: true }, orderBy: { nombre: "asc" } },
+      workers: {
+        where: { activo: true },
+        orderBy: { nombre: "asc" },
+        include: {
+          blocks: {
+            where: {
+              startDate: { lte: monthEnd },
+              endDate: { gte: monthStart },
+            },
+            orderBy: [{ startDate: "asc" }, { endDate: "asc" }],
+          },
+        },
+      },
       calendars: { where: { year, month } },
     },
   });
@@ -38,30 +47,26 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
   if (!team.categoria) {
     return (
       <div className="p-6">
-        <p className="text-sm text-orange-600">
-          Este equipo no tiene categoría de turno asignada.
-        </p>
+        <p className="text-sm text-orange-600">Este equipo no tiene categoria de turno asignada.</p>
       </div>
     );
   }
 
   const workerCount = team.workers.length;
 
-  // Meses vecinos (para herencia de asignaciones y días de frontera)
-  const prevYear  = month === 1  ? year - 1 : year;
-  const prevMonth = month === 1  ? 12 : month - 1;
-  const nextYear  = month === 12 ? year + 1 : year;
-  const nextMonth = month === 12 ? 1  : month + 1;
+  const prevYear = month === 1 ? year - 1 : year;
+  const prevMonth = month === 1 ? 12 : month - 1;
+  const nextYear = month === 12 ? year + 1 : year;
+  const nextMonth = month === 12 ? 1 : month + 1;
 
   const [prevCal, nextCal] = await Promise.all([
-    prisma.calendar.findFirst({ where: { branchTeamId: team.id, year: prevYear,  month: prevMonth } }),
-    prisma.calendar.findFirst({ where: { branchTeamId: team.id, year: nextYear,  month: nextMonth } }),
+    prisma.calendar.findFirst({ where: { branchTeamId: team.id, year: prevYear, month: prevMonth } }),
+    prisma.calendar.findFirst({ where: { branchTeamId: team.id, year: nextYear, month: nextMonth } }),
   ]);
 
   const prevAssignments: Record<string, string | null> = prevCal ? JSON.parse(prevCal.assignments) : {};
   const nextAssignments: Record<string, string | null> = nextCal ? JSON.parse(nextCal.assignments) : {};
 
-  // Generar o recuperar slots
   let slots: CalendarSlot[];
   let assignments: Record<string, string | null> = {};
   let calendarId: string | undefined;
@@ -76,13 +81,21 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
     const result = generateCalendar(team.categoria as ShiftCategory, year, month, workerCount);
     slots = result.slots;
     alert = result.alert;
-    // Heredar asignaciones del mes anterior como punto de partida
     if (Object.keys(prevAssignments).length > 0) {
       assignments = { ...prevAssignments };
     }
   }
 
-  const workerMap = Object.fromEntries(team.workers.map((w) => [w.id, w.nombre]));
+  const workerMap = Object.fromEntries(team.workers.map((worker) => [worker.id, worker.nombre]));
+  const workerBlocks: WorkerBlockInfo[] = team.workers.flatMap((worker) =>
+    worker.blocks.map((block) => ({
+      id: block.id,
+      workerId: worker.id,
+      startDate: block.startDate.toISOString().slice(0, 10),
+      endDate: block.endDate.toISOString().slice(0, 10),
+      motivo: block.motivo,
+    })),
+  );
 
   return (
     <CalendarView
@@ -96,8 +109,15 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
       month={month}
       slots={slots}
       assignments={assignments}
-      workers={team.workers.map((w) => ({ id: w.id, nombre: w.nombre, rut: w.rut, activo: w.activo, esVirtual: w.esVirtual }))}
+      workers={team.workers.map((worker) => ({
+        id: worker.id,
+        nombre: worker.nombre,
+        rut: worker.rut,
+        activo: worker.activo,
+        esVirtual: worker.esVirtual,
+      }))}
       workerMap={workerMap}
+      workerBlocks={workerBlocks}
       calendarId={calendarId}
       generateAlert={alert}
       prevAssignments={prevAssignments}

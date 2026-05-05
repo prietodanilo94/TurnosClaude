@@ -25,7 +25,8 @@ export default function LoginPage() {
       }
       const data = await res.json();
       // Hard navigation to ensure cookie is committed before the request
-      window.location.href = data.role === "vendedor" ? "/vendedor" : "/admin";
+      window.location.href =
+        data.role === "vendedor" ? "/vendedor" : data.role === "supervisor" ? "/supervisor" : "/admin";
     } catch {
       setError("Error de conexión");
     } finally {

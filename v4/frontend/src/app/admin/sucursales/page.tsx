@@ -8,12 +8,9 @@ import CategorySelector from "./[id]/CategorySelector";
 export const dynamic = "force-dynamic";
 
 export default async function SucursalesPage() {
-  const session = await getSession();
-  const isAdmin = session?.role === "admin";
-  const allowedIds = session?.branchIds ?? [];
+  await getSession();
 
   const branches = await prisma.branch.findMany({
-    where: isAdmin ? undefined : { id: { in: allowedIds } },
     include: {
       teams: {
         include: { _count: { select: { workers: { where: { activo: true } } } } },
@@ -38,17 +35,13 @@ export default async function SucursalesPage() {
 
       {branches.length === 0 ? (
         <div className="bg-white border border-gray-200 rounded-lg p-8 text-center">
-          <p className="text-sm text-gray-500 mb-3">
-            {isAdmin ? "No hay sucursales cargadas aún." : "No tienes sucursales asignadas."}
-          </p>
-          {isAdmin && (
-            <Link
-              href="/admin/dotacion"
-              className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-            >
-              Subir dotación →
-            </Link>
-          )}
+          <p className="text-sm text-gray-500 mb-3">No hay sucursales cargadas aún.</p>
+          <Link
+            href="/admin/dotacion"
+            className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+          >
+            Subir dotación →
+          </Link>
         </div>
       ) : (
         <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
@@ -76,8 +69,8 @@ export default async function SucursalesPage() {
                   const workerCount = team._count.workers;
                   const canView = !!team.categoria && workerCount >= 3;
                   const categoryOptions = allPatterns
-                    .filter((p) => p.areaNegocio === team.areaNegocio)
-                    .map((p) => ({ id: p.id, label: p.label }));
+                    .filter((pattern) => pattern.areaNegocio === team.areaNegocio)
+                    .map((pattern) => ({ id: pattern.id, label: pattern.label }));
 
                   return (
                     <tr key={team.id} className="hover:bg-gray-50">
@@ -95,34 +88,22 @@ export default async function SucursalesPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-700">
-                        {isAdmin ? (
-                          <CategorySelector
-                            teamId={team.id}
-                            current={team.categoria as ShiftCategory | null}
-                            options={categoryOptions}
-                            compact
-                          />
-                        ) : (
-                          <span className="text-xs text-gray-600">
-                            {team.categoria
-                              ? (categoryOptions.find((o) => o.id === team.categoria)?.label ?? team.categoria)
-                              : <span className="text-gray-400 italic">Sin asignar</span>}
-                          </span>
-                        )}
+                        <CategorySelector
+                          teamId={team.id}
+                          current={team.categoria as ShiftCategory | null}
+                          options={categoryOptions}
+                          compact
+                        />
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">
-                        {workerCount}
-                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{workerCount}</td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-3">
-                          {isAdmin && (
-                            <Link
-                              href={`/admin/sucursales/${branch.id}`}
-                              className="text-xs text-gray-400 hover:text-gray-600"
-                            >
-                              Accesos
-                            </Link>
-                          )}
+                          <Link
+                            href={`/admin/sucursales/${branch.id}`}
+                            className="text-xs text-gray-400 hover:text-gray-600"
+                          >
+                            Accesos
+                          </Link>
                           {canView ? (
                             <Link
                               href={`/admin/sucursales/${branch.id}/calendario/${year}/${month}?team=${team.id}`}
