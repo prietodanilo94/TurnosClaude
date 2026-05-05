@@ -22,6 +22,7 @@ model WorkerBlock {
 
 - `startDate` y `endDate` son fechas inclusivas (sin hora).
 - Un vendedor puede tener múltiples bloques no solapados.
+- Si un bloqueo nuevo solapa con uno existente del mismo vendedor → el server rechaza con 400.
 - El generador de calendario ignora al vendedor en días bloqueados (no asigna slot).
 - Si el vendedor ya tenía slot asignado en esas fechas y se agrega un bloqueo → el slot se elimina o marca como vacío.
 

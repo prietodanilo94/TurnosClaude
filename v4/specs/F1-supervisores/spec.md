@@ -22,7 +22,7 @@ Supervisor → Branch (muchos-a-muchos) → BranchTeam → Worker
 model Supervisor {
   id           String   @id @default(cuid())
   nombre       String
-  email        String   @unique
+  email        String?  @unique  // nullable: se asigna desde admin tras importar Excel
   passwordHash String?
   branches     SupervisorBranch[]
   createdAt    DateTime @default(now())
@@ -42,6 +42,7 @@ model SupervisorBranch {
 - Login supervisor: por email (igual que admin). Sesión incluye `role: "supervisor"`, `supervisorId`.
 - Middleware: `/supervisor/*` requiere rol supervisor o admin.
 - El rol `jefe` actual en JWT se renombra a `supervisor`.
+- **Migración**: si hay usuarios con `role = "jefe"` en la DB al momento de implementar, deben crearse como `Supervisor` con su mismo email y vincularse a sus sucursales antes de hacer deploy. Si no hay jefes activos en producción, este paso se omite.
 
 ## Flujo de importación Excel
 
