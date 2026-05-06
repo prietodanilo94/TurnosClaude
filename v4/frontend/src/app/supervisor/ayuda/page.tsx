@@ -45,6 +45,12 @@ export default function SupervisorHelpPage() {
         <p className="text-sm text-amber-800 mt-2 leading-6">
           Envia sucursal o grupo, mes, accion que estabas haciendo y una captura. Con eso podemos revisar historial y logs mucho mas rapido.
         </p>
+        <p className="text-sm text-amber-800 mt-2">
+          Contacto:{" "}
+          <a href="mailto:danilo.prieto@pompeyo.cl" className="font-medium underline hover:text-amber-900">
+            danilo.prieto@pompeyo.cl
+          </a>
+        </p>
       </div>
 
       <div className="mt-4 bg-white border border-gray-200 rounded-lg p-4">
