@@ -10,11 +10,11 @@
 
 **Versión activa**: v4 (`turnos4.dpmake.cl`, puerto 3014). Única versión en este repo. v1/v2/v3 eliminadas — historial disponible en git hasta commit `8d5a119`.
 
-**Tag de recuperación**: `v4-stable-20260505` — estado estable anterior a refactor de supervisores. Rollback: `git checkout v4-stable-20260505`.
+**Tag de recuperación**: `v4-stable-20260505` — estado estable antes de sesión 2026-05-05/06. Rollback: `git checkout v4-stable-20260505`.
 
 ## Convenciones
 
-- **Idioma**: código en inglés (`worker`, `branch`, `shift`, `supervisor`); UI/docs/specs/comentarios en español.
+- **Idioma**: código en inglés (`worker`, `branch`, `shift`, `supervisor`, `group`); UI/docs/specs/comentarios en español.
 - **Semana**: lunes a domingo (convención chilena).
 - **RUT**: interno `XXXXXXXX-X`; en Excel exportado solo cuerpo numérico. Nunca en URLs.
 - **Sensibles**: nunca commitear `.env`, keys, passwords.
@@ -23,66 +23,88 @@
 ## Reglas operativas
 
 - **Después de commit**: push a origin main automáticamente.
-- **Después de push**: sincronizar servidor (`ssh antigravity` → `git pull` + recrear servicios). Si server está dirty, resolver antes del pull.
-- **Specs**: leer spec antes de implementar; proponer plan; esperar aprobación; una tarea a la vez. No implementar fuera de specs sin preguntar.
+- **Después de push**: sincronizar servidor (`ssh antigravity` → `git pull` + recrear servicios).
+- **Specs**: leer spec antes de implementar; proponer plan; esperar aprobación; una tarea a la vez.
 - **No tocar sin permiso**: `.env*`, `CLAUDE.md`.
 - **Estilo respuestas**: cortas, densas, sin intro ni resumen final. Tablas/bullets solo si aportan.
-- **Dudas**: preguntar antes de asumir. Si hay contradicción entre specs, detenerse y reportar.
-
-## Testing
-
-- Frontend: Vitest + Playwright.
-- Antes de declarar tarea completa: correr tests relevantes.
+- **Dudas**: preguntar antes de asumir.
 
 ## Infraestructura
 
 - GitHub: `github.com/prietodanilo94/TurnosClaude`.
 - Servidor: `ssh antigravity`, repo en `/opt/shift-optimizer`.
 - Deploy: `cd /opt/shift-optimizer && git pull && cd v4 && docker compose up -d --build`.
+- Schema DB: `docker exec v4-frontend-1 node ./node_modules/prisma/build/index.js db push` (después de schema changes).
 - Admin v4: `prieto.danilo94@gmail.com` / `1234`.
-- N8N: disponible para webhooks (historial/notificaciones por mail). Endpoint a configurar en spec F4.
+- N8N: webhook configurado vía `N8N_WEBHOOK_URL` en `.env` del servidor.
 
 ---
 
-## v4 — Estado actual
+## v4 — Estado actual (sesión 2026-05-06)
 
-**Stack**: Next.js 14 (App Router) + Prisma 5 + SQLite + Tailwind. Auth JWT (`jose`) en cookie httpOnly. bcrypt (`bcryptjs`) para password. Sin Appwrite.
+**Stack**: Next.js 14 (App Router) + Prisma 5 + SQLite + Tailwind. Auth JWT (`jose`) en cookie httpOnly. bcrypt (`bcryptjs`). Sin Appwrite.
 
-**Estructura clave**:
-- `v4/frontend/prisma/schema.prisma` — Branch → BranchTeam (areaNegocio + categoria) → Worker + Calendar. `binaryTargets = ["native", "linux-musl-openssl-3.0.x"]`.
-- `v4/frontend/src/lib/patterns/catalog.ts` — 8 categorías: `ventas_standalone`, `ventas_autopark`, `ventas_mall_7d`, `postventa_vista_hermosa`, `postventa_standalone`, `postventa_cap`, `postventa_mall_mqt`, `postventa_mall_oeste`.
-- `v4/frontend/src/lib/calendar/generator.ts` — Determinístico, rota por `(isoWeek + slotOffset) % rotLen`.
-- `v4/frontend/src/lib/excel/parser.ts` — Columnas `Rut`, `Nombre`, `Área`, `Área de Negocio`, **`Supervisor`**. Categoría asignada por combinación Sucursal + Área de Negocio.
-- `v4/frontend/src/app/admin/sucursales/[id]/calendario/[year]/[month]/CalendarView.tsx` — Vistas global + por vendedor.
-- Auth: `/api/auth/login` acepta email (admin/supervisor) o RUT (vendedor). Middleware protege `/admin/*` y `/vendedor/*`.
-- `Worker.passwordHash String?` — opcional, habilitado por admin/supervisor (WorkerAccessManager).
-- `/vendedor/[year]/[month]` — vista mensual personal con semanas ISO, horas/sem, navegación mes.
+**Schema actual** (`v4/frontend/prisma/schema.prisma`):
+```
+Branch → BranchGroup (optional, groupId nullable)
+Branch → BranchTeam (areaNegocio + categoria) → Worker + Calendar
+Branch → SupervisorBranch ← Supervisor
+Worker → WorkerBlock (bloqueos por fechas)
+AuditLog (historial de acciones)
+```
+
+**Paleta de colores**: 20 colores en `src/components/calendar/worker-colors.ts` (expandida desde 8).
+
+**Excel sync** (`src/lib/excel/parser.ts`): columnas `Rut`, `Nombre`, `Área`, `Área de Negocio`, `Supervisor`. Al sincronizar crea/linkea supervisores automáticamente. 76 supervisores en producción, ninguno con email/password aún — se asignan desde `/admin/supervisores`.
+
+**Rutas principales**:
+- `/admin` — dashboard admin
+- `/admin/sucursales` — lista sucursales, categoría editable inline
+- `/admin/sucursales/[id]/calendario/[year]/[month]` — calendario completo con edición
+- `/admin/supervisores` — CRUD de supervisores (email, password, sucursales asignadas)
+- `/admin/grupos` — CRUD de grupos de sucursales
+- `/admin/historial` — audit log con filtros por supervisor/sucursal/acción/fecha, link "Ver calendario →"
+- `/supervisor` — "Mis sucursales": cards de grupos + sucursales individuales con checkboxes
+- `/supervisor/calendario` — calendario combinado del grupo o sucursal, con selector ‹ Mes/Año ›
+- `/vendedor/[year]/[month]` — vista personal del vendedor
+
+**Lógica de grupos** (F5 — implementado):
+- `BranchGroup`: una sucursal pertenece a máximo UN grupo (`Branch.groupId` nullable).
+- Supervisor selecciona 2+ sucursales con checkboxes → botón "Asignación de turnos" → confirm dialog → crea grupo automáticamente con nombre "Sucursal A - Sucursal B".
+- Calendario de grupo: SIEMPRE unificado por areaNegocio. Si Citroën (4 workers) + Nissan (3 workers) → 7 slots en una tabla.
+- Si una sucursal no tiene categoría, hereda de la otra del grupo (sin mostrar mensaje al usuario).
+- GenerateButton genera el calendario combinado, divide slots por equipo (offset), y auto-asigna workers a slots en orden (worker[i] → slot[i+1]).
+- Solo admin puede disolver grupos (`/admin/grupos`).
+
+**Bloqueos de vendedores** (F2): `WorkerBlock` (startDate, endDate, motivo). Gestionado desde WorkerAccessManager en detalle de sucursal. Celdas grises en calendario. Validación de solapamiento (409 si hay overlap).
+
+**Historial** (F4): `AuditLog` registra todas las acciones. Webhook fire-and-forget a N8N para acciones notificables (`calendar.generate`, `calendar.delete`, `dotacion.sync`). Vista `/admin/historial` con filtros y link directo al calendario afectado.
 
 **Despliegue v4 — gotchas conocidos** (NO repetir):
-1. Next.js `@next/env` expande `$VAR` en `.env`: escapar bcrypt hash como `\$2a\$12\$...` localmente.
+1. Next.js expande `$VAR` en `.env`: escapar bcrypt hash como `\$2a\$12\$...` localmente.
 2. Docker Compose expande `$VAR` en `env_file`: en server escribir `$$2a$$12$$...`.
-3. Alpine + OpenSSL 3: `binaryTargets` debe incluir `linux-musl-openssl-3.0.x` y `apk add openssl` en runner.
-4. `npx prisma` baja v7 (rompe schema v5): copiar `node_modules/prisma` del builder y correr via `node ./node_modules/prisma/build/index.js`.
+3. Alpine + OpenSSL 3: `binaryTargets = ["native", "linux-musl-openssl-3.0.x"]` y `apk add openssl` en runner.
+4. `npx prisma` baja v7 (rompe schema v5): usar `node ./node_modules/prisma/build/index.js`.
 5. Páginas server con Prisma: `export const dynamic = "force-dynamic"`.
-6. `public/` debe existir (con `.gitkeep` si vacío) — Dockerfile lo copia.
-
-**Verificado en producción**: login 200, `/admin`, `/admin/sucursales`, `/admin/dotacion` 200 con cookie; sin cookie → 307 a `/login`. DB en volumen `v4_data:/data/v4.db`.
-
-**Catálogos de turnos**:
-- Ventas Standalone: L-V 09:00-19:00 + S 10:00-14:30. Apertura L-J 09:00-18:30 + V 09:00-18:00. Cierre L-V 10:30-19:00 + S 10:00-14:30.
-- Ventas Mall Autopark: L-S 10:00-19:00. T1 = ma-vi 09:30-19:00 + sa 10:00-19:00. T2 = lu-mi 09:30-19:00 + vi 09:30-19:00 + sa 10:00-19:00. Ambos 42h.
-- `ventas_mall_7d` rotación 4 semanas con S3=36h (restricción legal/interna).
+6. `public/` debe existir con `.gitkeep`.
 
 ---
 
-## Specs v4 — Features pendientes
+## Specs v4
 
 Las specs viven en `v4/specs/`. Cada una tiene `spec.md` y `tasks.md`.
 
-| ID | Feature | Estado | Spec |
-|----|---------|--------|------|
-| F1 | Supervisores como entidad central (reemplaza jefes de sucursal) | **Completo** | `v4/specs/F1-supervisores/` |
-| F2 | Bloqueo de vendedores por rango de fechas | **Completo** | `v4/specs/F2-bloqueos/` |
-| F3 | Nombres visibles en calendario | **Completo** | `v4/specs/F3-nombres-calendario/` |
-| F4 | Historial de movimientos + webhook N8N | **Completo** | `v4/specs/F4-historial/` |
-| F5 | Grupos de sucursales | Pendiente | `v4/specs/F5-grupos-sucursales/` |
+| ID | Feature | Estado |
+|----|---------|--------|
+| F1 | Supervisores como entidad central | **Completo** |
+| F2 | Bloqueo de vendedores por rango de fechas | **Completo** |
+| F3 | Nombres visibles en calendario | **Completo** |
+| F4 | Historial de movimientos + webhook N8N | **Completo** |
+| F5 | Grupos de sucursales | **Completo** (core) — pendiente: exportar grupo como Excel multi-hoja |
+
+## Pendiente conocido
+
+- **Supervisores sin credenciales**: 76 supervisores en producción importados desde Excel, ninguno con email/password. Asignar desde `/admin/supervisores` → Editar.
+- **Categorías faltantes**: algunas sucursales pueden no tener categoría asignada. Asignar desde `/admin/sucursales` (edición inline) antes de generar calendarios.
+- **Export grupo**: F5 spec incluye exportar calendario de grupo como Excel multi-hoja — no implementado aún.
+- **Calendarios existentes sin workers asignados**: calendarios generados antes de la sesión 2026-05-06 tienen assignments vacíos. Presionar "Regenerar" en `/supervisor/calendario` para re-generar con auto-assign.
