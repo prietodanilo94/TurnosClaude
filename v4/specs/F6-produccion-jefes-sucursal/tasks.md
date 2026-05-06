@@ -52,7 +52,7 @@
 
 ## Fase 6: Exportacion lista para jefaturas
 
-- [ ] Confirmar exportacion de calendario por sucursal.
+- [x] Confirmar exportacion de calendario por sucursal.
 - [x] Implementar exportacion de grupo como Excel multi-hoja.
 - [x] Ocultar o deshabilitar botones de exportacion no implementados.
 - [x] Agregar mensaje si se intenta exportar calendario con errores bloqueantes.

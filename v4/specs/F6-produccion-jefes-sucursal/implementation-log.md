@@ -356,12 +356,17 @@ Resultado:
 - Build Next.js completo OK.
 - `git diff --check` OK.
 
+Smoke post-deploy en `v4-frontend-1`:
+
+- `/supervisor/ayuda` con sesion admin temporal: `200`.
+- Export sucursal Citroen mayo 2026: `200`, XLSX `26771` bytes, archivo `calendario_Citroen_Irarrazaval_965_Mayo_2026.xlsx`.
+- Export grupo Citroen/Nissan mayo 2026: `200`, XLSX `35136` bytes, archivo `calendario_Citroen_Nissan_Mayo_2026.xlsx`.
+
 ### Pendientes F6 no tecnicos
 
 Quedan sin marcar tareas que requieren ejecucion manual con usuario/datos reales:
 
 - Validar clicks reales en vendedor, turno y dia/Gantt.
-- Confirmar exportacion de calendario por sucursal descargando archivo real.
 - Definir 2-3 jefes piloto, credenciales, soporte y feedback.
 
 ### Auditoria de supervisores en produccion
