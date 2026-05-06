@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { generateCalendar } from "@/lib/calendar/generator";
 import type { ShiftCategory } from "@/types";
 
@@ -19,7 +18,6 @@ interface Props {
 }
 
 export default function GenerateButton({ categoria, year, month, slices, hasCalendar }: Props) {
-  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -61,7 +59,7 @@ export default function GenerateButton({ categoria, year, month, slices, hasCale
         offset += N;
       }
 
-      router.refresh();
+      window.location.reload();
     } finally {
       setLoading(false);
     }

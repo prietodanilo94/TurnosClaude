@@ -7,6 +7,8 @@ import { buildWorkerBlockDateMap, getWorkerBlockReason, generateCalendar } from 
 import type { CalendarSlot, ShiftCategory, WorkerBlockInfo } from "@/types";
 import GenerateButton, { type TeamSlice } from "./GenerateButton";
 import PeriodSelector from "./PeriodSelector";
+import CategoryPicker from "./CategoryPicker";
+import { getAllPatterns } from "@/lib/patterns/catalog";
 
 interface Props {
   searchParams: { groupId?: string; branchId?: string | string[]; year?: string; month?: string };
@@ -83,15 +85,19 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
 
   type TeamRow = { team: typeof teams[0]; slotOffset: number };
 
+  const allPatterns = getAllPatterns();
+
   interface DisplayBlock {
     key: string;
-    title: string;         // nombre(s) de sucursal + área
+    title: string;
     areaLabel: string;
     categoria: ShiftCategory | null;
-    categoriaSource: string | null; // de qué sucursal viene la categoría (si se heredó)
-    teamRows: TeamRow[];   // teams que componen este bloque, con su offset de slot
+    categoriaSource: string | null;
+    teamIds: string[];
+    categoryOptions: { id: string; label: string }[];
+    teamRows: TeamRow[];
     allSlots: CalendarSlot[];
-    allAssignments: Record<string, string | null>; // slot global → workerId
+    allAssignments: Record<string, string | null>;
     allWorkers: { id: string; nombre: string }[];
     allBlocks: WorkerBlockInfo[];
     hasCalendar: boolean;
@@ -173,6 +179,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
 
       const branchNames = [...new Set(areaTeams.map((t) => t.branch.nombre))];
       const areaLabel   = area === "ventas" ? "Ventas" : "Postventa";
+      const areaNeg     = area as "ventas" | "postventa";
 
       blocks.push({
         key: area,
@@ -180,6 +187,8 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
         areaLabel,
         categoria: definedCat as ShiftCategory | null,
         categoriaSource: areaTeams.every((t) => t.categoria) ? null : catSource,
+        teamIds: areaTeams.map((t) => t.id),
+        categoryOptions: allPatterns.filter((p) => p.areaNegocio === areaNeg).map((p) => ({ id: p.id, label: p.label })),
         teamRows,
         allSlots,
         allAssignments,
@@ -216,12 +225,15 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
         })),
       );
 
+      const areaNeg = team.areaNegocio as "ventas" | "postventa";
       blocks.push({
         key: team.id,
         title: team.branch.nombre,
-        areaLabel: team.areaNegocio === "ventas" ? "Ventas" : "Postventa",
+        areaLabel: areaNeg === "ventas" ? "Ventas" : "Postventa",
         categoria: team.categoria as ShiftCategory | null,
         categoriaSource: null,
+        teamIds: [team.id],
+        categoryOptions: allPatterns.filter((p) => p.areaNegocio === areaNeg).map((p) => ({ id: p.id, label: p.label })),
         teamRows: [{ team, slotOffset: 0 }],
         allSlots: slots,
         allAssignments: assignments,
@@ -271,10 +283,12 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
                 <div className="text-sm font-semibold text-gray-900">{block.title}</div>
                 <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-2 flex-wrap">
                   <span>{block.areaLabel}</span>
-                  {block.categoria && <span>· {block.categoria}</span>}
-{!block.categoria && (
-                    <span className="text-red-500">· sin categoría — asignar desde admin</span>
-                  )}
+                  <span>·</span>
+                  <CategoryPicker
+                    teamIds={block.teamIds}
+                    current={block.categoria}
+                    options={block.categoryOptions}
+                  />
                   {!block.hasCalendar && block.categoria && (
                     <span className="text-amber-600 font-medium">· Sin guardar</span>
                   )}
