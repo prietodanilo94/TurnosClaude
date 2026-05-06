@@ -7,7 +7,6 @@ import { buildWorkerBlockDateMap, getWorkerBlockReason, generateCalendar } from 
 import type { CalendarSlot, ShiftCategory, WorkerBlockInfo } from "@/types";
 import GenerateButton, { type TeamSlice } from "./GenerateButton";
 import PeriodSelector from "./PeriodSelector";
-import CategoryPicker from "./CategoryPicker";
 import { getAllPatterns } from "@/lib/patterns/catalog";
 
 interface Props {
@@ -283,12 +282,8 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
                 <div className="text-sm font-semibold text-gray-900">{block.title}</div>
                 <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-2 flex-wrap">
                   <span>{block.areaLabel}</span>
-                  <span>·</span>
-                  <CategoryPicker
-                    teamIds={block.teamIds}
-                    current={block.categoria}
-                    options={block.categoryOptions}
-                  />
+                  {block.categoria && <span>· {block.categoria}</span>}
+                  {!block.categoria && <span className="text-red-500">· sin categoría</span>}
                   {!block.hasCalendar && block.categoria && (
                     <span className="text-amber-600 font-medium">· Sin guardar</span>
                   )}
@@ -326,19 +321,28 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
                   </thead>
                   <tbody>
                     {block.allSlots.map((slot) => {
-                      const workerId   = block.allAssignments[String(slot.slotNumber)] ?? null;
-                      const workerName = workerId ? (workerMap[workerId] ?? "—") : `Slot ${slot.slotNumber}`;
+                      const workerId     = block.allAssignments[String(slot.slotNumber)] ?? null;
+                      const workerIndex  = slot.slotNumber - 1;
+                      const provisional  = !workerId && workerIndex < block.allWorkers.length
+                        ? block.allWorkers[workerIndex]
+                        : null;
+                      const resolvedId   = workerId ?? provisional?.id ?? null;
+                      const workerName   = workerId
+                        ? (workerMap[workerId] ?? "—")
+                        : provisional
+                          ? provisional.nombre
+                          : `Slot ${slot.slotNumber}`;
                       return (
                         <tr key={slot.slotNumber} className="border-t border-gray-100 hover:bg-gray-50">
                           <td className="px-3 py-2 sticky left-0 bg-white hover:bg-gray-50">
-                            <div className={`text-sm font-medium truncate ${workerId ? "text-gray-900" : "text-gray-400 italic"}`}>
+                            <div className={`text-sm font-medium truncate ${workerId ? "text-gray-900" : provisional ? "text-gray-600" : "text-gray-400 italic"}`}>
                               {workerName}
                             </div>
                           </td>
                           {days.map((day) => {
-                            const dateStr   = fmtDate(day);
-                            const shift     = slot.days[dateStr] ?? null;
-                            const blockReason = getWorkerBlockReason(blockMap, workerId, dateStr);
+                            const dateStr     = fmtDate(day);
+                            const shift       = slot.days[dateStr] ?? null;
+                            const blockReason = getWorkerBlockReason(blockMap, resolvedId, dateStr);
                             return (
                               <td key={dateStr} className="px-0.5 py-1 text-center border-l border-gray-100">
                                 {blockReason !== null ? (
@@ -349,7 +353,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
                                   <div className="rounded bg-blue-50 text-blue-700 border border-blue-100 px-0.5 py-0.5 text-[9px] leading-tight">
                                     <div>{shift.start}</div>
                                     <div>{shift.end}</div>
-                                    {workerId && <div className="opacity-60 truncate">{shortName(workerName)}</div>}
+                                    <div className="opacity-60 truncate">{shortName(workerName)}</div>
                                   </div>
                                 ) : (
                                   <div className="text-gray-200">·</div>
