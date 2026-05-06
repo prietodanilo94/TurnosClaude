@@ -4,9 +4,10 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { getSession } from "@/lib/auth/session";
 import { generateCalendar } from "@/lib/calendar/generator";
+import type { TeamSlice } from "@/lib/calendar/teamSplit";
 import type { CalendarSlot, ShiftCategory, WorkerBlockInfo } from "@/types";
 import PeriodSelector from "./PeriodSelector";
-import SupervisorCalendarView, { type TeamSlice } from "./SupervisorCalendarView";
+import SupervisorCalendarView from "./SupervisorCalendarView";
 
 interface Props {
   searchParams: { groupId?: string; branchId?: string | string[]; year?: string; month?: string };

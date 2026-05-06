@@ -297,3 +297,91 @@ Para revertir solo este ajuste:
 1. Eliminar `categoryFallback.ts` y `categoryFallback.test.ts`.
 2. En `page.tsx`, volver a exigir `team.categoria` antes de renderizar `CalendarView`.
 3. Correr `npm.cmd test` y `npm.cmd run build`.
+
+## 2026-05-06 - Cierre tecnico F6 antes de F7
+
+### Objetivo
+
+Cerrar pendientes tecnicos de F6 antes de avanzar con F7:
+
+- Convertir pruebas manuales y riesgos conocidos en checklist o tests.
+- Registrar intentos de guardado incompleto en historial.
+- Mostrar feedback de guardado con nombre de sucursal/grupo.
+- Permitir exportacion de grupo como Excel multi-hoja.
+- Agregar ayuda corta para jefes/supervisores.
+
+### Archivos tocados
+
+- `v4/frontend/src/app/admin/sucursales/[id]/calendario/[year]/[month]/CalendarView.tsx`
+- `v4/frontend/src/app/admin/historial/page.tsx`
+- `v4/frontend/src/app/api/calendars/route.ts`
+- `v4/frontend/src/app/api/calendars/export/route.ts`
+- `v4/frontend/src/app/api/calendars/export-group/route.ts`
+- `v4/frontend/src/app/api/calendars/validation-attempt/route.ts`
+- `v4/frontend/src/app/api/calendars/route.test.ts`
+- `v4/frontend/src/app/supervisor/SupervisorShell.tsx`
+- `v4/frontend/src/app/supervisor/ayuda/page.tsx`
+- `v4/frontend/src/app/supervisor/calendario/SupervisorCalendarView.tsx`
+- `v4/frontend/src/app/supervisor/calendario/page.tsx`
+- `v4/frontend/src/lib/calendar/generator.ts`
+- `v4/frontend/src/lib/calendar/generator.test.ts`
+- `v4/frontend/src/lib/calendar/teamSplit.ts`
+- `v4/frontend/src/lib/calendar/teamSplit.test.ts`
+- `v4/frontend/src/middleware.test.ts`
+- `v4/specs/F6-produccion-jefes-sucursal/calendar-smoke-checklist.md`
+- `v4/specs/F6-produccion-jefes-sucursal/pilot-plan.md`
+- `v4/specs/F6-produccion-jefes-sucursal/tasks.md`
+- `v4/specs/F6-produccion-jefes-sucursal/implementation-log.md`
+
+### Cambio visible para usuario
+
+- Supervisor ve link `Como usar` en el menu lateral.
+- Guardar muestra mensaje final con nombre de sucursal o grupo.
+- Si intenta exportar con errores bloqueantes, la app avisa y evita descargar un archivo defectuoso.
+- Supervisor puede exportar calendario o RRHH de grupo como Excel multi-hoja.
+- Historial muestra si un cambio afecto `grupo` o `sucursal` cuando el flujo envia esa metadata.
+- Historial registra intentos de guardado incompleto cancelados o confirmados.
+
+### Verificacion realizada
+
+```powershell
+npm.cmd test
+npm.cmd run build
+git diff --check
+```
+
+Resultado:
+
+- Vitest OK: `6` archivos, `15` tests.
+- Build Next.js completo OK.
+- `git diff --check` OK.
+
+### Pendientes F6 no tecnicos
+
+Quedan sin marcar tareas que requieren ejecucion manual con usuario/datos reales:
+
+- Validar clicks reales en vendedor, turno y dia/Gantt.
+- Confirmar exportacion de calendario por sucursal descargando archivo real.
+- Definir 2-3 jefes piloto, credenciales, soporte y feedback.
+
+### Auditoria de supervisores en produccion
+
+Consulta ejecutada contra `v4-frontend-1`:
+
+- Total supervisores: `77`
+- Activos: `77`
+- Sin email: `76`
+- Sin password: `76`
+- Sin sucursales: `0`
+- Listos para operar: `1`
+
+Esto cierra la auditoria tecnica. La carga de credenciales piloto queda como pendiente operativo de Fase 10.
+
+### Reversion sugerida
+
+Para revertir solo este cierre tecnico:
+
+1. Revertir el commit de esta entrega.
+2. Si se revierte archivo por archivo, retirar `export-group`, `validation-attempt`, pagina `supervisor/ayuda`, tests nuevos y el helper `teamSplit`.
+3. Volver a ocultar exportacion supervisor si no se quiere usar export grupo.
+4. Correr `npm.cmd test` y `npm.cmd run build`.

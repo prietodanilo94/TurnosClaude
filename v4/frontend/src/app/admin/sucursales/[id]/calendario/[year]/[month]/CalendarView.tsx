@@ -142,6 +142,8 @@ interface Props {
       warningCount: number;
       warningCodes: string[];
     };
+    scopeLabel?: string;
+    scopeType?: "branch" | "group";
     id?: string;
   }) => Promise<string | null | void>;
   onRecalculateCalendar?: (payload: {
@@ -154,11 +156,14 @@ interface Props {
     assignments?: Record<string, string | null>;
     calendarId?: string;
   } | void>;
+  onExportCalendar?: (mode: "calendar" | "rrhh") => Promise<void>;
   recalculateLabel?: string;
   recalculateConfirmMessage?: string;
   showExportButtons?: boolean;
   showValidationPanel?: boolean;
   enforceValidationBeforeSave?: boolean;
+  calendarScopeLabel?: string;
+  calendarScopeType?: "branch" | "group";
 }
 
 export default function CalendarView({
@@ -170,11 +175,14 @@ export default function CalendarView({
   onNavigate,
   onSaveCalendar,
   onRecalculateCalendar,
+  onExportCalendar,
   recalculateLabel,
   recalculateConfirmMessage,
   showExportButtons = true,
   showValidationPanel = false,
   enforceValidationBeforeSave = false,
+  calendarScopeLabel,
+  calendarScopeType = "branch",
 }: Props) {
   const router = useRouter();
   const [localSlots, setLocalSlots] = useState<CalendarSlot[]>(() =>
@@ -243,6 +251,7 @@ export default function CalendarView({
       const shouldSaveIncomplete = confirm(
         `Este calendario esta incompleto (${validation.errors.length} problema${validation.errors.length !== 1 ? "s" : ""}).\n\n${sample}${more}\n\nPuedes guardarlo como version incompleta y corregirlo despues. Continuar?`,
       );
+      await logValidationAttempt(shouldSaveIncomplete ? "confirmed_incomplete_save" : "cancelled");
 
       if (!shouldSaveIncomplete) {
         setSaveFeedback({
@@ -263,11 +272,13 @@ export default function CalendarView({
           slotsData: localSlots,
           assignments: assign,
           validationSummary: buildValidationSummary(validation),
+          scopeLabel: calendarScopeLabel ?? branchName,
+          scopeType: calendarScopeType,
           id: calId,
         });
         if (id) setCalId(id);
         setDirty(false);
-        setSaveFeedback(buildSaveSuccessFeedback(validation));
+        setSaveFeedback(buildSaveSuccessFeedback(validation, calendarScopeLabel ?? branchName));
         return id ?? calId ?? "saved";
       }
 
@@ -281,6 +292,8 @@ export default function CalendarView({
           slotsData: localSlots,
           assignments: assign,
           validationSummary: buildValidationSummary(validation),
+          scopeLabel: calendarScopeLabel ?? branchName,
+          scopeType: calendarScopeType,
           id: calId,
         }),
       });
@@ -288,7 +301,7 @@ export default function CalendarView({
         const d = await res.json();
         setCalId(d.id);
         setDirty(false);
-        setSaveFeedback(buildSaveSuccessFeedback(validation));
+        setSaveFeedback(buildSaveSuccessFeedback(validation, calendarScopeLabel ?? branchName));
         return d.id as string;
       }
       const data = await res.json().catch(() => ({}));
@@ -302,6 +315,26 @@ export default function CalendarView({
       return null;
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function logValidationAttempt(outcome: "cancelled" | "confirmed_incomplete_save") {
+    try {
+      await fetch("/api/calendars/validation-attempt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          teamId,
+          year,
+          month,
+          scopeLabel: calendarScopeLabel ?? branchName,
+          scopeType: calendarScopeType,
+          outcome,
+          validationSummary: buildValidationSummary(validation),
+        }),
+      });
+    } catch {
+      // El historial no debe bloquear la operacion del calendario.
     }
   }
 
@@ -382,6 +415,13 @@ export default function CalendarView({
   }
 
   async function handleExport(mode: "calendar" | "rrhh") {
+    if (validation.errors.length > 0) {
+      const message = `Antes de exportar, corrige ${validation.errors.length} problema${validation.errors.length !== 1 ? "s" : ""} del calendario o guarda una version incompleta solo como respaldo.`;
+      setSaveFeedback({ tone: "warning", text: message });
+      alert(message);
+      return;
+    }
+
     if (mode === "rrhh") {
       const unassigned = localSlots.filter((s) => !assign[String(s.slotNumber)]);
       if (unassigned.length > 0) {
@@ -391,6 +431,10 @@ export default function CalendarView({
     }
     const id = await handleSave();
     if (!id) return;
+    if (onExportCalendar) {
+      await onExportCalendar(mode);
+      return;
+    }
     window.open(`/api/calendars/export?teamId=${teamId}&year=${year}&month=${month}&mode=${mode}`, "_blank");
   }
 
@@ -716,22 +760,25 @@ function buildValidationSummary(validation: CalendarValidationResult) {
   };
 }
 
-function buildSaveSuccessFeedback(validation: CalendarValidationResult): { tone: "success" | "warning"; text: string } {
+function buildSaveSuccessFeedback(
+  validation: CalendarValidationResult,
+  scopeLabel: string,
+): { tone: "success" | "warning"; text: string } {
   if (validation.errors.length > 0) {
     return {
       tone: "warning",
-      text: `Calendario guardado como version incompleta. Quedan ${validation.errors.length} problema${validation.errors.length !== 1 ? "s" : ""} por corregir.`,
+      text: `${scopeLabel}: calendario guardado como version incompleta. Quedan ${validation.errors.length} problema${validation.errors.length !== 1 ? "s" : ""} por corregir.`,
     };
   }
 
   if (validation.warnings.length > 0) {
     return {
       tone: "warning",
-      text: `Calendario guardado con ${validation.warnings.length} advertencia${validation.warnings.length !== 1 ? "s" : ""}.`,
+      text: `${scopeLabel}: calendario guardado con ${validation.warnings.length} advertencia${validation.warnings.length !== 1 ? "s" : ""}.`,
     };
   }
 
-  return { tone: "success", text: "Calendario guardado correctamente." };
+  return { tone: "success", text: `${scopeLabel}: calendario guardado correctamente.` };
 }
 
 interface WeekBlockProps {

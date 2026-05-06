@@ -1,6 +1,6 @@
-import { getPattern } from "@/lib/patterns/catalog";
-import { dateRangeInclusive } from "@/lib/dates";
-import type { CalendarSlot, ShiftCategory, DayShift, WorkerBlockInfo } from "@/types";
+import { getPattern } from "../patterns/catalog";
+import { dateRangeInclusive } from "../dates";
+import type { CalendarSlot, ShiftCategory, DayShift, WorkerBlockInfo } from "../../types";
 
 // Devuelve índice de día de la semana: Lun=0 ... Dom=6
 function dowIndex(date: Date): number {

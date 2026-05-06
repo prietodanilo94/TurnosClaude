@@ -20,6 +20,7 @@ const ACTION_LABELS: Record<string, string> = {
   "calendar.delete":    "Eliminó calendario",
   "calendar.assign":    "Asignó vendedor",
   "calendar.export":    "Exportó calendario",
+  "calendar.validation_blocked": "Intentó guardar incompleto",
   "dotacion.sync":      "Sincronizó dotación",
   "worker.block":       "Bloqueó vendedor",
   "worker.unblock":     "Desbloqueó vendedor",
@@ -59,8 +60,22 @@ function fmtDetail(metadata: Record<string, unknown> | null, action: string) {
     const parts = [];
     if (year && month) parts.push(`${month}/${year}`);
     if (workerCount !== undefined) parts.push(`${workerCount} vendedores`);
+    if (metadata.scopeType) parts.push(metadata.scopeType === "group" ? "grupo" : "sucursal");
+    if (metadata.scopeLabel) parts.push(String(metadata.scopeLabel));
     if (metadata.mode) parts.push(String(metadata.mode));
     return parts.join(" · ") || "—";
+  }
+
+  if (action === "calendar.validation_blocked") {
+    const summary = metadata.validationSummary as { errorCount?: number; warningCount?: number } | undefined;
+    const parts = [];
+    if (metadata.month && metadata.year) parts.push(`${metadata.month}/${metadata.year}`);
+    if (metadata.scopeType) parts.push(metadata.scopeType === "group" ? "grupo" : "sucursal");
+    if (metadata.scopeLabel) parts.push(String(metadata.scopeLabel));
+    if (summary?.errorCount !== undefined) parts.push(`${summary.errorCount} errores`);
+    if (metadata.outcome === "cancelled") parts.push("cancelado");
+    if (metadata.outcome === "confirmed_incomplete_save") parts.push("confirmo guardar incompleto");
+    return parts.join(" · ") || "Intento guardar con problemas";
   }
 
   if (action === "supervisor.create" || action === "supervisor.link") {

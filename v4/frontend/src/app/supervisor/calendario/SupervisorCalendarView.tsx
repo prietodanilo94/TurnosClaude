@@ -2,12 +2,8 @@
 
 import CalendarView from "@/app/admin/sucursales/[id]/calendario/[year]/[month]/CalendarView";
 import { generateCalendar } from "@/lib/calendar/generator";
+import { splitCalendarByTeam, type TeamSlice } from "@/lib/calendar/teamSplit";
 import type { CalendarSlot, ShiftCategory, WorkerBlockInfo, WorkerInfo } from "@/types";
-
-export interface TeamSlice {
-  teamId: string;
-  workerIds: string[];
-}
 
 interface SimpleWorker {
   id: string;
@@ -30,39 +26,6 @@ interface Props {
   queryBase: string;
 }
 
-function splitByTeam(
-  slots: CalendarSlot[],
-  assignments: Record<string, string | null>,
-  slices: TeamSlice[],
-) {
-  const result: Array<{
-    teamId: string;
-    slots: CalendarSlot[];
-    assignments: Record<string, string | null>;
-  }> = [];
-
-  let offset = 0;
-  for (const slice of slices) {
-    const workerCount = slice.workerIds.length;
-    const teamSlots = slots
-      .filter((slot) => slot.slotNumber > offset && slot.slotNumber <= offset + workerCount)
-      .map((slot) => ({ ...slot, slotNumber: slot.slotNumber - offset }));
-
-    const teamAssignments: Record<string, string | null> = {};
-    for (const [slotNumber, workerId] of Object.entries(assignments)) {
-      const numericSlot = Number(slotNumber);
-      if (numericSlot > offset && numericSlot <= offset + workerCount) {
-        teamAssignments[String(numericSlot - offset)] = workerId;
-      }
-    }
-
-    result.push({ teamId: slice.teamId, slots: teamSlots, assignments: teamAssignments });
-    offset += workerCount;
-  }
-
-  return result;
-}
-
 async function saveTeamCalendars({
   year,
   month,
@@ -70,6 +33,8 @@ async function saveTeamCalendars({
   assignments,
   slices,
   validationSummary,
+  scopeLabel,
+  scopeType,
 }: {
   year: number;
   month: number;
@@ -81,8 +46,10 @@ async function saveTeamCalendars({
     warningCount: number;
     warningCodes: string[];
   };
+  scopeLabel?: string;
+  scopeType?: "branch" | "group";
 }) {
-  for (const teamData of splitByTeam(slots, assignments, slices)) {
+  for (const teamData of splitCalendarByTeam(slots, assignments, slices)) {
     const res = await fetch("/api/calendars", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -93,6 +60,8 @@ async function saveTeamCalendars({
         slotsData: teamData.slots,
         assignments: teamData.assignments,
         validationSummary,
+        scopeLabel,
+        scopeType,
       }),
     });
 
@@ -156,8 +125,10 @@ export default function SupervisorCalendarView({
       calendarId={hasCalendar ? "supervisor-combined" : undefined}
       backHref="/supervisor"
       backLabel="Volver"
-      showExportButtons={false}
+      showExportButtons
       enforceValidationBeforeSave
+      calendarScopeLabel={title}
+      calendarScopeType={slices.length > 1 ? "group" : "branch"}
       recalculateLabel={hasCalendar ? "Regenerar" : "Generar"}
       recalculateConfirmMessage={
         hasCalendar
@@ -165,7 +136,7 @@ export default function SupervisorCalendarView({
           : "Esto generara el calendario supervisor y asignara vendedores en orden. Continuar?"
       }
       onNavigate={(newYear, newMonth) => `/supervisor/calendario?${navigationQueryPrefix}year=${newYear}&month=${newMonth}`}
-      onSaveCalendar={async ({ slotsData, assignments: nextAssignments, validationSummary }) => {
+      onSaveCalendar={async ({ slotsData, assignments: nextAssignments, validationSummary, scopeLabel, scopeType }) => {
         await saveTeamCalendars({
           year,
           month,
@@ -173,6 +144,8 @@ export default function SupervisorCalendarView({
           assignments: nextAssignments,
           slices,
           validationSummary,
+          scopeLabel,
+          scopeType,
         });
         return "supervisor-combined";
       }}
@@ -194,6 +167,8 @@ export default function SupervisorCalendarView({
           slots: generated.slots,
           assignments: nextAssignments,
           slices,
+          scopeLabel: title,
+          scopeType: slices.length > 1 ? "group" : "branch",
         });
 
         return {
@@ -201,6 +176,17 @@ export default function SupervisorCalendarView({
           assignments: nextAssignments,
           calendarId: "supervisor-combined",
         };
+      }}
+      onExportCalendar={async (mode) => {
+        const params = new URLSearchParams({
+          teamIds: slices.map((slice) => slice.teamId).join(","),
+          year: String(year),
+          month: String(month),
+          mode,
+          scopeLabel: title,
+          scopeType: slices.length > 1 ? "group" : "branch",
+        });
+        window.open(`/api/calendars/export-group?${params.toString()}`, "_blank");
       }}
     />
   );

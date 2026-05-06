@@ -64,6 +64,15 @@ function rutSinDV(rut: string): string {
   return rut.split("-")[0];
 }
 
+function safeFileName(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9_-]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 90);
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const teamId = searchParams.get("teamId")!;
@@ -103,10 +112,10 @@ export async function GET(req: NextRequest) {
 
   if (mode === "rrhh") {
     buf = buildRrhhExcel(team.branch.nombre, year, month, slots, assignments, workerMap, workerRutMap);
-    fileName = `turnos_rrhh_${team.branch.nombre}_${MONTH_NAMES[month]}_${year}.xlsx`;
+    fileName = safeFileName(`turnos_rrhh_${team.branch.nombre}_${MONTH_NAMES[month]}_${year}`) + ".xlsx";
   } else {
     buf = buildCalendarExcel(team.branch.nombre, year, month, slots, assignments, workerMap);
-    fileName = `calendario_${team.branch.nombre}_${MONTH_NAMES[month]}_${year}.xlsx`;
+    fileName = safeFileName(`calendario_${team.branch.nombre}_${MONTH_NAMES[month]}_${year}`) + ".xlsx";
   }
 
   await logAction({
