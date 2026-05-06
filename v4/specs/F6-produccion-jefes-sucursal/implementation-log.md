@@ -47,18 +47,19 @@ Archivos modificados/no commiteados al iniciar esta entrega:
 
 ### Estado deploy
 
-Esta entrega F6 aun no esta desplegada en servidor.
+Deploy realizado en servidor `antigravity`.
 
-Antes de deploy faltan estos pasos:
+- Commit desplegado: `f84a629`.
+- Commit: `v4/feat(produccion): prepara piloto jefes sucursal`.
+- Servidor: `/opt/shift-optimizer`.
+- Stack: `v4`.
+- Comando deploy: `cd /opt/shift-optimizer/v4 && docker compose up -d --build`.
+- Contenedor: `v4-frontend-1` arriba en `0.0.0.0:3014->3014`.
+- Dominio verificado: `https://turnos4.dpmake.cl/login` responde `200`.
+- Ruta protegida verificada: `https://turnos4.dpmake.cl/supervisor` responde `307` a `/login`, esperado sin sesion.
+- Logs recientes: Next arranco correctamente y Prisma confirmo DB en sync.
 
-1. Revisar diff final.
-2. Crear commit F6.
-3. Hacer push a `origin/main`.
-4. En servidor `antigravity`, ejecutar `git pull --ff-only origin main`.
-5. Reconstruir v4 con `cd /opt/shift-optimizer/v4 && docker compose up -d --build`.
-6. Verificar `turnos4.dpmake.cl/login`, `/supervisor` y logs de `v4-frontend-1`.
-
-No hay migracion de base de datos pendiente para esta entrega porque no se cambio `schema.prisma`.
+No hubo migracion de base de datos porque no se cambio `schema.prisma`.
 
 ### Objetivo
 
