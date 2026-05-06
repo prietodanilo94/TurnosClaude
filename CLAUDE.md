@@ -85,3 +85,4 @@ Las specs viven en `v4/specs/`. Cada una tiene `spec.md` y `tasks.md`.
 | F2 | Bloqueo de vendedores por rango de fechas | **Completo** | `v4/specs/F2-bloqueos/` |
 | F3 | Nombres visibles en calendario | **Completo** | `v4/specs/F3-nombres-calendario/` |
 | F4 | Historial de movimientos + webhook N8N | **Completo** | `v4/specs/F4-historial/` |
+| F5 | Grupos de sucursales | Pendiente | `v4/specs/F5-grupos-sucursales/` |
