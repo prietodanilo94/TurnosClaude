@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { generateCalendar } from "@/lib/calendar/generator";
+import { resolveCalendarDisplayCategory, type CalendarCategoryTeam } from "@/lib/calendar/categoryFallback";
 import { getSession } from "@/lib/auth/session";
 import type { ShiftCategory, CalendarSlot, WorkerBlockInfo } from "@/types";
 import CalendarView from "./CalendarView";
@@ -44,7 +45,26 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
   });
 
   if (!team || team.branchId !== params.id) notFound();
-  if (!team.categoria) {
+
+  const existing = team.calendars[0];
+  const groupCategoryCandidates =
+    !team.categoria && existing && team.branch.groupId
+      ? await prisma.branchTeam.findMany({
+          where: {
+            areaNegocio: team.areaNegocio,
+            categoria: { not: null },
+            branch: { groupId: team.branch.groupId },
+          },
+          include: { branch: { select: { groupId: true, nombre: true } } },
+          orderBy: { updatedAt: "desc" },
+        })
+      : [];
+  const categoryResolution = resolveCalendarDisplayCategory(
+    team as CalendarCategoryTeam,
+    groupCategoryCandidates as CalendarCategoryTeam[],
+  );
+
+  if (!categoryResolution.categoria) {
     return (
       <div className="p-6">
         <p className="text-sm text-orange-600">Este equipo no tiene categoria de turno asignada.</p>
@@ -72,13 +92,15 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
   let calendarId: string | undefined;
   let alert: string | undefined;
 
-  const existing = team.calendars[0];
   if (existing) {
     slots = JSON.parse(existing.slotsData);
     assignments = JSON.parse(existing.assignments);
     calendarId = existing.id;
+    if (categoryResolution.source === "group") {
+      alert = `Este equipo no tiene categoria propia. Se muestra usando la categoria del grupo${categoryResolution.sourceBranchName ? ` desde ${categoryResolution.sourceBranchName}` : ""}.`;
+    }
   } else {
-    const result = generateCalendar(team.categoria as ShiftCategory, year, month, workerCount);
+    const result = generateCalendar(categoryResolution.categoria as ShiftCategory, year, month, workerCount);
     slots = result.slots;
     alert = result.alert;
     if (Object.keys(prevAssignments).length > 0) {
@@ -104,7 +126,7 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
       branchCodigo={team.branch.codigo}
       teamId={team.id}
       areaNegocio={team.areaNegocio as "ventas" | "postventa"}
-      categoria={team.categoria as ShiftCategory}
+      categoria={categoryResolution.categoria as ShiftCategory}
       year={year}
       month={month}
       slots={slots}

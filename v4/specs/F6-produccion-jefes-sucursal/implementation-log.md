@@ -251,3 +251,49 @@ Para revertir solo este ajuste:
 2. En `CalendarView.tsx`, restaurar el bloqueo directo de guardado cuando `validation.canSave` sea falso.
 3. En `historial/page.tsx`, revertir `calendarLink()` al link anterior solo si se corrige de otra forma el requerimiento de `team`.
 4. Correr `npm.cmd test` y `npm.cmd run build`.
+
+## 2026-05-06 - Fix historial para calendarios de grupo sin categoria propia
+
+### Objetivo
+
+Corregir un caso real visto en produccion:
+
+- Admin historial enlazaba a un calendario guardado de una sucursal del grupo.
+- Ese equipo no tenia `categoria` propia.
+- Supervisor si pudo generar porque el flujo agrupado usa la categoria definida en otra sucursal del mismo grupo y area.
+- Admin mostraba `Este equipo no tiene categoria de turno asignada` al abrir `Ver calendario`.
+
+### Cambio aplicado
+
+- Se agrego `resolveCalendarDisplayCategory()` para resolver la categoria de visualizacion.
+- Si el equipo tiene categoria propia, se usa esa.
+- Si el equipo no tiene categoria propia pero ya tiene calendario guardado, se permite usar una categoria de otro equipo del mismo grupo y misma area.
+- Si no existe categoria propia ni fallback de grupo, se mantiene el aviso de categoria faltante.
+- Se agregaron tests unitarios para cubrir categoria propia, fallback por grupo y rechazo de categoria de otra area/grupo.
+
+### Archivos tocados
+
+- `v4/frontend/src/app/admin/sucursales/[id]/calendario/[year]/[month]/page.tsx`
+- `v4/frontend/src/lib/calendar/categoryFallback.ts`
+- `v4/frontend/src/lib/calendar/categoryFallback.test.ts`
+- `v4/specs/F6-produccion-jefes-sucursal/implementation-log.md`
+
+### Verificacion realizada
+
+```powershell
+npm.cmd test
+npm.cmd run build
+```
+
+Resultado:
+
+- Vitest OK: `2` archivos, `6` tests.
+- Build Next.js completo OK.
+
+### Reversion sugerida
+
+Para revertir solo este ajuste:
+
+1. Eliminar `categoryFallback.ts` y `categoryFallback.test.ts`.
+2. En `page.tsx`, volver a exigir `team.categoria` antes de renderizar `CalendarView`.
+3. Correr `npm.cmd test` y `npm.cmd run build`.
