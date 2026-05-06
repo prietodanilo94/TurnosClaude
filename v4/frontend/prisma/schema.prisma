@@ -14,10 +14,20 @@ model Branch {
   nombre    String
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
+  groupId   String?
+  group     BranchGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
   teams     BranchTeam[]
   userAccess UserBranch[]
   supervisors SupervisorBranch[]
   auditLogs  AuditLog[]
+}
+
+model BranchGroup {
+  id        String   @id @default(cuid())
+  nombre    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  branches  Branch[]
 }
 
 model User {
