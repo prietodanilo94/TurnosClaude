@@ -157,7 +157,6 @@ export default function SupervisorCalendarView({
       backHref="/supervisor"
       backLabel="Volver"
       showExportButtons={false}
-      showValidationPanel
       enforceValidationBeforeSave
       recalculateLabel={hasCalendar ? "Regenerar" : "Generar"}
       recalculateConfirmMessage={

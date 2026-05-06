@@ -37,8 +37,8 @@
 - [x] Validar exceso de horas semanales segun regla vigente.
 - [x] Validar cobertura diaria insuficiente.
 - [x] Separar resultados en errores bloqueantes y advertencias.
-- [x] Mostrar panel "Revision del calendario" en lenguaje simple.
-- [x] Impedir guardado si hay errores bloqueantes.
+- [x] Mostrar revision del calendario solo al intentar guardar, sin aviso permanente.
+- [x] Confirmar guardado como version incompleta si hay errores bloqueantes.
 - [x] Permitir guardado con advertencias, dejando registro en historial.
 
 ## Fase 5: Mensajes y confirmaciones

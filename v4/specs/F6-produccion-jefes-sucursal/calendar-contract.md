@@ -30,8 +30,8 @@ Si un rol necesita guardar, generar, navegar o validar de manera distinta, debe 
 - `recalculateLabel`: cambia texto del boton.
 - `recalculateConfirmMessage`: cambia confirmacion.
 - `showExportButtons`: oculta exportacion cuando el flujo aun no esta listo.
-- `showValidationPanel`: muestra revision del calendario.
-- `enforceValidationBeforeSave`: bloquea guardado si hay errores.
+- `showValidationPanel`: muestra revision del calendario cuando un flujo lo necesita.
+- `enforceValidationBeforeSave`: en supervisor confirma antes de guardar una version incompleta si hay errores.
 
 ## Flujo supervisor
 
@@ -40,8 +40,8 @@ Supervisor debe usar un wrapper delgado:
 - Convierte trabajadores simples a `WorkerInfo`.
 - Combina o separa equipos si es grupo.
 - Usa `CalendarView` para toda la UI.
-- Activa `showValidationPanel`.
-- Activa `enforceValidationBeforeSave`.
+- Mantiene `showValidationPanel` apagado para evitar avisos permanentes.
+- Activa `enforceValidationBeforeSave` para confirmar guardado incompleto al presionar Guardar.
 - Oculta exportacion mientras no exista exportacion multi-hoja de grupo.
 
 ## Reversion segura
@@ -54,4 +54,3 @@ Si un cambio rompe supervisor, no crear una nueva tabla rapida. Revisar primero:
 4. Validaciones de `validateCalendarForPublish()`.
 
 Solo si `CalendarView` no puede soportar el caso, documentar el motivo en F6 antes de crear un componente nuevo.
-

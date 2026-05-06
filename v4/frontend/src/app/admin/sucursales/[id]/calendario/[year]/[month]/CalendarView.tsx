@@ -187,7 +187,7 @@ export default function CalendarView({
   const [dialogSlot, setDialogSlot] = useState<number | null>(null);
   const [shiftEditDialog, setShiftEditDialog] = useState<{ slotNum: number; dateStr: string } | null>(null);
   const [recalculating, setRecalculating] = useState(false);
-  const [saveFeedback, setSaveFeedback] = useState<{ tone: "success" | "error"; text: string } | null>(null);
+  const [saveFeedback, setSaveFeedback] = useState<{ tone: "success" | "warning" | "error"; text: string } | null>(null);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [view, setView] = useState<"mensual" | "vendedor" | "diario">("mensual");
   const [selectedSlots, setSelectedSlots] = useState<Set<number>>(
@@ -233,12 +233,24 @@ export default function CalendarView({
   }, [sortedSlots]);
 
   async function handleSave(): Promise<string | null> {
-    if (enforceValidationBeforeSave && !validation.canSave) {
-      setSaveFeedback({
-        tone: "error",
-        text: `No se puede guardar: corrige ${validation.errors.length} problema${validation.errors.length !== 1 ? "s" : ""} primero.`,
-      });
-      return null;
+    if (enforceValidationBeforeSave && validation.errors.length > 0) {
+      const sample = validation.errors
+        .slice(0, 4)
+        .map((issue) => `- ${issue.title}`)
+        .join("\n");
+      const hiddenCount = validation.errors.length - 4;
+      const more = hiddenCount > 0 ? `\n- Y ${hiddenCount} problema${hiddenCount !== 1 ? "s" : ""} mas` : "";
+      const shouldSaveIncomplete = confirm(
+        `Este calendario esta incompleto (${validation.errors.length} problema${validation.errors.length !== 1 ? "s" : ""}).\n\n${sample}${more}\n\nPuedes guardarlo como version incompleta y corregirlo despues. Continuar?`,
+      );
+
+      if (!shouldSaveIncomplete) {
+        setSaveFeedback({
+          tone: "warning",
+          text: "Guardado cancelado. Corrige los datos pendientes o guarda como version incompleta cuando quieras dejar respaldo.",
+        });
+        return null;
+      }
     }
 
     setSaving(true);
@@ -255,7 +267,7 @@ export default function CalendarView({
         });
         if (id) setCalId(id);
         setDirty(false);
-        setSaveFeedback({ tone: "success", text: "Calendario guardado correctamente." });
+        setSaveFeedback(buildSaveSuccessFeedback(validation));
         return id ?? calId ?? "saved";
       }
 
@@ -276,7 +288,7 @@ export default function CalendarView({
         const d = await res.json();
         setCalId(d.id);
         setDirty(false);
-        setSaveFeedback({ tone: "success", text: "Calendario guardado correctamente." });
+        setSaveFeedback(buildSaveSuccessFeedback(validation));
         return d.id as string;
       }
       const data = await res.json().catch(() => ({}));
@@ -420,6 +432,13 @@ export default function CalendarView({
             x.d.getMonth() + 1 === month
           ))
       : [];
+  const saveButtonLabel = saving
+    ? "Guardando..."
+    : dirty && enforceValidationBeforeSave && validation.errors.length > 0
+      ? "Guardar version incompleta"
+      : dirty
+        ? "Guardar"
+        : calId ? "Guardado" : "Sin guardar";
 
   return (
     <div className="p-6">
@@ -462,7 +481,7 @@ export default function CalendarView({
               dirty ? "bg-blue-600 text-white hover:bg-blue-700" : "border border-gray-300 text-gray-400 cursor-default"
             }`}
           >
-            {saving ? "Guardando…" : dirty ? "Guardar" : calId ? "Guardado" : "Sin guardar"}
+            {saveButtonLabel}
           </button>
           {showExportButtons && (
             <>
@@ -549,7 +568,9 @@ export default function CalendarView({
         <div className={`mb-4 border rounded p-3 text-xs ${
           saveFeedback.tone === "success"
             ? "bg-green-50 border-green-200 text-green-800"
-            : "bg-rose-50 border-rose-200 text-rose-800"
+            : saveFeedback.tone === "warning"
+              ? "bg-amber-50 border-amber-200 text-amber-800"
+              : "bg-rose-50 border-rose-200 text-rose-800"
         }`}>
           {saveFeedback.text}
         </div>
@@ -693,6 +714,24 @@ function buildValidationSummary(validation: CalendarValidationResult) {
     warningCount: validation.warnings.length,
     warningCodes: [...new Set(validation.warnings.map((issue) => issue.code))],
   };
+}
+
+function buildSaveSuccessFeedback(validation: CalendarValidationResult): { tone: "success" | "warning"; text: string } {
+  if (validation.errors.length > 0) {
+    return {
+      tone: "warning",
+      text: `Calendario guardado como version incompleta. Quedan ${validation.errors.length} problema${validation.errors.length !== 1 ? "s" : ""} por corregir.`,
+    };
+  }
+
+  if (validation.warnings.length > 0) {
+    return {
+      tone: "warning",
+      text: `Calendario guardado con ${validation.warnings.length} advertencia${validation.warnings.length !== 1 ? "s" : ""}.`,
+    };
+  }
+
+  return { tone: "success", text: "Calendario guardado correctamente." };
 }
 
 interface WeekBlockProps {

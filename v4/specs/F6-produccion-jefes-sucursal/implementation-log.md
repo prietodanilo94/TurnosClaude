@@ -197,3 +197,57 @@ git revert <commit>
 ```
 
 Si hay mas cambios mezclados en el mismo commit, revertir archivo por archivo con cuidado y correr build antes de desplegar.
+
+## 2026-05-06 - Ajuste UX guardado incompleto e historial
+
+### Objetivo
+
+Corregir dos fricciones detectadas en uso real:
+
+- El supervisor veia un aviso rojo/verde permanente de validacion, demasiado invasivo.
+- El link `Ver calendario` del historial admin podia terminar en 404 porque no incluia `teamId`.
+
+### Archivos tocados
+
+- `v4/frontend/src/app/admin/sucursales/[id]/calendario/[year]/[month]/CalendarView.tsx`
+- `v4/frontend/src/app/supervisor/calendario/SupervisorCalendarView.tsx`
+- `v4/frontend/src/app/admin/historial/page.tsx`
+- `v4/specs/F6-produccion-jefes-sucursal/tasks.md`
+- `v4/specs/F6-produccion-jefes-sucursal/calendar-contract.md`
+- `v4/specs/F6-produccion-jefes-sucursal/implementation-log.md`
+
+### Cambio visible para usuario
+
+Supervisor:
+
+- Ya no se muestra el panel de validacion de forma permanente.
+- Si faltan vendedores u otros datos, el boton de guardado dice `Guardar version incompleta`.
+- Al presionar guardar con problemas, aparece una confirmacion indicando que el calendario esta incompleto.
+- Si confirma, se guarda como version incompleta y queda mensaje amarillo de respaldo.
+- Si cancela, no se guarda y queda mensaje de guardado cancelado.
+
+Admin historial:
+
+- `Ver calendario` ahora agrega `?team=<teamId>` cuando el log tiene `teamId`.
+- Si un log antiguo no tiene `teamId`, el link vuelve a la ficha de sucursal en vez de abrir una URL que genera 404.
+
+### Verificacion realizada
+
+```powershell
+npm.cmd test
+npm.cmd run build
+```
+
+Resultado:
+
+- Vitest OK: `1` archivo, `3` tests.
+- Build Next.js completo OK.
+
+### Reversion sugerida
+
+Para revertir solo este ajuste:
+
+1. En `SupervisorCalendarView.tsx`, volver a pasar `showValidationPanel` si se desea el panel permanente.
+2. En `CalendarView.tsx`, restaurar el bloqueo directo de guardado cuando `validation.canSave` sea falso.
+3. En `historial/page.tsx`, revertir `calendarLink()` al link anterior solo si se corrige de otra forma el requerimiento de `team`.
+4. Correr `npm.cmd test` y `npm.cmd run build`.

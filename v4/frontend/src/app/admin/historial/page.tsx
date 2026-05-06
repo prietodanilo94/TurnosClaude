@@ -78,8 +78,10 @@ function calendarLink(log: { branchId: string | null; metadata: string | null })
   const meta = parseMetadata(log.metadata);
   const year = meta?.year;
   const month = meta?.month;
-  if (!year || !month) return null;
-  return `/admin/sucursales/${log.branchId}/calendario/${year}/${month}`;
+  const teamId = typeof meta?.teamId === "string" ? meta.teamId : null;
+  if (!year || !month) return `/admin/sucursales/${log.branchId}`;
+  if (!teamId) return `/admin/sucursales/${log.branchId}`;
+  return `/admin/sucursales/${log.branchId}/calendario/${year}/${month}?team=${teamId}`;
 }
 
 export const dynamic = "force-dynamic";
