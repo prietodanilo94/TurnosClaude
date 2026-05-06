@@ -3,11 +3,10 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { getSession } from "@/lib/auth/session";
-import { buildWorkerBlockDateMap, getWorkerBlockReason, generateCalendar } from "@/lib/calendar/generator";
+import { generateCalendar } from "@/lib/calendar/generator";
 import type { CalendarSlot, ShiftCategory, WorkerBlockInfo } from "@/types";
-import GenerateButton, { type TeamSlice } from "./GenerateButton";
 import PeriodSelector from "./PeriodSelector";
-import { getAllPatterns } from "@/lib/patterns/catalog";
+import SupervisorCalendarView, { type TeamSlice } from "./SupervisorCalendarView";
 
 interface Props {
   searchParams: { groupId?: string; branchId?: string | string[]; year?: string; month?: string };
@@ -15,10 +14,6 @@ interface Props {
 
 function fmtDate(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-function shortName(n: string) {
-  const p = n.trim().split(/\s+/);
-  return p.length <= 1 ? (p[0] ?? "") : `${p[0]} ${p[1].charAt(0)}.`;
 }
 
 export const dynamic = "force-dynamic";
@@ -60,7 +55,9 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
 
   const monthStart = new Date(`${year}-${String(month).padStart(2, "0")}-01T00:00:00`);
   const monthEnd   = new Date(year, month, 0, 23, 59, 59, 999);
-  const days = Array.from({ length: new Date(year, month, 0).getDate() }, (_, i) => new Date(year, month - 1, i + 1));
+  const days = Array.from({ length: new Date(year, month, 0).getDate() }, (_, i) =>
+    fmtDate(new Date(year, month - 1, i + 1)),
+  );
 
   const teams = await prisma.branchTeam.findMany({
     where: { branchId: { in: selectedBranchIds } },
@@ -78,35 +75,22 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
     orderBy: [{ branch: { nombre: "asc" } }, { areaNegocio: "asc" }],
   });
 
-  // ── Agrupar por areaNegocio cuando es grupo ──────────────────────────────
-  // Para grupos: siempre un único calendario unificado por área.
-  // Para sucursales individuales: un bloque por equipo.
-
-  type TeamRow = { team: typeof teams[0]; slotOffset: number };
-
-  const allPatterns = getAllPatterns();
-
   interface DisplayBlock {
     key: string;
     title: string;
     areaLabel: string;
     categoria: ShiftCategory | null;
-    categoriaSource: string | null;
-    teamIds: string[];
-    categoryOptions: { id: string; label: string }[];
-    teamRows: TeamRow[];
-    allSlots: CalendarSlot[];
-    allAssignments: Record<string, string | null>;
-    allWorkers: { id: string; nombre: string }[];
-    allBlocks: WorkerBlockInfo[];
-    hasCalendar: boolean;
+    slots: CalendarSlot[];
+    assignments: Record<string, string | null>;
+    workers: { id: string; nombre: string }[];
+    blocks: WorkerBlockInfo[];
     slices: TeamSlice[];
+    hasCalendar: boolean;
   }
 
   const blocks: DisplayBlock[] = [];
 
   if (isGroup) {
-    // Agrupar por areaNegocio
     const byArea = new Map<string, typeof teams>();
     for (const team of teams) {
       if (!byArea.has(team.areaNegocio)) byArea.set(team.areaNegocio, []);
@@ -114,13 +98,8 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
     }
 
     for (const [area, areaTeams] of byArea) {
-      // Resolver categoría: si alguna tiene, usarla; si varias distintas, tomar la primera
       const definedCat = areaTeams.find((t) => t.categoria)?.categoria ?? null;
-      const catSource  = definedCat
-        ? (areaTeams.find((t) => t.categoria)?.branch.nombre ?? null)
-        : null;
 
-      // Combinar workers de todos los equipos (en orden de sucursal)
       const allWorkers = areaTeams.flatMap((t) =>
         t.workers.map((w) => ({ id: w.id, nombre: w.nombre })),
       );
@@ -135,10 +114,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
         ),
       );
 
-      // Construir slots y assignments globales combinando los calendarios guardados
-      // (con offsets de slot por equipo)
       let offset = 0;
-      const teamRows: TeamRow[] = [];
       const allSlots: CalendarSlot[] = [];
       const allAssignments: Record<string, string | null> = {};
       const slices: TeamSlice[] = [];
@@ -163,42 +139,30 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
           teamAssign = {};
         }
 
-        // Remap slot numbers to global offset
-        const remapped = teamSlots.map((s) => ({ ...s, slotNumber: s.slotNumber + offset }));
-        allSlots.push(...remapped);
-
-        for (const [slotStr, wId] of Object.entries(teamAssign)) {
-          allAssignments[String(Number(slotStr) + offset)] = wId;
+        allSlots.push(...teamSlots.map((s) => ({ ...s, slotNumber: s.slotNumber + offset })));
+        for (const [k, v] of Object.entries(teamAssign)) {
+          allAssignments[String(Number(k) + offset)] = v;
         }
 
-        teamRows.push({ team, slotOffset: offset });
         slices.push({ teamId: team.id, workerIds: team.workers.map((w) => w.id) });
         offset += N;
       }
 
       const branchNames = [...new Set(areaTeams.map((t) => t.branch.nombre))];
-      const areaLabel   = area === "ventas" ? "Ventas" : "Postventa";
-      const areaNeg     = area as "ventas" | "postventa";
-
       blocks.push({
         key: area,
         title: branchNames.join(" · "),
-        areaLabel,
+        areaLabel: area === "ventas" ? "Ventas" : "Postventa",
         categoria: definedCat as ShiftCategory | null,
-        categoriaSource: areaTeams.every((t) => t.categoria) ? null : catSource,
-        teamIds: areaTeams.map((t) => t.id),
-        categoryOptions: allPatterns.filter((p) => p.areaNegocio === areaNeg).map((p) => ({ id: p.id, label: p.label })),
-        teamRows,
-        allSlots,
-        allAssignments,
-        allWorkers,
-        allBlocks,
-        hasCalendar,
+        slots: allSlots,
+        assignments: allAssignments,
+        workers: allWorkers,
+        blocks: allBlocks,
         slices,
+        hasCalendar,
       });
     }
   } else {
-    // Sucursal individual: un bloque por equipo
     for (const team of teams) {
       const cal = team.calendars[0];
       const N   = team.workers.length;
@@ -214,7 +178,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
         slots = [];
       }
 
-      const workers  = team.workers.map((w) => ({ id: w.id, nombre: w.nombre }));
+      const workers = team.workers.map((w) => ({ id: w.id, nombre: w.nombre }));
       const allBlocks: WorkerBlockInfo[] = team.workers.flatMap((w) =>
         w.blocks.map((b) => ({
           id: b.id, workerId: w.id,
@@ -224,29 +188,20 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
         })),
       );
 
-      const areaNeg = team.areaNegocio as "ventas" | "postventa";
       blocks.push({
         key: team.id,
         title: team.branch.nombre,
-        areaLabel: areaNeg === "ventas" ? "Ventas" : "Postventa",
+        areaLabel: team.areaNegocio === "ventas" ? "Ventas" : "Postventa",
         categoria: team.categoria as ShiftCategory | null,
-        categoriaSource: null,
-        teamIds: [team.id],
-        categoryOptions: allPatterns.filter((p) => p.areaNegocio === areaNeg).map((p) => ({ id: p.id, label: p.label })),
-        teamRows: [{ team, slotOffset: 0 }],
-        allSlots: slots,
-        allAssignments: assignments,
-        allWorkers: workers,
-        allBlocks,
-        hasCalendar: !!cal,
+        slots,
+        assignments,
+        workers,
+        blocks: allBlocks,
         slices: [{ teamId: team.id, workerIds: workers.map((w) => w.id) }],
+        hasCalendar: !!cal,
       });
     }
   }
-
-  const workerMap = Object.fromEntries(
-    teams.flatMap((t) => t.workers.map((w) => [w.id, w.nombre])),
-  );
 
   return (
     <div className="p-6 space-y-4">
@@ -271,106 +226,23 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
         </div>
       )}
 
-      {blocks.map((block) => {
-        const blockMap = buildWorkerBlockDateMap(block.allBlocks);
-
-        return (
-          <div key={block.key} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-            {/* Cabecera del bloque */}
-            <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 flex items-center justify-between gap-4 flex-wrap">
-              <div>
-                <div className="text-sm font-semibold text-gray-900">{block.title}</div>
-                <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-2 flex-wrap">
-                  <span>{block.areaLabel}</span>
-                  {block.categoria && <span>· {block.categoria}</span>}
-                  {!block.categoria && <span className="text-red-500">· sin categoría</span>}
-                  {!block.hasCalendar && block.categoria && (
-                    <span className="text-amber-600 font-medium">· Sin guardar</span>
-                  )}
-                  <span className="text-gray-400">· {block.allWorkers.length} vendedores</span>
-                </div>
-              </div>
-              {block.categoria && (
-                <GenerateButton
-                  categoria={block.categoria}
-                  year={year}
-                  month={month}
-                  slices={block.slices}
-                  hasCalendar={block.hasCalendar}
-                />
-              )}
-            </div>
-
-            {/* Tabla de slots */}
-            {block.allSlots.length === 0 ? (
-              <div className="px-4 py-6 text-sm text-gray-400">
-                {block.categoria ? "Presiona Generar para crear el calendario." : "Sin categoría asignada."}
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-xs">
-                  <thead>
-                    <tr className="border-b border-gray-100 bg-gray-50">
-                      <th className="px-3 py-2 text-left text-gray-500 font-medium min-w-[180px] sticky left-0 bg-gray-50">Vendedor</th>
-                      {days.map((day) => (
-                        <th key={fmtDate(day)} className="px-1 py-2 text-center text-gray-500 font-medium min-w-[36px]">
-                          {day.getDate()}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {block.allSlots.map((slot) => {
-                      const workerId     = block.allAssignments[String(slot.slotNumber)] ?? null;
-                      const workerIndex  = slot.slotNumber - 1;
-                      const provisional  = !workerId && workerIndex < block.allWorkers.length
-                        ? block.allWorkers[workerIndex]
-                        : null;
-                      const resolvedId   = workerId ?? provisional?.id ?? null;
-                      const workerName   = workerId
-                        ? (workerMap[workerId] ?? "—")
-                        : provisional
-                          ? provisional.nombre
-                          : `Slot ${slot.slotNumber}`;
-                      return (
-                        <tr key={slot.slotNumber} className="border-t border-gray-100 hover:bg-gray-50">
-                          <td className="px-3 py-2 sticky left-0 bg-white hover:bg-gray-50">
-                            <div className={`text-sm font-medium truncate ${workerId ? "text-gray-900" : provisional ? "text-gray-600" : "text-gray-400 italic"}`}>
-                              {workerName}
-                            </div>
-                          </td>
-                          {days.map((day) => {
-                            const dateStr     = fmtDate(day);
-                            const shift       = slot.days[dateStr] ?? null;
-                            const blockReason = getWorkerBlockReason(blockMap, resolvedId, dateStr);
-                            return (
-                              <td key={dateStr} className="px-0.5 py-1 text-center border-l border-gray-100">
-                                {blockReason !== null ? (
-                                  <div title={blockReason || "Bloqueado"} className="rounded bg-gray-200 text-gray-600 px-0.5 py-0.5 text-[9px]">
-                                    Bloq.
-                                  </div>
-                                ) : shift ? (
-                                  <div className="rounded bg-blue-50 text-blue-700 border border-blue-100 px-0.5 py-0.5 text-[9px] leading-tight">
-                                    <div>{shift.start}</div>
-                                    <div>{shift.end}</div>
-                                    <div className="opacity-60 truncate">{shortName(workerName)}</div>
-                                  </div>
-                                ) : (
-                                  <div className="text-gray-200">·</div>
-                                )}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        );
-      })}
+      {blocks.map((block) => (
+        <SupervisorCalendarView
+          key={block.key}
+          title={block.title}
+          areaLabel={block.areaLabel}
+          categoria={block.categoria}
+          year={year}
+          month={month}
+          days={days}
+          slots={block.slots}
+          assignments={block.assignments}
+          workers={block.workers}
+          blocks={block.blocks}
+          slices={block.slices}
+          hasCalendar={block.hasCalendar}
+        />
+      ))}
     </div>
   );
 }
