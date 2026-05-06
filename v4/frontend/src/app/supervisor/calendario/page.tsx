@@ -12,10 +12,6 @@ interface Props {
   searchParams: { groupId?: string; branchId?: string | string[]; year?: string; month?: string };
 }
 
-function fmtDate(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
 export const dynamic = "force-dynamic";
 
 export default async function SupervisorCalendarPage({ searchParams }: Props) {
@@ -43,7 +39,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
     if (!group) notFound();
     const accessible = group.branches.filter((b) => allowedBranchIds.includes(b.id));
     if (accessible.length === 0) notFound();
-    selectedBranchIds = group.branches.map((b) => b.id);
+    selectedBranchIds = accessible.map((b) => b.id);
     pageTitle = group.nombre;
     isGroup = true;
   } else {
@@ -55,9 +51,16 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
 
   const monthStart = new Date(`${year}-${String(month).padStart(2, "0")}-01T00:00:00`);
   const monthEnd   = new Date(year, month, 0, 23, 59, 59, 999);
-  const days = Array.from({ length: new Date(year, month, 0).getDate() }, (_, i) =>
-    fmtDate(new Date(year, month - 1, i + 1)),
-  );
+
+  const queryParams = new URLSearchParams();
+  if (searchParams.groupId) {
+    queryParams.set("groupId", searchParams.groupId);
+  } else {
+    for (const branchId of selectedBranchIds) {
+      queryParams.append("branchId", branchId);
+    }
+  }
+  const queryBase = queryParams.toString();
 
   const teams = await prisma.branchTeam.findMany({
     where: { branchId: { in: selectedBranchIds } },
@@ -79,6 +82,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
     key: string;
     title: string;
     areaLabel: string;
+    areaNegocio: "ventas" | "postventa";
     categoria: ShiftCategory | null;
     slots: CalendarSlot[];
     assignments: Record<string, string | null>;
@@ -153,6 +157,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
         key: area,
         title: branchNames.join(" · "),
         areaLabel: area === "ventas" ? "Ventas" : "Postventa",
+        areaNegocio: area as "ventas" | "postventa",
         categoria: definedCat as ShiftCategory | null,
         slots: allSlots,
         assignments: allAssignments,
@@ -192,6 +197,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
         key: team.id,
         title: team.branch.nombre,
         areaLabel: team.areaNegocio === "ventas" ? "Ventas" : "Postventa",
+        areaNegocio: team.areaNegocio as "ventas" | "postventa",
         categoria: team.categoria as ShiftCategory | null,
         slots,
         assignments,
@@ -231,16 +237,17 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
           key={block.key}
           title={block.title}
           areaLabel={block.areaLabel}
+          areaNegocio={block.areaNegocio}
           categoria={block.categoria}
           year={year}
           month={month}
-          days={days}
           slots={block.slots}
           assignments={block.assignments}
           workers={block.workers}
           blocks={block.blocks}
           slices={block.slices}
           hasCalendar={block.hasCalendar}
+          queryBase={queryBase}
         />
       ))}
     </div>

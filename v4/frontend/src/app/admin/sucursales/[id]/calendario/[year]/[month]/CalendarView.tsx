@@ -127,12 +127,44 @@ interface Props {
   nextAssignments?: Record<string, string | null>;
   currentYear?: number;
   currentMonth?: number;
+  backHref?: string;
+  backLabel?: string;
+  onNavigate?: (year: number, month: number) => string;
+  onSaveCalendar?: (payload: {
+    teamId: string;
+    year: number;
+    month: number;
+    slotsData: CalendarSlot[];
+    assignments: Record<string, string | null>;
+    id?: string;
+  }) => Promise<string | null | void>;
+  onRecalculateCalendar?: (payload: {
+    year: number;
+    month: number;
+    currentSlots: CalendarSlot[];
+    currentAssignments: Record<string, string | null>;
+  }) => Promise<{
+    slots: CalendarSlot[];
+    assignments?: Record<string, string | null>;
+    calendarId?: string;
+  } | void>;
+  recalculateLabel?: string;
+  recalculateConfirmMessage?: string;
+  showExportButtons?: boolean;
 }
 
 export default function CalendarView({
   branchId, branchName, branchCodigo, teamId, areaNegocio, categoria,
   year, month, slots, assignments, workers, workerMap, calendarId, generateAlert,
   workerBlocks = [], prevAssignments = {}, nextAssignments = {}, currentYear, currentMonth,
+  backHref = "/admin/sucursales",
+  backLabel = "Sucursales",
+  onNavigate,
+  onSaveCalendar,
+  onRecalculateCalendar,
+  recalculateLabel,
+  recalculateConfirmMessage,
+  showExportButtons = true,
 }: Props) {
   const router = useRouter();
   const [localSlots, setLocalSlots] = useState<CalendarSlot[]>(() =>
@@ -181,6 +213,20 @@ export default function CalendarView({
   async function handleSave(): Promise<string | null> {
     setSaving(true);
     try {
+      if (onSaveCalendar) {
+        const id = await onSaveCalendar({
+          teamId,
+          year,
+          month,
+          slotsData: localSlots,
+          assignments: assign,
+          id: calId,
+        });
+        if (id) setCalId(id);
+        setDirty(false);
+        return id ?? calId ?? "saved";
+      }
+
       const res = await fetch("/api/calendars", {
         method: calId ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
@@ -199,12 +245,28 @@ export default function CalendarView({
   }
 
   async function handleRecalcular() {
-    const msg = calId
+    const msg = recalculateConfirmMessage ?? (calId
       ? "Esto borrará el calendario guardado y regenerará la plantilla limpia. ¿Continuar?"
-      : "Esto regenerará la plantilla limpia descartando los cambios actuales. ¿Continuar?";
+      : "Esto regenerará la plantilla limpia descartando los cambios actuales. ¿Continuar?");
     if (!confirm(msg)) return;
     setRecalculating(true);
     try {
+      if (onRecalculateCalendar) {
+        const result = await onRecalculateCalendar({
+          year,
+          month,
+          currentSlots: localSlots,
+          currentAssignments: assign,
+        });
+        if (result) {
+          setLocalSlots(result.slots.map((s) => ({ ...s, days: { ...s.days } })));
+          if (result.assignments) setAssign(result.assignments);
+          if (result.calendarId !== undefined) setCalId(result.calendarId);
+          setDirty(false);
+        }
+        return;
+      }
+
       if (calId) await fetch(`/api/calendars?id=${calId}`, { method: "DELETE" });
       router.refresh();
     } finally {
@@ -213,7 +275,7 @@ export default function CalendarView({
   }
 
   function navigateTo(newYear: number, newMonth: number) {
-    router.push(`/admin/sucursales/${branchId}/calendario/${newYear}/${newMonth}?team=${teamId}`);
+    router.push(onNavigate ? onNavigate(newYear, newMonth) : `/admin/sucursales/${branchId}/calendario/${newYear}/${newMonth}?team=${teamId}`);
   }
 
   function handleAssign(slotNum: number, workerId: string | null) {
@@ -312,8 +374,8 @@ export default function CalendarView({
   return (
     <div className="p-6">
       <div className="mb-1">
-        <Link href="/admin/sucursales" className="text-xs text-gray-400 hover:text-gray-600">
-          ← Sucursales
+        <Link href={backHref} className="text-xs text-gray-400 hover:text-gray-600">
+          ← {backLabel}
         </Link>
       </div>
 
@@ -341,7 +403,7 @@ export default function CalendarView({
             className="px-3 py-1.5 text-sm border border-rose-300 text-rose-700 rounded hover:bg-rose-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             title="Regenerar plantilla limpia desde cero"
           >
-            {recalculating ? "Regenerando…" : "Recalcular"}
+            {recalculating ? "Regenerando…" : recalculateLabel ?? "Recalcular"}
           </button>
           <button
             onClick={handleSave}
@@ -352,18 +414,22 @@ export default function CalendarView({
           >
             {saving ? "Guardando…" : dirty ? "Guardar" : calId ? "Guardado" : "Sin guardar"}
           </button>
-          <button
-            onClick={() => handleExport("calendar")}
-            className="px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors"
-          >
-            Exportar Calendario
-          </button>
-          <button
-            onClick={() => handleExport("rrhh")}
-            className="px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors"
-          >
-            Exportar Excel
-          </button>
+          {showExportButtons && (
+            <>
+              <button
+                onClick={() => handleExport("calendar")}
+                className="px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors"
+              >
+                Exportar Calendario
+              </button>
+              <button
+                onClick={() => handleExport("rrhh")}
+                className="px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors"
+              >
+                Exportar Excel
+              </button>
+            </>
+          )}
         </div>
       </div>
 
