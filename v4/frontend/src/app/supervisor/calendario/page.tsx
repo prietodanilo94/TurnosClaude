@@ -38,14 +38,28 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
     });
     if (!group) notFound();
     const accessible = group.branches.filter((b) => allowedBranchIds.includes(b.id));
-    if (accessible.length === 0) notFound();
+    if (accessible.length === 0) {
+      return (
+        <CalendarAccessNotice
+          title="No tienes acceso a este grupo"
+          detail="El grupo existe, pero no contiene sucursales asignadas a tu usuario. Pide a RRHH o al administrador revisar tu acceso."
+        />
+      );
+    }
     selectedBranchIds = accessible.map((b) => b.id);
     pageTitle = group.nombre;
     isGroup = true;
   } else {
     const raw = Array.isArray(searchParams.branchId) ? searchParams.branchId : searchParams.branchId ? [searchParams.branchId] : [];
     selectedBranchIds = raw.length > 0 ? raw : allowedBranchIds;
-    if (selectedBranchIds.some((id) => !allowedBranchIds.includes(id))) notFound();
+    if (selectedBranchIds.some((id) => !allowedBranchIds.includes(id))) {
+      return (
+        <CalendarAccessNotice
+          title="No tienes acceso a una de las sucursales"
+          detail="La URL incluye una sucursal que no esta asignada a tu usuario. Vuelve a Mis sucursales o solicita revision de permisos."
+        />
+      );
+    }
     isGroup = selectedBranchIds.length > 1;
   }
 
@@ -250,6 +264,20 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
           queryBase={queryBase}
         />
       ))}
+    </div>
+  );
+}
+
+function CalendarAccessNotice({ title, detail }: { title: string; detail: string }) {
+  return (
+    <div className="p-6">
+      <div className="bg-white border border-amber-200 rounded-lg p-8 text-center max-w-2xl mx-auto">
+        <h1 className="text-lg font-semibold text-gray-900">{title}</h1>
+        <p className="text-sm text-gray-500 mt-2">{detail}</p>
+        <Link href="/supervisor" className="inline-flex mt-4 text-sm font-medium text-blue-600 hover:text-blue-800">
+          Volver a Mis sucursales
+        </Link>
+      </div>
     </div>
   );
 }

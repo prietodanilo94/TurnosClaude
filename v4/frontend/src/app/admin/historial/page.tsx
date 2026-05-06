@@ -19,6 +19,7 @@ const ACTION_LABELS: Record<string, string> = {
   "calendar.generate":  "Generó calendario",
   "calendar.delete":    "Eliminó calendario",
   "calendar.assign":    "Asignó vendedor",
+  "calendar.export":    "Exportó calendario",
   "dotacion.sync":      "Sincronizó dotación",
   "worker.block":       "Bloqueó vendedor",
   "worker.unblock":     "Desbloqueó vendedor",
@@ -53,11 +54,12 @@ function fmtDetail(metadata: Record<string, unknown> | null, action: string) {
     return `${metadata.workerNombre ?? ""}  ${metadata.startDate ?? ""} → ${metadata.endDate ?? ""}${motivo}`;
   }
 
-  if (action === "calendar.generate" || action === "calendar.delete") {
+  if (action === "calendar.generate" || action === "calendar.delete" || action === "calendar.export") {
     const { year, month, workerCount } = metadata;
     const parts = [];
     if (year && month) parts.push(`${month}/${year}`);
     if (workerCount !== undefined) parts.push(`${workerCount} vendedores`);
+    if (metadata.mode) parts.push(String(metadata.mode));
     return parts.join(" · ") || "—";
   }
 

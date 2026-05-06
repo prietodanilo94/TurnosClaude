@@ -101,9 +101,11 @@ Las specs viven en `v4/specs/`. Cada una tiene `spec.md` y `tasks.md`.
 | F3 | Nombres visibles en calendario | **Completo** |
 | F4 | Historial de movimientos + webhook N8N | **Completo** |
 | F5 | Grupos de sucursales | **Completo** (core) — pendiente: exportar grupo como Excel multi-hoja |
+| F6 | Preparacion produccion jefes de sucursal | **Planificado** |
 
 ## Pendiente conocido
 
+- **Produccion jefes de sucursal**: F6 define validaciones, UX, permisos, ayuda y checklist go-live antes de abrir uso masivo.
 - **Supervisores sin credenciales**: 76 supervisores en producción importados desde Excel, ninguno con email/password. Asignar desde `/admin/supervisores` → Editar.
 - **Categorías faltantes**: algunas sucursales pueden no tener categoría asignada. Asignar desde `/admin/sucursales` (edición inline) antes de generar calendarios.
 - **Export grupo**: F5 spec incluye exportar calendario de grupo como Excel multi-hoja — no implementado aún.

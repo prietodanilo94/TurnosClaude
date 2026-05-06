@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { logAction } from "@/lib/audit/log";
 
 export async function POST(req: NextRequest) {
-  const { teamId, year, month, slotsData, assignments } = await req.json();
+  const { teamId, year, month, slotsData, assignments, validationSummary } = await req.json();
 
   const team = await prisma.branchTeam.findUnique({
     where: { id: teamId },
@@ -43,6 +43,7 @@ export async function POST(req: NextRequest) {
       month,
       slotCount: Array.isArray(slotsData) ? slotsData.length : 0,
       assignedCount: Object.values(assignments ?? {}).filter(Boolean).length,
+      validationSummary: validationSummary ?? null,
       mode: existing ? "update" : "create",
     },
     req,
@@ -52,7 +53,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  const { id, slotsData, assignments } = await req.json();
+  const { id, slotsData, assignments, validationSummary } = await req.json();
 
   const current = await prisma.calendar.findUnique({
     where: { id },
@@ -80,6 +81,7 @@ export async function PUT(req: NextRequest) {
       year: current.year,
       month: current.month,
       assignedCount: Object.values(assignments ?? {}).filter(Boolean).length,
+      validationSummary: validationSummary ?? null,
     },
     req,
   });

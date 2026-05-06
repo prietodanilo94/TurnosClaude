@@ -23,6 +23,10 @@ export default function SupervisoresClient({ initialSupervisors, branches }: Pro
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const readyCount = supervisors.filter((supervisor) => isReadyForProduction(supervisor)).length;
+  const missingEmailCount = supervisors.filter((supervisor) => !supervisor.email).length;
+  const missingPasswordCount = supervisors.filter((supervisor) => !supervisor.passwordHash).length;
+  const missingBranchesCount = supervisors.filter((supervisor) => supervisor.branches.length === 0).length;
 
   function openCreate() {
     setEditing(null);
@@ -132,6 +136,15 @@ export default function SupervisoresClient({ initialSupervisors, branches }: Pro
         </button>
       </div>
 
+      {supervisors.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-6">
+          <SetupMetric label="Listos para operar" value={readyCount} tone="green" />
+          <SetupMetric label="Sin email" value={missingEmailCount} tone={missingEmailCount > 0 ? "amber" : "gray"} />
+          <SetupMetric label="Sin clave" value={missingPasswordCount} tone={missingPasswordCount > 0 ? "amber" : "gray"} />
+          <SetupMetric label="Sin sucursales" value={missingBranchesCount} tone={missingBranchesCount > 0 ? "rose" : "gray"} />
+        </div>
+      )}
+
       {supervisors.length === 0 ? (
         <div className="bg-white border border-gray-200 rounded-lg p-8 text-center text-sm text-gray-500">
           No hay supervisores registrados todavia.
@@ -141,7 +154,7 @@ export default function SupervisoresClient({ initialSupervisors, branches }: Pro
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                {["Nombre", "Email", "Sucursales", "Login", "Estado", ""].map((header) => (
+                {["Nombre", "Email", "Sucursales", "Preparacion", "Login", "Estado", ""].map((header) => (
                   <th
                     key={header}
                     className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
@@ -152,61 +165,82 @@ export default function SupervisoresClient({ initialSupervisors, branches }: Pro
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-100">
-              {supervisors.map((supervisor) => (
-                <tr key={supervisor.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm font-medium text-gray-900">{supervisor.nombre}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">
-                    {supervisor.email || <span className="text-gray-400 italic">Sin email</span>}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-600">
-                    {supervisor.branches.length === 0 ? (
-                      <span className="text-gray-400 italic">Sin sucursales</span>
-                    ) : (
-                      <div className="flex flex-wrap gap-1">
-                        {supervisor.branches.map((branch) => (
-                          <span
-                            key={branch.branch.id}
-                            className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-blue-50 text-blue-700 border border-blue-100"
-                          >
-                            {branch.branch.nombre}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-600">
-                    {supervisor.email && supervisor.passwordHash ? (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                        Habilitado
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
-                        Pendiente
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-sm">
-                    <button
-                      onClick={() => toggleActivo(supervisor)}
-                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer transition-colors ${
-                        supervisor.activo
-                          ? "bg-green-100 text-green-700 hover:bg-green-200"
-                          : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-                      }`}
-                    >
-                      {supervisor.activo ? "Activo" : "Inactivo"}
-                    </button>
-                  </td>
-                  <td className="px-4 py-3 text-right space-x-3">
-                    <button onClick={() => openEdit(supervisor)} className="text-sm text-blue-600 hover:text-blue-800">
-                      Editar
-                    </button>
-                    <button onClick={() => handleDelete(supervisor)} className="text-sm text-red-500 hover:text-red-700">
-                      Eliminar
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {supervisors.map((supervisor) => {
+                const setupIssues = getSetupIssues(supervisor);
+                return (
+                  <tr key={supervisor.id} className={`hover:bg-gray-50 ${setupIssues.length > 0 ? "bg-amber-50/30" : ""}`}>
+                    <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                      <div>{supervisor.nombre}</div>
+                      {setupIssues.length > 0 && (
+                        <div className="text-[11px] text-amber-700 mt-0.5">
+                          Falta: {setupIssues.join(", ")}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {supervisor.email || <span className="text-gray-400 italic">Sin email</span>}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {supervisor.branches.length === 0 ? (
+                        <span className="text-gray-400 italic">Sin sucursales</span>
+                      ) : (
+                        <div className="flex flex-wrap gap-1">
+                          {supervisor.branches.map((branch) => (
+                            <span
+                              key={branch.branch.id}
+                              className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-blue-50 text-blue-700 border border-blue-100"
+                            >
+                              {branch.branch.nombre}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {setupIssues.length === 0 ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                          Listo
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                          Requiere datos
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {supervisor.email && supervisor.passwordHash ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                          Habilitado
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
+                          Pendiente
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      <button
+                        onClick={() => toggleActivo(supervisor)}
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer transition-colors ${
+                          supervisor.activo
+                            ? "bg-green-100 text-green-700 hover:bg-green-200"
+                            : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                        }`}
+                      >
+                        {supervisor.activo ? "Activo" : "Inactivo"}
+                      </button>
+                    </td>
+                    <td className="px-4 py-3 text-right space-x-3">
+                      <button onClick={() => openEdit(supervisor)} className="text-sm text-blue-600 hover:text-blue-800">
+                        Editar
+                      </button>
+                      <button onClick={() => handleDelete(supervisor)} className="text-sm text-red-500 hover:text-red-700">
+                        Eliminar
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -313,6 +347,35 @@ export default function SupervisoresClient({ initialSupervisors, branches }: Pro
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function isReadyForProduction(supervisor: SupervisorWithBranches) {
+  return supervisor.activo && !!supervisor.email && !!supervisor.passwordHash && supervisor.branches.length > 0;
+}
+
+function getSetupIssues(supervisor: SupervisorWithBranches) {
+  const issues: string[] = [];
+  if (!supervisor.activo) issues.push("activar");
+  if (!supervisor.email) issues.push("email");
+  if (!supervisor.passwordHash) issues.push("clave");
+  if (supervisor.branches.length === 0) issues.push("sucursal");
+  return issues;
+}
+
+function SetupMetric({ label, value, tone }: { label: string; value: number; tone: "green" | "amber" | "rose" | "gray" }) {
+  const toneClasses = {
+    green: "bg-green-50 border-green-100 text-green-800",
+    amber: "bg-amber-50 border-amber-100 text-amber-800",
+    rose: "bg-rose-50 border-rose-100 text-rose-800",
+    gray: "bg-white border-gray-200 text-gray-700",
+  };
+
+  return (
+    <div className={`border rounded-lg px-4 py-3 ${toneClasses[tone]}`}>
+      <div className="text-2xl font-semibold">{value}</div>
+      <div className="text-xs font-medium mt-0.5">{label}</div>
     </div>
   );
 }

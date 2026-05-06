@@ -3,10 +3,17 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-interface BranchInfo {
+export interface BranchInfo {
   id: string;
   nombre: string;
   codigo: string;
+  status: {
+    teamCount: number;
+    activeWorkerCount: number;
+    missingCategory: boolean;
+    hasCalendar: boolean;
+    issueCount: number;
+  };
 }
 
 interface GroupInfo {
@@ -65,7 +72,10 @@ export default function SupervisorBranchSelector({ groups, ungrouped }: Props) {
             {groups.map((group) => (
               <div key={group.id} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors">
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-gray-900 truncate">{group.nombre}</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm font-medium text-gray-900 truncate">{group.nombre}</p>
+                    <GroupStatusBadge branches={group.branches} />
+                  </div>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {group.branches.map((b) => (
                       <span key={b.id} className="text-[11px] bg-blue-50 text-blue-700 border border-blue-100 px-1.5 py-0.5 rounded">
@@ -78,7 +88,7 @@ export default function SupervisorBranchSelector({ groups, ungrouped }: Props) {
                   onClick={() => router.push(`/supervisor/calendario?groupId=${group.id}&year=${DEFAULT_YEAR}&month=${DEFAULT_MONTH}`)}
                   className="text-sm text-blue-600 hover:text-blue-800 shrink-0 font-medium whitespace-nowrap"
                 >
-                  Asignación de turnos →
+                  {getGroupActionLabel(group.branches)} →
                 </button>
               </div>
             ))}
@@ -119,14 +129,19 @@ export default function SupervisorBranchSelector({ groups, ungrouped }: Props) {
                     className="accent-blue-600 shrink-0"
                   />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-gray-900 truncate">{branch.nombre}</p>
-                    <p className="text-xs text-gray-400">{branch.codigo}</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-sm font-medium text-gray-900 truncate">{branch.nombre}</p>
+                      <BranchStatusBadge branch={branch} />
+                    </div>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {branch.codigo} - {branch.status.activeWorkerCount} vendedor{branch.status.activeWorkerCount !== 1 ? "es" : ""}
+                    </p>
                   </div>
                   <button
                     onClick={() => router.push(`/supervisor/calendario?branchId=${branch.id}&year=${DEFAULT_YEAR}&month=${DEFAULT_MONTH}`)}
                     className="text-sm text-blue-600 hover:text-blue-800 shrink-0 font-medium whitespace-nowrap"
                   >
-                    Asignación de turnos →
+                    {getBranchActionLabel(branch)} →
                   </button>
                 </div>
               );
@@ -136,10 +151,77 @@ export default function SupervisorBranchSelector({ groups, ungrouped }: Props) {
       )}
 
       {groups.length === 0 && ungrouped.length === 0 && (
-        <div className="bg-white border border-gray-200 rounded-lg p-8 text-center text-sm text-gray-400">
-          No hay sucursales asignadas.
+        <div className="bg-white border border-amber-200 rounded-lg p-8 text-center">
+          <h2 className="text-base font-semibold text-gray-900">No tienes sucursales asignadas todavia</h2>
+          <p className="text-sm text-gray-500 mt-2 max-w-md mx-auto">
+            Para operar calendarios, un administrador debe asignarte al menos una sucursal y confirmar que tenga equipo, categoria y vendedores activos.
+          </p>
+          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-md px-3 py-2 mt-4 inline-block">
+            Pide a RRHH o al administrador revisar tu usuario en Admin &gt; Supervisores.
+          </p>
         </div>
       )}
     </div>
+  );
+}
+
+function BranchStatusBadge({ branch }: { branch: BranchInfo }) {
+  if (branch.status.teamCount === 0) {
+    return <StatusPill tone="rose" label="Sin equipo" />;
+  }
+
+  if (branch.status.missingCategory) {
+    return <StatusPill tone="amber" label="Falta categoria" />;
+  }
+
+  if (branch.status.activeWorkerCount === 0) {
+    return <StatusPill tone="rose" label="Sin vendedores" />;
+  }
+
+  if (!branch.status.hasCalendar) {
+    return <StatusPill tone="blue" label="No generado" />;
+  }
+
+  return <StatusPill tone="green" label="Calendario guardado" />;
+}
+
+function GroupStatusBadge({ branches }: { branches: BranchInfo[] }) {
+  const issueCount = branches.reduce((sum, branch) => sum + branch.status.issueCount, 0);
+  const withoutCalendar = branches.filter((branch) => !branch.status.hasCalendar).length;
+
+  if (issueCount > 0) {
+    return <StatusPill tone="amber" label={`${issueCount} dato${issueCount !== 1 ? "s" : ""} pendiente${issueCount !== 1 ? "s" : ""}`} />;
+  }
+
+  if (withoutCalendar > 0) {
+    return <StatusPill tone="blue" label={`${withoutCalendar} calendario${withoutCalendar !== 1 ? "s" : ""} pendiente${withoutCalendar !== 1 ? "s" : ""}`} />;
+  }
+
+  return <StatusPill tone="green" label="Listo" />;
+}
+
+function getBranchActionLabel(branch: BranchInfo): string {
+  if (branch.status.issueCount > 0) return "Revisar datos";
+  return branch.status.hasCalendar ? "Ver calendario" : "Generar calendario";
+}
+
+function getGroupActionLabel(branches: BranchInfo[]): string {
+  const issueCount = branches.reduce((sum, branch) => sum + branch.status.issueCount, 0);
+  if (issueCount > 0) return "Revisar datos";
+  return branches.some((branch) => !branch.status.hasCalendar) ? "Generar calendarios" : "Ver calendarios";
+}
+
+function StatusPill({ tone, label }: { tone: "green" | "amber" | "rose" | "blue"; label: string }) {
+  const toneClasses = {
+    green: "bg-green-50 text-green-700 border-green-100",
+    amber: "bg-amber-50 text-amber-800 border-amber-100",
+    rose: "bg-rose-50 text-rose-700 border-rose-100",
+    blue: "bg-blue-50 text-blue-700 border-blue-100",
+  };
+
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border ${toneClasses[tone]}`}>
+      {label}
+    </span>
   );
 }

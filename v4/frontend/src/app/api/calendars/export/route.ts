@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { generateCalendar } from "@/lib/calendar/generator";
+import { logAction } from "@/lib/audit/log";
 import * as XLSX from "xlsx";
 import type { CalendarSlot, ShiftCategory, DayShift } from "@/types";
 
@@ -107,6 +108,22 @@ export async function GET(req: NextRequest) {
     buf = buildCalendarExcel(team.branch.nombre, year, month, slots, assignments, workerMap);
     fileName = `calendario_${team.branch.nombre}_${MONTH_NAMES[month]}_${year}.xlsx`;
   }
+
+  await logAction({
+    action: "calendar.export",
+    entityType: "calendar",
+    entityId: existing?.id ?? null,
+    branchId: team.branch.id,
+    metadata: {
+      teamId,
+      year,
+      month,
+      mode,
+      branchName: team.branch.nombre,
+      assignedCount: Object.values(assignments ?? {}).filter(Boolean).length,
+    },
+    req,
+  });
 
   return new NextResponse(buf as unknown as BodyInit, {
     headers: {

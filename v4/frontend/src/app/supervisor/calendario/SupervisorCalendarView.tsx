@@ -69,12 +69,18 @@ async function saveTeamCalendars({
   slots,
   assignments,
   slices,
+  validationSummary,
 }: {
   year: number;
   month: number;
   slots: CalendarSlot[];
   assignments: Record<string, string | null>;
   slices: TeamSlice[];
+  validationSummary?: {
+    errorCount: number;
+    warningCount: number;
+    warningCodes: string[];
+  };
 }) {
   for (const teamData of splitByTeam(slots, assignments, slices)) {
     const res = await fetch("/api/calendars", {
@@ -86,6 +92,7 @@ async function saveTeamCalendars({
         month,
         slotsData: teamData.slots,
         assignments: teamData.assignments,
+        validationSummary,
       }),
     });
 
@@ -150,6 +157,8 @@ export default function SupervisorCalendarView({
       backHref="/supervisor"
       backLabel="Volver"
       showExportButtons={false}
+      showValidationPanel
+      enforceValidationBeforeSave
       recalculateLabel={hasCalendar ? "Regenerar" : "Generar"}
       recalculateConfirmMessage={
         hasCalendar
@@ -157,13 +166,14 @@ export default function SupervisorCalendarView({
           : "Esto generara el calendario supervisor y asignara vendedores en orden. Continuar?"
       }
       onNavigate={(newYear, newMonth) => `/supervisor/calendario?${navigationQueryPrefix}year=${newYear}&month=${newMonth}`}
-      onSaveCalendar={async ({ slotsData, assignments: nextAssignments }) => {
+      onSaveCalendar={async ({ slotsData, assignments: nextAssignments, validationSummary }) => {
         await saveTeamCalendars({
           year,
           month,
           slots: slotsData,
           assignments: nextAssignments,
           slices,
+          validationSummary,
         });
         return "supervisor-combined";
       }}
