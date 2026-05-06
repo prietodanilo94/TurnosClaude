@@ -1,10 +1,12 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { getSession } from "@/lib/auth/session";
 import { buildWorkerBlockDateMap, getWorkerBlockReason, generateCalendar } from "@/lib/calendar/generator";
 import type { CalendarSlot, ShiftCategory, WorkerBlockInfo } from "@/types";
 import GenerateButton, { type TeamSlice } from "./GenerateButton";
+import PeriodSelector from "./PeriodSelector";
 
 interface Props {
   searchParams: { groupId?: string; branchId?: string | string[]; year?: string; month?: string };
@@ -241,10 +243,15 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
         <div>
           <h1 className="text-xl font-semibold text-gray-900">{pageTitle}</h1>
           <p className="text-xs text-gray-400 mt-0.5">
-            {selectedBranchIds.length} sucursal{selectedBranchIds.length !== 1 ? "es" : ""} · {month}/{year}
+            {selectedBranchIds.length} sucursal{selectedBranchIds.length !== 1 ? "es" : ""}
           </p>
         </div>
-        <Link href="/supervisor" className="text-sm text-blue-600 hover:text-blue-800">← Volver</Link>
+        <div className="flex items-center gap-4">
+          <Suspense>
+            <PeriodSelector year={year} month={month} />
+          </Suspense>
+          <Link href="/supervisor" className="text-sm text-blue-600 hover:text-blue-800">← Volver</Link>
+        </div>
       </div>
 
       {blocks.length === 0 && (
@@ -265,10 +272,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
                 <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-2 flex-wrap">
                   <span>{block.areaLabel}</span>
                   {block.categoria && <span>· {block.categoria}</span>}
-                  {block.categoriaSource && (
-                    <span className="text-amber-600">· categoría heredada de {block.categoriaSource}</span>
-                  )}
-                  {!block.categoria && (
+{!block.categoria && (
                     <span className="text-red-500">· sin categoría — asignar desde admin</span>
                   )}
                   {!block.hasCalendar && block.categoria && (

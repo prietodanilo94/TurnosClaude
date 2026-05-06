@@ -18,51 +18,54 @@ interface GroupInfo {
 interface Props {
   groups: GroupInfo[];
   ungrouped: BranchInfo[];
-  year: number;
-  month: number;
 }
 
-const MONTH_NAMES = ["", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+const now = new Date();
+const DEFAULT_YEAR  = now.getFullYear();
+const DEFAULT_MONTH = now.getMonth() + 1;
 
-export default function SupervisorBranchSelector({ groups, ungrouped, year, month }: Props) {
+export default function SupervisorBranchSelector({ groups, ungrouped }: Props) {
   const router = useRouter();
-  const [selectedYear, setSelectedYear] = useState(year);
-  const [selectedMonth, setSelectedMonth] = useState(month);
-  const [selectedUngrouped, setSelectedUngrouped] = useState<string[]>([]);
-  const [creating, setCreating] = useState(false);
+  const [selected, setSelected]       = useState<string[]>([]);
+  const [confirm, setConfirm]         = useState<BranchInfo[] | null>(null);
+  const [creating, setCreating]       = useState(false);
   const [createError, setCreateError] = useState("");
 
-  function toggleUngrouped(id: string) {
-    setSelectedUngrouped((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-    );
+  function toggle(id: string) {
+    setSelected((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
   }
 
-  function goToGroup(groupId: string) {
-    router.push(`/supervisor/calendario?groupId=${groupId}&year=${selectedYear}&month=${selectedMonth}`);
+  function handleAssign(branch: BranchInfo) {
+    // Incluir esta sucursal en la selección
+    const allIds = selected.includes(branch.id) ? selected : [...selected, branch.id];
+    const others = allIds.filter((id) => id !== branch.id);
+
+    if (others.length > 0) {
+      // Hay otras seleccionadas → confirmar agrupación
+      const branchesInfo = ungrouped.filter((b) => allIds.includes(b.id));
+      setConfirm(branchesInfo);
+    } else {
+      // Solo esta → ir directo al calendario
+      router.push(`/supervisor/calendario?branchId=${branch.id}&year=${DEFAULT_YEAR}&month=${DEFAULT_MONTH}`);
+    }
   }
 
-  function goToBranch(branchId: string) {
-    router.push(`/supervisor/calendario?branchId=${branchId}&year=${selectedYear}&month=${selectedMonth}`);
-  }
-
-  async function handleCreateGroup() {
-    if (selectedUngrouped.length < 2) return;
+  async function handleConfirmGroup() {
+    if (!confirm) return;
     setCreating(true);
     setCreateError("");
     try {
       const res = await fetch("/api/grupos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ branchIds: selectedUngrouped }),
+        body: JSON.stringify({ branchIds: confirm.map((b) => b.id) }),
       });
       if (!res.ok) {
         setCreateError((await res.json()).error ?? "Error al crear grupo");
         return;
       }
-      router.refresh();
-      setSelectedUngrouped([]);
+      const group = await res.json();
+      router.push(`/supervisor/calendario?groupId=${group.id}&year=${DEFAULT_YEAR}&month=${DEFAULT_MONTH}`);
     } finally {
       setCreating(false);
     }
@@ -70,39 +73,15 @@ export default function SupervisorBranchSelector({ groups, ungrouped, year, mont
 
   return (
     <div className="space-y-6">
-      {/* Selector de mes/año */}
-      <div className="bg-white border border-gray-200 rounded-lg p-4 flex items-center gap-4 flex-wrap">
-        <span className="text-sm font-medium text-gray-700">Período:</span>
-        <select
-          value={selectedMonth}
-          onChange={(e) => setSelectedMonth(Number(e.target.value))}
-          className="px-3 py-1.5 border border-gray-300 rounded-md text-sm"
-        >
-          {MONTH_NAMES.slice(1).map((name, i) => (
-            <option key={i + 1} value={i + 1}>{name}</option>
-          ))}
-        </select>
-        <input
-          type="number"
-          value={selectedYear}
-          onChange={(e) => setSelectedYear(Number(e.target.value))}
-          min={2024}
-          max={2100}
-          className="w-24 px-3 py-1.5 border border-gray-300 rounded-md text-sm"
-        />
-      </div>
-
       {/* Grupos existentes */}
       {groups.length > 0 && (
         <div>
-          <h2 className="text-sm font-semibold text-gray-700 mb-3">Grupos</h2>
+          <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Grupos</h2>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {groups.map((group) => (
               <div key={group.id} className="bg-white border border-gray-200 rounded-lg p-4 space-y-3">
                 <div>
-                  <p className="text-sm font-semibold text-gray-900 truncate" title={group.nombre}>
-                    {group.nombre}
-                  </p>
+                  <p className="text-sm font-semibold text-gray-900 leading-snug">{group.nombre}</p>
                   <div className="mt-1.5 flex flex-wrap gap-1">
                     {group.branches.map((b) => (
                       <span key={b.id} className="text-[11px] bg-blue-50 text-blue-700 border border-blue-100 px-1.5 py-0.5 rounded">
@@ -112,10 +91,10 @@ export default function SupervisorBranchSelector({ groups, ungrouped, year, mont
                   </div>
                 </div>
                 <button
-                  onClick={() => goToGroup(group.id)}
+                  onClick={() => router.push(`/supervisor/calendario?groupId=${group.id}&year=${DEFAULT_YEAR}&month=${DEFAULT_MONTH}`)}
                   className="w-full px-3 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors"
                 >
-                  Ver calendario
+                  Asignación de turnos
                 </button>
               </div>
             ))}
@@ -123,52 +102,45 @@ export default function SupervisorBranchSelector({ groups, ungrouped, year, mont
         </div>
       )}
 
-      {/* Sucursales sin grupo */}
+      {/* Sucursales individuales */}
       {ungrouped.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-gray-700">
-              Sucursales individuales
-              {selectedUngrouped.length >= 2 && (
-                <span className="ml-2 text-blue-600 font-normal">
-                  ({selectedUngrouped.length} seleccionadas)
+            <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+              Sucursales
+              {selected.length > 1 && (
+                <span className="ml-2 normal-case text-blue-600 font-normal">
+                  {selected.length} seleccionadas — al hacer clic en "Asignación de turnos" se agruparán
                 </span>
               )}
             </h2>
-            {selectedUngrouped.length >= 2 && (
-              <button
-                onClick={handleCreateGroup}
-                disabled={creating}
-                className="px-3 py-1.5 bg-gray-900 text-white text-sm rounded-md hover:bg-gray-800 disabled:opacity-50 transition-colors"
-              >
-                {creating ? "Creando..." : "Agrupar selección"}
-              </button>
-            )}
           </div>
-          {createError && <p className="text-xs text-red-600 mb-2">{createError}</p>}
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {ungrouped.map((branch) => {
-              const checked = selectedUngrouped.includes(branch.id);
+              const checked = selected.includes(branch.id);
               return (
                 <div
                   key={branch.id}
-                  className={`bg-white border rounded-lg p-3 flex items-center gap-3 ${checked ? "border-blue-400 bg-blue-50" : "border-gray-200"}`}
+                  className={`bg-white border rounded-lg p-4 space-y-3 transition-colors ${checked ? "border-blue-400 bg-blue-50/40" : "border-gray-200"}`}
                 >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => toggleUngrouped(branch.id)}
-                    className="accent-blue-600 shrink-0"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-gray-900 truncate">{branch.nombre}</p>
-                    <p className="text-xs text-gray-400">{branch.codigo}</p>
-                  </div>
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggle(branch.id)}
+                      className="accent-blue-600 mt-0.5 shrink-0"
+                    />
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 leading-snug">{branch.nombre}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{branch.codigo}</p>
+                    </div>
+                  </label>
                   <button
-                    onClick={() => goToBranch(branch.id)}
-                    className="text-xs text-blue-600 hover:text-blue-800 shrink-0"
+                    onClick={() => handleAssign(branch)}
+                    className="w-full px-3 py-2 bg-gray-900 text-white text-sm rounded-md hover:bg-gray-800 transition-colors"
                   >
-                    Ver →
+                    Asignación de turnos
                   </button>
                 </div>
               );
@@ -180,6 +152,43 @@ export default function SupervisorBranchSelector({ groups, ungrouped, year, mont
       {groups.length === 0 && ungrouped.length === 0 && (
         <div className="bg-white border border-gray-200 rounded-lg p-8 text-center text-sm text-gray-400">
           No hay sucursales asignadas.
+        </div>
+      )}
+
+      {/* Modal confirmación de agrupación */}
+      {confirm && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 space-y-4">
+            <h2 className="text-base font-semibold text-gray-900">Crear grupo</h2>
+            <p className="text-sm text-gray-600">
+              ¿Deseas agrupar las siguientes sucursales y ver su calendario conjunto?
+            </p>
+            <ul className="space-y-1">
+              {confirm.map((b) => (
+                <li key={b.id} className="text-sm font-medium text-gray-800">· {b.nombre}</li>
+              ))}
+            </ul>
+            <p className="text-xs text-gray-400">
+              El grupo quedará guardado. Solo un admin puede separarlo.
+            </p>
+            {createError && <p className="text-xs text-red-600">{createError}</p>}
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                onClick={() => { setConfirm(null); setCreateError(""); }}
+                disabled={creating}
+                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmGroup}
+                disabled={creating}
+                className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
+              >
+                {creating ? "Creando..." : "Sí, crear grupo"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

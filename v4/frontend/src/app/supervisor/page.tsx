@@ -62,8 +62,6 @@ export default async function SupervisorHomePage() {
       <SupervisorBranchSelector
         groups={groups}
         ungrouped={ungrouped}
-        year={year}
-        month={month}
       />
     </div>
   );
