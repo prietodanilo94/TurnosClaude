@@ -61,12 +61,12 @@ export default function SupervisorBranchSelector({ groups, ungrouped }: Props) {
       {groups.length > 0 && (
         <div>
           <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Grupos</h2>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden divide-y divide-gray-100">
             {groups.map((group) => (
-              <div key={group.id} className="bg-white border border-gray-200 rounded-lg p-4 space-y-3">
-                <div>
-                  <p className="text-sm font-semibold text-gray-900 leading-snug">{group.nombre}</p>
-                  <div className="mt-1.5 flex flex-wrap gap-1">
+              <div key={group.id} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-gray-900 truncate">{group.nombre}</p>
+                  <div className="flex flex-wrap gap-1 mt-1">
                     {group.branches.map((b) => (
                       <span key={b.id} className="text-[11px] bg-blue-50 text-blue-700 border border-blue-100 px-1.5 py-0.5 rounded">
                         {b.nombre}
@@ -76,9 +76,9 @@ export default function SupervisorBranchSelector({ groups, ungrouped }: Props) {
                 </div>
                 <button
                   onClick={() => router.push(`/supervisor/calendario?groupId=${group.id}&year=${DEFAULT_YEAR}&month=${DEFAULT_MONTH}`)}
-                  className="w-full px-3 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors"
+                  className="text-sm text-blue-600 hover:text-blue-800 shrink-0 font-medium whitespace-nowrap"
                 >
-                  Asignación de turnos
+                  Asignación de turnos →
                 </button>
               </div>
             ))}
