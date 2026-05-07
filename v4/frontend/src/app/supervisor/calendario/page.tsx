@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { getSession } from "@/lib/auth/session";
 import { generateCalendar } from "@/lib/calendar/generator";
+import { getAllPatterns } from "@/lib/patterns/catalog";
 import type { TeamSlice } from "@/lib/calendar/teamSplit";
 import type { CalendarSlot, ShiftCategory, WorkerBlockInfo } from "@/types";
 import PeriodSelector from "./PeriodSelector";
@@ -93,12 +94,16 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
     orderBy: [{ branch: { nombre: "asc" } }, { areaNegocio: "asc" }],
   });
 
+  const allPatterns = getAllPatterns();
+
   interface DisplayBlock {
     key: string;
     title: string;
     areaLabel: string;
     areaNegocio: "ventas" | "postventa";
     categoria: ShiftCategory | null;
+    teamIds: string[];
+    categoryOptions: { id: string; label: string }[];
     slots: CalendarSlot[];
     assignments: Record<string, string | null>;
     workers: { id: string; nombre: string }[];
@@ -174,6 +179,8 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
         areaLabel: area === "ventas" ? "Ventas" : "Postventa",
         areaNegocio: area as "ventas" | "postventa",
         categoria: definedCat as ShiftCategory | null,
+        teamIds: areaTeams.map((t) => t.id),
+        categoryOptions: allPatterns.filter((p) => p.areaNegocio === area).map((p) => ({ id: p.id, label: p.label })),
         slots: allSlots,
         assignments: allAssignments,
         workers: allWorkers,
@@ -214,6 +221,8 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
         areaLabel: team.areaNegocio === "ventas" ? "Ventas" : "Postventa",
         areaNegocio: team.areaNegocio as "ventas" | "postventa",
         categoria: team.categoria as ShiftCategory | null,
+        teamIds: [team.id],
+        categoryOptions: allPatterns.filter((p) => p.areaNegocio === team.areaNegocio).map((p) => ({ id: p.id, label: p.label })),
         slots,
         assignments,
         workers,
@@ -254,6 +263,8 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
           areaLabel={block.areaLabel}
           areaNegocio={block.areaNegocio}
           categoria={block.categoria}
+          teamIds={block.teamIds}
+          categoryOptions={block.categoryOptions}
           year={year}
           month={month}
           slots={block.slots}

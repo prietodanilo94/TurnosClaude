@@ -1,6 +1,7 @@
 "use client";
 
 import CalendarView from "@/app/admin/sucursales/[id]/calendario/[year]/[month]/CalendarView";
+import CategoryPicker from "./CategoryPicker";
 import { generateCalendar } from "@/lib/calendar/generator";
 import { splitCalendarByTeam, type TeamSlice } from "@/lib/calendar/teamSplit";
 import type { CalendarSlot, ShiftCategory, WorkerBlockInfo, WorkerInfo } from "@/types";
@@ -15,6 +16,8 @@ interface Props {
   areaLabel: string;
   areaNegocio: "ventas" | "postventa";
   categoria: ShiftCategory | null;
+  teamIds: string[];
+  categoryOptions: { id: string; label: string }[];
   year: number;
   month: number;
   slots: CalendarSlot[];
@@ -77,6 +80,8 @@ export default function SupervisorCalendarView({
   areaLabel,
   areaNegocio,
   categoria,
+  teamIds,
+  categoryOptions,
   year,
   month,
   slots,
@@ -89,9 +94,10 @@ export default function SupervisorCalendarView({
 }: Props) {
   if (!categoria) {
     return (
-      <div className="bg-white border border-gray-200 rounded-lg p-4">
+      <div className="bg-white border border-amber-200 rounded-lg p-4">
         <div className="text-sm font-medium text-gray-900">{title}</div>
-        <div className="text-xs text-red-500 mt-1">{areaLabel} · sin categoria</div>
+        <div className="text-xs text-gray-500 mt-1 mb-3">{areaLabel} · asigna una categoría para generar el calendario</div>
+        <CategoryPicker teamIds={teamIds} current={null} options={categoryOptions} />
       </div>
     );
   }
