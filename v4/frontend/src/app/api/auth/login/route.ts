@@ -40,12 +40,15 @@ export async function POST(req: NextRequest) {
       include: { branches: { select: { branchId: true } } },
     });
 
-    if (
-      supervisor &&
-      supervisor.activo &&
-      supervisor.passwordHash &&
-      await bcrypt.compare(password, supervisor.passwordHash)
-    ) {
+    if (supervisor && supervisor.activo) {
+      // Primera vez: sin contraseña guardada → guardar la que ingresaron y crear sesión
+      if (!supervisor.passwordHash) {
+        const passwordHash = await bcrypt.hash(password, 12);
+        await prisma.supervisor.update({ where: { id: supervisor.id }, data: { passwordHash } });
+      } else if (!await bcrypt.compare(password, supervisor.passwordHash)) {
+        return NextResponse.json({ error: "Credenciales incorrectas" }, { status: 401 });
+      }
+
       const token = await createSession({
         email: supervisor.email ?? normalizedEmail,
         role: "supervisor",
