@@ -2,12 +2,6 @@ export type AreaNegocio = "ventas" | "postventa";
 
 export type ShiftCategory =
   | "ventas_standalone"
-  | "ventas_autopark"
-  | "ventas_mall_7d"
-  | "ventas_mall_apertura_cierre"
-  | "ventas_mall_arauco"
-  | "ventas_mall_movicenter"
-  | "ventas_mall_autopark"
   | "optimo_autoplaza"
   | "optimo_arauco_maipu"
   | "optimo_movicenter"

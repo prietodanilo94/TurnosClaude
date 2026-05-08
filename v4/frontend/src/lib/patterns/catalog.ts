@@ -24,10 +24,10 @@ function semana(
 
 const PATTERNS: ShiftPatternDef[] = [
 
-  // ── Ventas Standalone (2 semanas) ────────────────────────────────────────
+  // ── Standalone (2 semanas) ───────────────────────────────────────────────
   {
     id: "ventas_standalone",
-    label: "Ventas Standalone",
+    label: "Standalone",
     areaNegocio: "ventas",
     rotationWeeks: [
       semana(
@@ -44,159 +44,10 @@ const PATTERNS: ShiftPatternDef[] = [
     weeklyHours: [42, 42],
   },
 
-  // ── Ventas Autopark (2 semanas) ──────────────────────────────────────────
-  {
-    id: "ventas_autopark",
-    label: "Ventas Autopark",
-    areaNegocio: "ventas",
-    rotationWeeks: [
-      semana(
-        L, turno("09:30","19:00"),
-        turno("09:30","19:00"), turno("09:30","19:00"),
-        turno("09:30","19:00"), turno("10:00","19:00"), L,
-      ),
-      semana(
-        turno("09:30","19:00"), turno("09:30","19:00"),
-        turno("09:30","19:00"), L,
-        turno("09:30","19:00"), turno("10:00","19:00"), L,
-      ),
-    ],
-    weeklyHours: [42, 42],
-  },
-
-  // ── Ventas Mall 7 días (4 semanas) ───────────────────────────────────────
-  // Aplica a: Movicenter, Tobalaba, Vespucio, Arauco, Egaña, Sur
-  {
-    id: "ventas_mall_7d",
-    label: "Ventas Mall 7 días",
-    areaNegocio: "ventas",
-    rotationWeeks: [
-      // Semana 1: 42h
-      semana(
-        turno("10:00","19:00"), L,
-        turno("10:00","20:00"), turno("10:00","20:00"),
-        turno("10:00","20:00"), turno("12:00","20:00"), L,
-      ),
-      // Semana 2: 42h
-      semana(
-        turno("10:00","18:00"), turno("12:00","20:00"),
-        turno("12:00","20:00"), L,
-        turno("12:00","20:00"), turno("12:00","20:00"), turno("12:00","20:00"),
-      ),
-      // Semana 3: 36h (intencionalmente — restricciones legales/internas)
-      semana(
-        turno("10:00","20:00"), turno("10:00","20:00"),
-        L,
-        turno("10:00","20:00"), turno("10:00","20:00"), L, L,
-      ),
-      // Semana 4: 42h
-      semana(
-        turno("10:00","18:00"), turno("10:00","17:00"),
-        turno("10:00","17:00"), turno("10:00","17:00"),
-        L, turno("10:00","19:00"), turno("10:00","20:00"),
-      ),
-    ],
-    weeklyHours: [42, 42, 36, 42],
-  },
-
-  // ── Ventas Mall Apertura/Cierre (Oeste, Tobalaba, Vespucio, Egaña, Sur) ──
-  // Slot 1 = siempre T.Apertura (libre Jue), Slot 2 = siempre T.Cierre (libre Vie).
-  // El jefe asigna manualmente semana a semana; el sistema genera la plantilla base.
-  {
-    id: "ventas_mall_apertura_cierre",
-    label: "Ventas Mall Autoplaza",
-    areaNegocio: "ventas",
-    fixedSlots: true,
-    rotationWeeks: [
-      // T.Apertura: libre Jue
-      semana(
-        turno("10:30","18:30"), turno("10:30","18:30"),
-        turno("10:30","18:30"), L,
-        turno("10:30","18:30"), turno("10:30","18:30"), turno("11:00","19:00"),
-      ),
-      // T.Cierre: libre Vie
-      semana(
-        turno("12:00","20:00"), turno("12:00","20:00"),
-        turno("12:00","20:00"), turno("12:00","20:00"),
-        L, turno("12:00","20:00"), turno("11:00","19:00"),
-      ),
-    ],
-    weeklyHours: [42, 42],
-  },
-
-  // ── Ventas Arauco (fixedSlots: Slot1=Apertura libre Jue, Slot2=Cierre libre Vie) ──
-  {
-    id: "ventas_mall_arauco",
-    label: "Ventas Mall Arauco Maipu",
-    areaNegocio: "ventas",
-    fixedSlots: true,
-    rotationWeeks: [
-      // T.Apertura: libre Jue
-      semana(
-        turno("10:00","18:00"), turno("10:00","18:00"),
-        turno("10:00","18:00"), L,
-        turno("10:00","18:00"), turno("10:00","18:00"), turno("10:30","18:30"),
-      ),
-      // T.Cierre: libre Vie
-      semana(
-        turno("12:30","20:30"), turno("12:30","20:30"),
-        turno("12:30","20:30"), turno("12:30","20:30"),
-        L, turno("13:00","21:00"), turno("12:30","20:30"),
-      ),
-    ],
-    weeklyHours: [42, 42],
-  },
-
-  // ── Ventas Mall Movicenter (fixedSlots: Slot1=Apertura libre Jue, Slot2=Cierre libre Vie) ──
-  {
-    id: "ventas_mall_movicenter",
-    label: "Ventas Mall Movicenter",
-    areaNegocio: "ventas",
-    fixedSlots: true,
-    rotationWeeks: [
-      // T.Apertura: libre Jue
-      semana(
-        turno("10:00","18:00"), turno("10:00","18:00"),
-        turno("10:00","18:00"), L,
-        turno("10:00","18:00"), turno("10:00","18:00"), turno("10:00","18:00"),
-      ),
-      // T.Cierre: libre Vie
-      semana(
-        turno("12:00","20:00"), turno("12:00","20:00"),
-        turno("12:00","20:00"), turno("12:00","20:00"),
-        L, turno("12:00","20:00"), turno("12:00","20:00"),
-      ),
-    ],
-    weeklyHours: [42, 42],
-  },
-
-  // ── Ventas Mall Autopark (fixedSlots: Slot1=Apertura, Slot2=Cierre, Do siempre libre) ──
-  {
-    id: "ventas_mall_autopark",
-    label: "Ventas Mall Autopark",
-    areaNegocio: "ventas",
-    fixedSlots: true,
-    rotationWeeks: [
-      // T.Apertura: Lu-Sa 10:00-18:00, Do libre
-      semana(
-        turno("10:00","18:00"), turno("10:00","18:00"),
-        turno("10:00","18:00"), turno("10:00","18:00"),
-        turno("10:00","18:00"), turno("10:00","18:00"), L,
-      ),
-      // T.Cierre: Lu-Sa 11:00-19:00, Do libre
-      semana(
-        turno("11:00","19:00"), turno("11:00","19:00"),
-        turno("11:00","19:00"), turno("11:00","19:00"),
-        turno("11:00","19:00"), turno("11:00","19:00"), L,
-      ),
-    ],
-    weeklyHours: [42, 42],
-  },
-
-  // ── Óptimo Autoplaza (4 semanas) — L-J 10:30-20:30 · V-S 10:30-21:00 · D 11:00-20:00 ──
+  // ── Autoplaza (4 semanas) ────────────────────────────────────────────────
   {
     id: "optimo_autoplaza",
-    label: "Óptimo Autoplaza",
+    label: "Autoplaza",
     areaNegocio: "ventas",
     rotationWeeks: [
       // Sem 1: 42h — Dom libre
@@ -230,7 +81,7 @@ const PATTERNS: ShiftPatternDef[] = [
   // ── Óptimo Arauco Maipú (4 semanas) — L-J 10:00-20:30 · V-S 10:00-21:00 · D 10:30-20:30 ──
   {
     id: "optimo_arauco_maipu",
-    label: "Óptimo Arauco Maipú",
+    label: "Arauco Maipú",
     areaNegocio: "ventas",
     rotationWeeks: [
       // Sem 1: 42h — Dom libre — Sáb apertura
@@ -264,7 +115,7 @@ const PATTERNS: ShiftPatternDef[] = [
   // ── Óptimo Movicenter (4 semanas) — igual a ventas_mall_7d — 10:00-20:00 7 días ──
   {
     id: "optimo_movicenter",
-    label: "Óptimo Movicenter",
+    label: "Movicenter",
     areaNegocio: "ventas",
     rotationWeeks: [
       // Sem 1: 42h — Dom libre — Sáb apertura
@@ -298,7 +149,7 @@ const PATTERNS: ShiftPatternDef[] = [
   // ── Óptimo Autopark (2 semanas) — L-V 09:30-19:00 · S 10:00-19:00 · D cerrado ──
   {
     id: "optimo_autopark",
-    label: "Óptimo Autopark",
+    label: "Autopark",
     areaNegocio: "ventas",
     rotationWeeks: [
       // Sem 1: Lun libre
