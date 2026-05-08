@@ -88,7 +88,18 @@ export async function POST(req: NextRequest) {
       where: { rut },
     });
 
-    if (worker && worker.activo && worker.passwordHash && await bcrypt.compare(password, worker.passwordHash)) {
+    if (worker && worker.activo && !worker.esVirtual) {
+      if (!worker.passwordHash) {
+        const passwordHash = await bcrypt.hash(password, 12);
+        await prisma.worker.update({ where: { id: worker.id }, data: { passwordHash } });
+      } else if (!await bcrypt.compare(password, worker.passwordHash)) {
+        return NextResponse.json({ error: "Credenciales incorrectas" }, { status: 401 });
+      }
+    } else if (!worker || !worker.activo || worker.esVirtual) {
+      return NextResponse.json({ error: "Credenciales incorrectas" }, { status: 401 });
+    }
+
+    if (worker && worker.activo && !worker.esVirtual) {
       const token = await createSession({
         email: worker.rut,
         role: "vendedor",
