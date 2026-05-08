@@ -4,11 +4,13 @@
 
 ## Contexto
 
-**Shift Planner** (antes Shift Optimizer) — Webapp para generar turnos mensuales de vendedores respetando legislación laboral chilena, cobertura mínima y reglas de negocio. Edición manual + exportación Excel.
+**TeamPlanner** (antes Shift Optimizer / Shift Planner) — Webapp para generar turnos mensuales de vendedores respetando legislación laboral chilena, cobertura mínima y reglas de negocio. Edición manual + exportación Excel.
 
 **Usuarios**: administradores (acceso total), supervisores (vista de sus sucursales), vendedores (vista personal).
 
-**Versión activa**: v4 (`turnos4.dpmake.cl`, puerto 3014). Única versión en este repo. v1/v2/v3 eliminadas — historial disponible en git hasta commit `8d5a119`.
+**Versión activa**: v4 (puerto 3014). Única versión en este repo. v1/v2/v3 eliminadas — historial disponible en git hasta commit `8d5a119`.
+
+**Servidor de producción activo**: `ssh pompeyo` (`2.24.83.13`) — desde sesión 2026-05-07. Antigravity (`173.212.220.77`) ya no es el destino de deploy de v4.
 
 **Tag de recuperación**: `v4-stable-20260505` — estado estable antes de sesión 2026-05-05/06. Rollback: `git checkout v4-stable-20260505`.
 
@@ -23,7 +25,9 @@
 ## Reglas operativas
 
 - **Después de commit**: push a origin main automáticamente.
-- **Después de push**: sincronizar servidor (`ssh antigravity` → `git pull` + recrear servicios).
+- **Después de push**: sincronizar **ambos** servidores:
+  - `ssh pompeyo` → `cd /opt/shift-optimizer && git pull && cd v4 && docker compose up -d --build`
+  - `ssh antigravity` → `cd /opt/shift-optimizer && git pull && cd v4 && docker compose up -d --build`
 - **Specs**: leer spec antes de implementar; proponer plan; esperar aprobación; una tarea a la vez.
 - **No tocar sin permiso**: `.env*`, `CLAUDE.md`.
 - **Estilo respuestas**: cortas, densas, sin intro ni resumen final. Tablas/bullets solo si aportan.
@@ -32,11 +36,14 @@
 ## Infraestructura
 
 - GitHub: `github.com/prietodanilo94/TurnosClaude`.
-- Servidor: `ssh antigravity`, repo en `/opt/shift-optimizer`.
-- Deploy: `cd /opt/shift-optimizer && git pull && cd v4 && docker compose up -d --build`.
+- Servidores producción:
+  - `ssh pompeyo` (`2.24.83.13`) — servidor empresa, repo en `/opt/shift-optimizer`
+  - `ssh antigravity` (`173.212.220.77`) — servidor personal, repo en `/opt/shift-optimizer`
+- Deploy (ambos servidores tras cada push): `cd /opt/shift-optimizer && git pull && cd v4 && docker compose up -d --build`.
 - Schema DB: `docker exec v4-frontend-1 node ./node_modules/prisma/build/index.js db push` (después de schema changes).
 - Admin v4: `prieto.danilo94@gmail.com` / `1234`.
-- N8N: webhook configurado vía `N8N_WEBHOOK_URL` en `.env` del servidor.
+- N8N: `ssh pompeyo`, stack en `/opt/n8n`. Webhook vía `N8N_WEBHOOK_URL` en `.env`.
+- Shared-infra (postgres, redis, rabbitmq): `ssh pompeyo`, stack en `/opt/shared-infra`.
 
 ---
 

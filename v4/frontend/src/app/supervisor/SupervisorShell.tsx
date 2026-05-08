@@ -36,7 +36,7 @@ export default function SupervisorShell({
     <div className="min-h-screen flex">
       <aside className="w-52 bg-gray-900 text-white flex flex-col shrink-0">
         <div className="px-4 py-5 border-b border-gray-700">
-          <p className="text-sm font-semibold text-white">Shift Planner</p>
+          <p className="text-sm font-semibold text-white">TeamPlanner</p>
           <p className="text-xs text-gray-400 mt-0.5">Supervisor</p>
         </div>
 
