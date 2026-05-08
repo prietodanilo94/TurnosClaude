@@ -135,11 +135,11 @@ export default function SupervisorCalendarView({
       enforceValidationBeforeSave
       calendarScopeLabel={title}
       calendarScopeType={slices.length > 1 ? "group" : "branch"}
-      recalculateLabel={hasCalendar ? "Regenerar" : "Generar"}
+      recalculateLabel={hasCalendar ? "Reiniciar" : "Generar"}
       recalculateConfirmMessage={
         hasCalendar
-          ? "Esto regenerara el calendario supervisor y guardara los cambios por equipo. Continuar?"
-          : "Esto generara el calendario supervisor y asignara vendedores en orden. Continuar?"
+          ? "Esto borrará todas las asignaciones de trabajadores de este mes y dejará los turnos vacíos. ¿Continuar?"
+          : "Esto generará el calendario y asignará vendedores en orden. ¿Continuar?"
       }
       onNavigate={(newYear, newMonth) => `/supervisor/calendario?${navigationQueryPrefix}year=${newYear}&month=${newMonth}`}
       onSaveCalendar={async ({ slotsData, assignments: nextAssignments, validationSummary, scopeLabel, scopeType }) => {
@@ -155,7 +155,30 @@ export default function SupervisorCalendarView({
         });
         return "supervisor-combined";
       }}
-      onRecalculateCalendar={async () => {
+      onRecalculateCalendar={async ({ currentSlots }) => {
+        if (hasCalendar) {
+          // Reiniciar: conserva los turnos, borra solo asignaciones
+          const emptyAssignments: Record<string, string | null> = {};
+          currentSlots.forEach((s) => { emptyAssignments[String(s.slotNumber)] = null; });
+
+          await saveTeamCalendars({
+            year,
+            month,
+            slots: currentSlots,
+            assignments: emptyAssignments,
+            slices,
+            scopeLabel: title,
+            scopeType: slices.length > 1 ? "group" : "branch",
+          });
+
+          return {
+            slots: currentSlots,
+            assignments: emptyAssignments,
+            calendarId: "supervisor-combined",
+          };
+        }
+
+        // Generar por primera vez: plantilla nueva + auto-asignar
         const generated = generateCalendar(categoria, year, month, totalWorkers);
         const nextAssignments: Record<string, string | null> = {};
 

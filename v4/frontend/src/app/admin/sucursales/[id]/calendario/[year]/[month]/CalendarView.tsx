@@ -365,7 +365,7 @@ export default function CalendarView({
           if (result.assignments) setAssign(result.assignments);
           if (result.calendarId !== undefined) setCalId(result.calendarId);
           setDirty(false);
-          setSaveFeedback({ tone: "success", text: "Calendario generado y guardado correctamente." });
+          setSaveFeedback({ tone: "success", text: recalculateLabel === "Reiniciar" ? "Asignaciones borradas. Asigna los trabajadores nuevamente." : "Calendario generado y guardado correctamente." });
         }
         return;
       }
