@@ -346,14 +346,22 @@ export default function CalendarView({
     setRecalculating(true);
     try {
       if (onRecalculateCalendar) {
-        const result = await onRecalculateCalendar({
-          year,
-          month,
-          currentSlots: localSlots,
-          currentAssignments: assign,
-        });
+        let result;
+        try {
+          result = await onRecalculateCalendar({
+            year,
+            month,
+            currentSlots: localSlots,
+            currentAssignments: assign,
+          });
+        } catch (e) {
+          setSaveFeedback({ tone: "error", text: e instanceof Error ? e.message : "Error al regenerar el calendario" });
+          return;
+        }
         if (result) {
-          setLocalSlots(result.slots.map((s) => ({ ...s, days: { ...s.days } })));
+          const newSlots = result.slots.map((s) => ({ ...s, days: { ...s.days } }));
+          setLocalSlots(newSlots);
+          setSelectedSlots(new Set(newSlots.map((s) => s.slotNumber)));
           if (result.assignments) setAssign(result.assignments);
           if (result.calendarId !== undefined) setCalId(result.calendarId);
           setDirty(false);
