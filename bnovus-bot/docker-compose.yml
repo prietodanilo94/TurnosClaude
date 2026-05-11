@@ -1,0 +1,9 @@
+services:
+  bot:
+    build: .
+    env_file: .env
+    volumes:
+      - ./screenshots:/app/screenshots
+      - ./downloads:/app/downloads
+      - ./session:/app/session
+    restart: "no"
