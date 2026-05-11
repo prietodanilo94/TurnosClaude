@@ -23,7 +23,7 @@ async function deliver(filePath, webhookUrl) {
 
   // Construir FormData
   const form = new FormData();
-  form.append('file', fs.createReadStream(filePath), {
+  form.append('data', fs.createReadStream(filePath), {
     filename: path.basename(filePath),
     contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   });
