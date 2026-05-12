@@ -73,6 +73,19 @@ async function saveTeamCalendars({
       throw new Error(data.error ?? "Error al guardar calendario");
     }
   }
+
+  // Dispara webhook con Excel adjunto (fire-and-forget)
+  void fetch("/api/calendars/save-notify", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      teamIds: slices.map((s) => s.teamId),
+      year,
+      month,
+      scopeLabel,
+      scopeType,
+    }),
+  });
 }
 
 export default function SupervisorCalendarView({

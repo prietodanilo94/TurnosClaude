@@ -7,10 +7,12 @@ interface WebhookPayload {
   branchName?: string | null;
   timestamp: string;
   metadata?: Record<string, unknown> | null;
+  fileBase64?: string;
+  fileName?: string;
 }
 
 const DEFAULT_NOTIFIABLE = new Set([
-  "calendar.generate",
+  "calendar.save",
   "calendar.delete",
   "dotacion.sync",
 ]);
