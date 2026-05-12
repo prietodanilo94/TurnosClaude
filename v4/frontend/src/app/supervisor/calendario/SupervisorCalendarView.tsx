@@ -179,7 +179,7 @@ export default function SupervisorCalendarView({
           };
         }
 
-        // Generar por primera vez: plantilla nueva + auto-asignar
+        // Generar por primera vez: mostrar plantilla sin guardar aún (usuario debe presionar Guardar)
         const generated = generateCalendar(categoria, year, month, totalWorkers);
         const nextAssignments: Record<string, string | null> = {};
 
@@ -191,20 +191,9 @@ export default function SupervisorCalendarView({
           offset += slice.workerIds.length;
         }
 
-        await saveTeamCalendars({
-          year,
-          month,
-          slots: generated.slots,
-          assignments: nextAssignments,
-          slices,
-          scopeLabel: title,
-          scopeType: slices.length > 1 ? "group" : "branch",
-        });
-
         return {
           slots: generated.slots,
           assignments: nextAssignments,
-          calendarId: "supervisor-combined",
         };
       }}
       onExportCalendar={async (mode) => {

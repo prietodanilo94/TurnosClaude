@@ -347,6 +347,7 @@ export default function CalendarView({
       ? "Esto borrará el calendario guardado y regenerará la plantilla limpia. ¿Continuar?"
       : "Esto regenerará la plantilla limpia descartando los cambios actuales. ¿Continuar?");
     if (!confirm(msg)) return;
+    const wasNoCalendar = !calId;
     setRecalculating(true);
     try {
       if (onRecalculateCalendar) {
@@ -368,8 +369,13 @@ export default function CalendarView({
           setSelectedSlots(new Set(newSlots.map((s) => s.slotNumber)));
           if (result.assignments) setAssign(result.assignments);
           if (result.calendarId !== undefined) setCalId(result.calendarId);
-          setDirty(false);
-          setSaveFeedback({ tone: "success", text: recalculateLabel === "Reiniciar" ? "Asignaciones borradas. Asigna los trabajadores nuevamente." : "Calendario generado y guardado correctamente." });
+          setDirty(wasNoCalendar);
+          setSaveFeedback({
+            tone: "success",
+            text: wasNoCalendar
+              ? "Calendario generado. Revisa y presiona Guardar cuando estes listo."
+              : "Asignaciones borradas. Asigna los trabajadores nuevamente.",
+          });
         }
         return;
       }
