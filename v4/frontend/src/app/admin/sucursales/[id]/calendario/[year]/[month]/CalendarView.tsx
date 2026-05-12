@@ -160,6 +160,7 @@ interface Props {
   recalculateLabel?: string;
   recalculateConfirmMessage?: string;
   saveConfirmMessage?: string;
+  changeRemindMessage?: string;
   showExportButtons?: boolean;
   showValidationPanel?: boolean;
   enforceValidationBeforeSave?: boolean;
@@ -180,6 +181,7 @@ export default function CalendarView({
   recalculateLabel,
   recalculateConfirmMessage,
   saveConfirmMessage,
+  changeRemindMessage,
   showExportButtons = true,
   showValidationPanel = false,
   enforceValidationBeforeSave = false,
@@ -197,6 +199,14 @@ export default function CalendarView({
   const [dialogSlot, setDialogSlot] = useState<number | null>(null);
   const [shiftEditDialog, setShiftEditDialog] = useState<{ slotNum: number; dateStr: string } | null>(null);
   const [recalculating, setRecalculating] = useState(false);
+  const [changeReminded, setChangeReminded] = useState(false);
+
+  function tryChange(): boolean {
+    if (!changeRemindMessage || changeReminded || !calId) return true;
+    const ok = confirm(changeRemindMessage);
+    if (ok) setChangeReminded(true);
+    return ok;
+  }
   const [saveFeedback, setSaveFeedback] = useState<{ tone: "success" | "warning" | "error"; text: string } | null>(null);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [view, setView] = useState<"mensual" | "vendedor" | "diario">("mensual");
@@ -392,12 +402,14 @@ export default function CalendarView({
   }
 
   function handleAssign(slotNum: number, workerId: string | null) {
+    if (!tryChange()) return;
     setAssign((prev) => ({ ...prev, [String(slotNum)]: workerId }));
     setDirty(true);
     setDialogSlot(null);
   }
 
   function handleShiftSave(slotNum: number, dateStr: string, newShift: DayShift, redistributeDate?: string | null) {
+    if (!tryChange()) return;
     setLocalSlots(prev => prev.map(s => {
       if (s.slotNumber !== slotNum) return s;
       const origShift = s.days[dateStr];
@@ -426,6 +438,7 @@ export default function CalendarView({
       alert("Este cambio genera más de 6 días laborales consecutivos.");
       return;
     }
+    if (!tryChange()) return;
     setLocalSlots(prev => prev.map(s =>
       s.slotNumber !== slotNum ? s : { ...s, days: { ...s.days, [d1]: sh2, [d2]: sh1 } }
     ));
