@@ -119,6 +119,19 @@ export default function SupervisoresClient({ initialSupervisors, branches }: Pro
     }
   }
 
+  async function handleResetPassword(supervisor: SupervisorWithBranches) {
+    if (!confirm(`Resetear clave de ${supervisor.nombre}? El proximo login creara una nueva clave automaticamente.`)) return;
+    const res = await fetch(`/api/supervisores/${supervisor.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ resetPassword: true }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setSupervisors((prev) => prev.map((item) => (item.id === supervisor.id ? updated : item)));
+    }
+  }
+
   return (
     <div className="p-6">
       <div className="mb-6 flex items-center justify-between">
@@ -234,6 +247,11 @@ export default function SupervisoresClient({ initialSupervisors, branches }: Pro
                       <button onClick={() => openEdit(supervisor)} className="text-sm text-blue-600 hover:text-blue-800">
                         Editar
                       </button>
+                      {supervisor.passwordHash && (
+                        <button onClick={() => handleResetPassword(supervisor)} className="text-sm text-amber-600 hover:text-amber-800">
+                          Reset clave
+                        </button>
+                      )}
                       <button onClick={() => handleDelete(supervisor)} className="text-sm text-red-500 hover:text-red-700">
                         Eliminar
                       </button>

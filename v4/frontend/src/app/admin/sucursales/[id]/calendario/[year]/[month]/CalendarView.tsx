@@ -159,6 +159,7 @@ interface Props {
   onExportCalendar?: (mode: "calendar" | "rrhh") => Promise<void>;
   recalculateLabel?: string;
   recalculateConfirmMessage?: string;
+  saveConfirmMessage?: string;
   showExportButtons?: boolean;
   showValidationPanel?: boolean;
   enforceValidationBeforeSave?: boolean;
@@ -178,6 +179,7 @@ export default function CalendarView({
   onExportCalendar,
   recalculateLabel,
   recalculateConfirmMessage,
+  saveConfirmMessage,
   showExportButtons = true,
   showValidationPanel = false,
   enforceValidationBeforeSave = false,
@@ -241,6 +243,8 @@ export default function CalendarView({
   }, [sortedSlots]);
 
   async function handleSave(): Promise<string | null> {
+    if (saveConfirmMessage && !confirm(saveConfirmMessage)) return null;
+
     if (enforceValidationBeforeSave && validation.errors.length > 0) {
       const sample = validation.errors
         .slice(0, 4)
