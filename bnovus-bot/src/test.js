@@ -94,14 +94,10 @@ async function stepSync(page) {
   await screenshot(page, '02_sync_antes');
 
   log('SYNC', 'Haciendo clic en Sincronizar...');
-  await page.click('#ctl00_MainContent_btnSincronizar', { noWaitAfter: true });
-
-  // Esperar a que el botón vuelva a habilitarse = proceso terminado
-  await page.waitForFunction(
-    sel => { const b = document.querySelector(sel); return b && !b.disabled; },
-    '#ctl00_MainContent_btnSincronizar',
-    { timeout: 120000 }
-  );
+  await Promise.all([
+    page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 120000 }),
+    page.click('#ctl00_MainContent_btnSincronizar'),
+  ]);
 
   await screenshot(page, '02_sync_despues');
   log('SYNC', '✅ Sincronización completada');
