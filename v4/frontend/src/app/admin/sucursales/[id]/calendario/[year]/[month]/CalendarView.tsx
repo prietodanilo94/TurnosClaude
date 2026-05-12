@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import Link from "next/link";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { workerColor } from "@/components/calendar/worker-colors";
 import type { CalendarSlot, DayShift, ShiftCategory, WorkerInfo, WorkerBlockInfo } from "@/types";
@@ -397,8 +396,25 @@ export default function CalendarView({
     }
   }
 
+  useEffect(() => {
+    if (!dirty) return;
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [dirty]);
+
+  async function handleNavigateAway(destination: string) {
+    if (!dirty) { router.push(destination); return; }
+    const wantSave = confirm("¿Deseas guardar los cambios antes de salir?");
+    if (wantSave) {
+      const id = await handleSave();
+      if (!id) return;
+    }
+    router.push(destination);
+  }
+
   function navigateTo(newYear: number, newMonth: number) {
-    router.push(onNavigate ? onNavigate(newYear, newMonth) : `/admin/sucursales/${branchId}/calendario/${newYear}/${newMonth}?team=${teamId}`);
+    void handleNavigateAway(onNavigate ? onNavigate(newYear, newMonth) : `/admin/sucursales/${branchId}/calendario/${newYear}/${newMonth}?team=${teamId}`);
   }
 
   function handleAssign(slotNum: number, workerId: string | null) {
@@ -518,9 +534,9 @@ export default function CalendarView({
   return (
     <div className="p-6">
       <div className="mb-1">
-        <Link href={backHref} className="text-xs text-gray-400 hover:text-gray-600">
+        <button onClick={() => void handleNavigateAway(backHref)} className="text-xs text-gray-400 hover:text-gray-600">
           ← {backLabel}
-        </Link>
+        </button>
       </div>
 
       {/* Header */}
