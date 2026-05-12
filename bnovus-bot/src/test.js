@@ -94,7 +94,7 @@ async function stepSync(page) {
   await screenshot(page, '02_sync_antes');
 
   log('SYNC', 'Haciendo clic en Sincronizar...');
-  await page.click('#ctl00_MainContent_btnSincronizar');
+  await page.evaluate(() => document.querySelector('#ctl00_MainContent_btnSincronizar').click());
 
   // Esperar a que el botón vuelva a habilitarse = proceso terminado
   await page.waitForFunction(
