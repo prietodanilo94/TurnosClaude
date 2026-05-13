@@ -96,7 +96,7 @@ async function stepSync(page) {
   log('SYNC', 'Haciendo clic en Sincronizar...');
   await Promise.all([
     page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 120000 }),
-    page.click('#ctl00_MainContent_btnSincronizar'),
+    page.click('#ctl00_MainContent_btnSincronizar', { timeout: 120000 }),
   ]);
 
   await screenshot(page, '02_sync_despues');
