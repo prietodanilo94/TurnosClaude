@@ -566,7 +566,7 @@ export default function CalendarView({
             {recalculating ? "Regenerando…" : recalculateLabel ?? "Recalcular"}
           </button>
           <button
-            onClick={handleSave}
+            onClick={() => void handleSave()}
             disabled={saving || !dirty}
             className={`px-3 py-1.5 text-sm rounded transition-colors ${
               dirty ? "bg-blue-600 text-white hover:bg-blue-700" : "border border-gray-300 text-gray-400 cursor-default"
@@ -854,9 +854,10 @@ function WeekBlock({
 
   function assignForDay(d: Date): Record<string, string | null> {
     const dm = d.getMonth() + 1;
-    if (dm < month || (dm === 12 && month === 1)) return prevAssignments;
-    if (dm > month || (dm === 1 && month === 12)) return nextAssignments;
-    return assign;
+    if (dm === month) return assign;
+    if (dm === 12 && month === 1) return prevAssignments;
+    if (dm === 1 && month === 12) return nextAssignments;
+    return dm < month ? prevAssignments : nextAssignments;
   }
 
   const isoWeek = isoWeekNumber(week[0]);

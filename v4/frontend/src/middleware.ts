@@ -44,9 +44,16 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  if (pathname.startsWith("/api/") && !pathname.startsWith("/api/auth/")) {
+    const session = await getSessionFromRequest(req);
+    if (!session) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+  }
+
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/supervisor/:path*", "/vendedor/:path*"],
+  matcher: ["/admin/:path*", "/supervisor/:path*", "/vendedor/:path*", "/api/:path*"],
 };
