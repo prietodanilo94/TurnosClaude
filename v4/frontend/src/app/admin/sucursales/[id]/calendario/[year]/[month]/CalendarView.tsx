@@ -705,6 +705,7 @@ export default function CalendarView({
           onToggleSlot={toggleSlot}
           onSelectAll={() => setSelectedSlots(new Set(sortedSlots.map((s) => s.slotNumber)))}
           onDeselectAll={() => setSelectedSlots(new Set())}
+          onSlotClick={(n) => { if (!tryChange()) return; setDialogSlot(n); setSelectedDay(null); }}
         />
       ) : (
         <CoberturaDelMesView
@@ -1355,11 +1356,12 @@ interface VendedorTabViewProps {
   onToggleSlot: (n: number) => void;
   onSelectAll: () => void;
   onDeselectAll: () => void;
+  onSlotClick: (slotNum: number) => void;
 }
 
 function VendedorTabView({
   year, month, weeks, slots, assign, workerMap, blockMap, slotDisplayNum,
-  selectedSlots, onToggleSlot, onSelectAll, onDeselectAll,
+  selectedSlots, onToggleSlot, onSelectAll, onDeselectAll, onSlotClick,
 }: VendedorTabViewProps) {
   const allSelected = selectedSlots.size === slots.length;
 
@@ -1416,6 +1418,7 @@ function VendedorTabView({
                 workerMap={workerMap}
                 blockMap={blockMap}
                 slotDisplayNum={slotDisplayNum}
+                onSlotClick={onSlotClick}
               />
             ))}
         </div>
@@ -1435,75 +1438,108 @@ interface VendedorCalendarProps {
   workerMap: Record<string, string>;
   blockMap: WorkerBlockDateMap;
   slotDisplayNum: Record<number, number>;
+  onSlotClick: (slotNum: number) => void;
 }
 
-function VendedorCalendar({ slot, year, month, weeks, assign, workerMap, blockMap, slotDisplayNum }: VendedorCalendarProps) {
+function VendedorCalendar({ slot, year, month, weeks, assign, workerMap, blockMap, slotDisplayNum, onSlotClick }: VendedorCalendarProps) {
   const workerId = assign[String(slot.slotNumber)] ?? null;
   const displayN = slotDisplayNum[slot.slotNumber] ?? slot.slotNumber;
   const workerName = workerId ? (workerMap[workerId] ?? `Vendedor ${displayN}`) : `Vendedor ${displayN}`;
   const color = workerColor(slot.slotNumber);
 
+  let totalMonthHours = 0;
   const weekData = weeks.map((week) => {
     const isoWeek = isoWeekNumber(week[0]);
+    let weekHours = 0;
     const days = week.map((d) => {
       const dateStr = fmt(d);
       const shift = slot.days[dateStr] ?? null;
       const inMonth = d.getMonth() + 1 === month;
       const feriado = isFeriadoIrrenunciable(d);
       const blockReason = getWorkerBlockReason(blockMap, workerId, dateStr);
+      if (shift && inMonth && !feriado && blockReason === null) {
+        const h = shiftDuration(shift);
+        weekHours += h;
+        totalMonthHours += h;
+      }
       return { d, shift, inMonth, feriado, blockReason };
     });
-    return { isoWeek, days };
+    return { isoWeek, days, weekHours };
   });
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
-      <div className={`px-4 py-2 flex items-center gap-3 border-b ${color.border} ${color.bg}`}>
+      <div
+        className={`px-4 py-2.5 flex items-center gap-3 border-b ${color.border} ${color.bg} cursor-pointer hover:brightness-95 transition-colors select-none`}
+        onClick={() => onSlotClick(slot.slotNumber)}
+        title="Click para cambiar vendedor asignado"
+      >
+        <span className={`w-2.5 h-2.5 rounded-full border-2 ${color.border} ${workerId ? color.bg : "bg-white"}`} />
         <span className={`text-sm font-semibold ${color.text}`}>{workerName}</span>
+        <span className="ml-auto text-[11px] text-gray-500 font-normal">
+          {fmtHours(totalMonthHours)} · Slot {displayN}
+        </span>
       </div>
 
       <div className="overflow-x-auto">
         <table className="min-w-full text-xs">
           <thead>
-            <tr className="border-b border-gray-100">
-              <th className="px-3 py-1.5 text-left text-gray-400 font-medium w-10">Sem</th>
+            <tr className="border-b border-gray-200 bg-gray-50">
+              <th className="px-3 py-2 text-left text-gray-400 font-medium w-12">Sem</th>
               {DOW_LABELS.map((d) => (
-                <th key={d} className="px-2 py-1.5 text-center text-gray-400 font-medium">{d}</th>
+                <th key={d} className="px-2 py-2 text-center text-xs font-semibold text-gray-600">{d}</th>
               ))}
+              <th className="px-2 py-2 text-center text-xs font-semibold text-gray-500 w-16">Hrs</th>
             </tr>
           </thead>
           <tbody>
-            {weekData.map(({ isoWeek, days }, wi) => (
-              <tr key={wi} className="border-t border-gray-50">
-                <td className="px-3 py-1.5 text-gray-300 font-medium text-center">{isoWeek}</td>
+            {weekData.map(({ isoWeek, days, weekHours }, wi) => (
+              <tr key={wi} className="border-t border-gray-100">
+                <td className="px-3 py-1.5 text-gray-300 font-medium text-center text-[11px]">{isoWeek}</td>
                 {days.map(({ d, shift, inMonth, feriado, blockReason }, ci) => {
                   const isWeekend = ci >= 5;
+                  const canClick = inMonth && !feriado;
                   return (
                     <td
                       key={ci}
-                      className={`px-0.5 py-1 text-center border-l border-gray-50 ${
+                      className={`px-1 py-1.5 text-center border-l border-gray-100 ${
                         !inMonth ? "opacity-30" : ""
-                      } ${feriado ? "bg-red-50" : isWeekend ? "bg-orange-50/30" : ""}`}
+                      } ${feriado ? "bg-red-50/60" : isWeekend ? "bg-orange-50/20" : ""}`}
                     >
-                      <div className="text-[9px] text-gray-300 leading-none mb-0.5">{d.getDate()}</div>
+                      <div className="text-[9px] text-gray-300 leading-none mb-1">{d.getDate()}</div>
                       {feriado ? (
-                        <div className="text-[8px] text-red-400 italic leading-none">fer.</div>
+                        <span className="text-[9px] font-medium text-red-400 italic">Feriado</span>
                       ) : blockReason !== null ? (
-                        <div className="rounded text-[8px] leading-tight bg-gray-200 text-gray-700 px-0.5 py-0.5" title={blockReason || "Bloqueado"}>
-                          <div>bloq.</div>
-                          <div className="opacity-80 truncate">{workerName.split(" ")[0]}</div>
+                        <div
+                          title={blockReason || "Bloqueado"}
+                          className="px-1 py-1 rounded border border-gray-300 bg-gray-200 text-gray-600 text-[9px]"
+                        >
+                          Bloq.
                         </div>
                       ) : shift ? (
-                        <div className={`rounded text-[8px] leading-tight ${color.bg} ${color.text} px-0.5 py-0.5`}>
+                        <div
+                          onClick={canClick ? () => onSlotClick(slot.slotNumber) : undefined}
+                          className={`px-1 py-1 rounded border text-[10px] leading-tight select-none ${
+                            canClick ? "cursor-pointer hover:brightness-90 active:scale-95 transition-all" : ""
+                          } ${color.bg} ${color.text} ${color.border}`}
+                        >
                           <div>{shift.start}</div>
                           <div className="opacity-80">{shift.end}</div>
                         </div>
                       ) : (
-                        <div className="text-[10px] text-gray-200 leading-none">—</div>
+                        <div
+                          onClick={canClick ? () => onSlotClick(slot.slotNumber) : undefined}
+                          className={`text-[10px] italic text-gray-300 ${canClick ? "cursor-pointer hover:text-gray-400" : ""}`}
+                        >
+                          libre
+                        </div>
                       )}
                     </td>
                   );
                 })}
+                <td className="px-2 py-1.5 text-center text-[10px] font-medium text-gray-500 border-l border-gray-100">
+                  {weekHours > 0 ? fmtHours(weekHours) : ""}
+                </td>
               </tr>
             ))}
           </tbody>
