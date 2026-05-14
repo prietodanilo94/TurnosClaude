@@ -128,6 +128,7 @@ export default function SupervisorCalendarView({
 
   return (
     <CalendarView
+      key={`${slices.map((s) => s.teamId).join("-")}-${year}-${month}`}
       branchId="supervisor"
       branchName={title}
       branchCodigo={`${slices.length} equipo${slices.length !== 1 ? "s" : ""}`}
