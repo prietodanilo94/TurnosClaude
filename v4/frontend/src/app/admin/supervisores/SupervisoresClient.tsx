@@ -244,6 +244,12 @@ export default function SupervisoresClient({ initialSupervisors, branches }: Pro
                       </button>
                     </td>
                     <td className="px-4 py-3 text-right space-x-3">
+                      <a
+                        href={`/admin/trabajadores?supervisorId=${supervisor.id}`}
+                        className="text-sm text-gray-500 hover:text-gray-700"
+                      >
+                        Ver equipo
+                      </a>
                       <button onClick={() => openEdit(supervisor)} className="text-sm text-blue-600 hover:text-blue-800">
                         Editar
                       </button>

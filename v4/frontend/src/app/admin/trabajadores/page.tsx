@@ -4,10 +4,17 @@ import TrabajadoresClient from "./TrabajadoresClient";
 
 export const dynamic = "force-dynamic";
 
+export interface BranchInfo {
+  id: string;
+  nombre: string;
+  codigo: string;
+  supervisors: { supervisor: { id: string; nombre: string } }[];
+}
+
 export interface BranchTeamInfo {
   id: string;
   areaNegocio: string;
-  branch: { id: string; nombre: string; codigo: string };
+  branch: BranchInfo;
 }
 
 export interface WorkerWithTeam {
@@ -20,20 +27,50 @@ export interface WorkerWithTeam {
   branchTeam: BranchTeamInfo;
 }
 
-export default async function TrabajadoresPage() {
+export default async function TrabajadoresPage({
+  searchParams,
+}: {
+  searchParams: { supervisorId?: string };
+}) {
   await getSession();
+
+  const supervisorId = searchParams.supervisorId;
+
+  let supervisorLabel: string | undefined;
+  let branchIds: string[] | undefined;
+
+  if (supervisorId) {
+    const supervisor = await prisma.supervisor.findUnique({
+      where: { id: supervisorId },
+      select: { nombre: true, branches: { select: { branchId: true } } },
+    });
+    if (supervisor) {
+      supervisorLabel = supervisor.nombre;
+      branchIds = supervisor.branches.map((b) => b.branchId);
+    }
+  }
+
+  const branchInclude = {
+    select: {
+      id: true,
+      nombre: true,
+      codigo: true,
+      supervisors: {
+        select: { supervisor: { select: { id: true, nombre: true } } },
+      },
+    },
+  };
 
   const [workers, branchTeams] = await Promise.all([
     prisma.worker.findMany({
+      where: branchIds ? { branchTeam: { branchId: { in: branchIds } } } : undefined,
       include: {
-        branchTeam: {
-          include: { branch: { select: { id: true, nombre: true, codigo: true } } },
-        },
+        branchTeam: { include: { branch: branchInclude } },
       },
       orderBy: [{ branchTeam: { branch: { nombre: "asc" } } }, { nombre: "asc" }],
     }),
     prisma.branchTeam.findMany({
-      include: { branch: { select: { id: true, nombre: true, codigo: true } } },
+      include: { branch: branchInclude },
       orderBy: { branch: { nombre: "asc" } },
     }),
   ]);
@@ -42,6 +79,7 @@ export default async function TrabajadoresPage() {
     <TrabajadoresClient
       initialWorkers={workers as WorkerWithTeam[]}
       branchTeams={branchTeams as BranchTeamInfo[]}
+      supervisorLabel={supervisorLabel}
     />
   );
 }

@@ -6,11 +6,12 @@ import type { BranchTeamInfo, WorkerWithTeam } from "./page";
 interface Props {
   initialWorkers: WorkerWithTeam[];
   branchTeams: BranchTeamInfo[];
+  supervisorLabel?: string;
 }
 
 const EMPTY_FORM = { rut: "", nombre: "", branchTeamId: "" };
 
-export default function TrabajadoresClient({ initialWorkers, branchTeams }: Props) {
+export default function TrabajadoresClient({ initialWorkers, branchTeams, supervisorLabel }: Props) {
   const [workers, setWorkers] = useState(initialWorkers);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -121,6 +122,15 @@ export default function TrabajadoresClient({ initialWorkers, branchTeams }: Prop
         </div>
       </div>
 
+      {supervisorLabel && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-100 rounded-md text-sm text-blue-800 w-fit">
+          <span>Filtrando por supervisor: <strong>{supervisorLabel}</strong></span>
+          <a href="/admin/trabajadores" className="text-blue-500 hover:text-blue-700 text-xs underline ml-1">
+            Limpiar
+          </a>
+        </div>
+      )}
+
       <input
         type="text"
         value={search}
@@ -138,7 +148,7 @@ export default function TrabajadoresClient({ initialWorkers, branchTeams }: Prop
           <table className="min-w-full divide-y divide-gray-200 text-sm">
             <thead className="bg-gray-50">
               <tr>
-                {["RUT", "Nombre", "Sucursal", "Area", "Estado", ""].map((h) => (
+                {["RUT", "Nombre", "Sucursal", "Jefe de Sucursal", "Area", "Estado", ""].map((h) => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     {h}
                   </th>
@@ -156,6 +166,11 @@ export default function TrabajadoresClient({ initialWorkers, branchTeams }: Prop
                   <td className="px-4 py-3 text-gray-600">
                     {worker.branchTeam.branch.nombre}
                     <span className="ml-1.5 text-xs text-gray-400">{worker.branchTeam.branch.codigo}</span>
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-600">
+                    {worker.branchTeam.branch.supervisors.length > 0
+                      ? worker.branchTeam.branch.supervisors.map((s) => s.supervisor.nombre).join(", ")
+                      : <span className="text-gray-400 italic">Sin asignar</span>}
                   </td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
@@ -190,7 +205,7 @@ export default function TrabajadoresClient({ initialWorkers, branchTeams }: Prop
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-6 text-center text-sm text-gray-400">
+                  <td colSpan={7} className="px-4 py-6 text-center text-sm text-gray-400">
                     Sin resultados para &quot;{search}&quot;
                   </td>
                 </tr>
