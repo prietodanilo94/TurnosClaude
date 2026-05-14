@@ -765,6 +765,7 @@ export default function CalendarView({
           onSelectAll={() => setSelectedSlots(new Set(sortedSlots.map((s) => s.slotNumber)))}
           onDeselectAll={() => setSelectedSlots(new Set())}
           onSlotClick={(n) => tryChangeGated(() => { setDialogSlot(n); setSelectedDay(null); })}
+          onShiftCellClick={(slotNum, dateStr) => setShiftEditDialog({ slotNum, dateStr })}
           onLibreSwap={handleLibreSwap}
           lockedBefore={calId ? todayStr : undefined}
         />
@@ -1451,13 +1452,14 @@ interface VendedorTabViewProps {
   onSelectAll: () => void;
   onDeselectAll: () => void;
   onSlotClick: (slotNum: number) => void;
+  onShiftCellClick: (slotNum: number, dateStr: string) => void;
   onLibreSwap: (slotNum: number, d1: string, d2: string) => void;
   lockedBefore?: string;
 }
 
 function VendedorTabView({
   year, month, weeks, slots, assign, workerMap, blockMap, slotDisplayNum,
-  selectedSlots, onToggleSlot, onSelectAll, onDeselectAll, onSlotClick, onLibreSwap, lockedBefore,
+  selectedSlots, onToggleSlot, onSelectAll, onDeselectAll, onSlotClick, onShiftCellClick, onLibreSwap, lockedBefore,
 }: VendedorTabViewProps) {
   const allSelected = selectedSlots.size === slots.length;
 
@@ -1515,6 +1517,7 @@ function VendedorTabView({
                 blockMap={blockMap}
                 slotDisplayNum={slotDisplayNum}
                 onSlotClick={onSlotClick}
+                onShiftCellClick={onShiftCellClick}
                 onLibreSwap={onLibreSwap}
                 lockedBefore={lockedBefore}
               />
@@ -1537,11 +1540,12 @@ interface VendedorCalendarProps {
   blockMap: WorkerBlockDateMap;
   slotDisplayNum: Record<number, number>;
   onSlotClick: (slotNum: number) => void;
+  onShiftCellClick: (slotNum: number, dateStr: string) => void;
   onLibreSwap: (slotNum: number, d1: string, d2: string) => void;
   lockedBefore?: string;
 }
 
-function VendedorCalendar({ slot, year, month, weeks, assign, workerMap, blockMap, slotDisplayNum, onSlotClick, onLibreSwap, lockedBefore }: VendedorCalendarProps) {
+function VendedorCalendar({ slot, year, month, weeks, assign, workerMap, blockMap, slotDisplayNum, onSlotClick, onShiftCellClick, onLibreSwap, lockedBefore }: VendedorCalendarProps) {
   const [dragSource, setDragSource] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
 
@@ -1643,14 +1647,14 @@ function VendedorCalendar({ slot, year, month, weeks, assign, workerMap, blockMa
                       ) : shift ? (
                         <div
                           draggable={canDrag}
-                          onClick={canClick ? () => onSlotClick(slot.slotNumber) : undefined}
+                          onClick={canClick ? () => onShiftCellClick(slot.slotNumber, dateStr) : undefined}
                           onDragStart={canDrag ? () => handleDragStart(dateStr) : undefined}
                           onDragEnd={handleDragEnd}
                           onDragOver={canDrag ? (e) => handleDragOver(e, dateStr) : undefined}
                           onDrop={canDrag ? () => handleDrop(dateStr) : undefined}
                           className={`px-1 py-1 rounded border text-[10px] leading-tight select-none transition-all ${
                             isBeingDragged ? "opacity-30" : isPast ? "opacity-50" : ""
-                          } ${canDrag ? "cursor-grab hover:brightness-90 active:scale-95" : isPast ? "cursor-default" : ""} ${color.bg} ${color.text} ${color.border}`}
+                          } ${canDrag ? "cursor-pointer hover:brightness-90 active:scale-95" : isPast ? "cursor-default" : ""} ${color.bg} ${color.text} ${color.border}`}
                         >
                           <div>{shift.start}</div>
                           <div className="opacity-80">{shift.end}</div>
@@ -1658,7 +1662,7 @@ function VendedorCalendar({ slot, year, month, weeks, assign, workerMap, blockMa
                       ) : (
                         <div
                           draggable={canDrag}
-                          onClick={canClick ? () => onSlotClick(slot.slotNumber) : undefined}
+                          onClick={undefined}
                           onDragStart={canDrag ? () => handleDragStart(dateStr) : undefined}
                           onDragEnd={handleDragEnd}
                           onDragOver={canDrag ? (e) => handleDragOver(e, dateStr) : undefined}
