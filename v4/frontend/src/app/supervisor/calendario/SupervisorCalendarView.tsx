@@ -149,7 +149,7 @@ export default function SupervisorCalendarView({
       enforceValidationBeforeSave
       calendarScopeLabel={title}
       calendarScopeType={slices.length > 1 ? "group" : "branch"}
-      changeRemindMessage={hasCalendar ? "Cuidado: estás haciendo cambios en un calendario ya constituido. Los cambios serán informados a RRHH. Para que queden aplicados debes presionar Guardar al terminar. ¿Continuar?" : undefined}
+      changeRemindMessage="Cuidado: estás haciendo cambios en un calendario ya constituido. Los cambios serán informados a RRHH. Para que queden aplicados debes presionar Guardar al terminar. ¿Continuar?"
       recalculateLabel={hasCalendar ? "Reiniciar" : "Generar"}
       recalculateConfirmMessage={
         hasCalendar

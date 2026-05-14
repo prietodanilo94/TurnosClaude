@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { getSession } from "@/lib/auth/session";
@@ -7,7 +6,6 @@ import { generateCalendar } from "@/lib/calendar/generator";
 import { getAllPatterns } from "@/lib/patterns/catalog";
 import type { TeamSlice } from "@/lib/calendar/teamSplit";
 import type { CalendarSlot, ShiftCategory, WorkerBlockInfo } from "@/types";
-import PeriodSelector from "./PeriodSelector";
 import SupervisorCalendarView from "./SupervisorCalendarView";
 
 interface Props {
@@ -235,20 +233,6 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
 
   return (
     <div className="p-6 space-y-4">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-xl font-semibold text-gray-900">{pageTitle}</h1>
-          <p className="text-xs text-gray-400 mt-0.5">
-            {selectedBranchIds.length} sucursal{selectedBranchIds.length !== 1 ? "es" : ""}
-          </p>
-        </div>
-        <div className="flex items-center gap-4">
-          <Suspense>
-            <PeriodSelector year={year} month={month} />
-          </Suspense>
-          <Link href="/supervisor" className="text-sm text-blue-600 hover:text-blue-800">← Volver</Link>
-        </div>
-      </div>
 
       {blocks.length === 0 && (
         <div className="bg-white border border-gray-200 rounded-lg p-8 text-sm text-gray-500">
