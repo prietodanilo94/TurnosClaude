@@ -481,9 +481,15 @@ export default function CalendarView({
     const sh2 = slot.days[d2] ?? null;
     if (sh1 === null && sh2 === null) return;
 
-    // Bug 5: bloquear si el día destino no existe en el patrón (todos los slots tienen null ese día)
+    // Bug 5: bloquear si la sucursal nunca opera ese día de la semana (e.g. domingo)
     const targetDay = sh1 !== null ? d2 : d1; // el día que recibirá el turno
-    const branchOperatesOnTarget = slots.some(s => s.days[targetDay] != null);
+    const targetDow = new Date(targetDay + "T12:00:00").getDay();
+    // Verifica si ALGÚN slot tiene turno en ALGUNA fecha con el mismo día de semana
+    const branchOperatesOnTarget = slots.some(s =>
+      Object.entries(s.days).some(([ds, shift]) =>
+        shift != null && new Date(ds + "T12:00:00").getDay() === targetDow,
+      ),
+    );
     if (!branchOperatesOnTarget) {
       openConfirm(
         "Este día no es laborable según el patrón de turnos de la sucursal. No se puede mover un turno aquí.",
