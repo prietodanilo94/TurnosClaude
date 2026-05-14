@@ -2,13 +2,6 @@
 
 import { useState } from "react";
 
-interface Section {
-  id: string;
-  icon: string;
-  title: string;
-  content: React.ReactNode;
-}
-
 function Tip({ children }: { children: React.ReactNode }) {
   return (
     <div className="mt-3 flex gap-2 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2.5">
@@ -27,545 +20,310 @@ function Warning({ children }: { children: React.ReactNode }) {
   );
 }
 
-function List({ items }: { items: { label: string; desc: string }[] }) {
+interface StepProps {
+  number: number;
+  icon: string;
+  title: string;
+  children: React.ReactNode;
+  open: boolean;
+  onToggle: () => void;
+}
+
+function Step({ number, icon, title, children, open, onToggle }: StepProps) {
   return (
-    <ul className="mt-3 space-y-2">
-      {items.map((item) => (
-        <li key={item.label} className="text-sm text-gray-600 leading-6">
-          <span className="font-medium text-gray-800">{item.label}:</span>{" "}
-          {item.desc}
-        </li>
-      ))}
-    </ul>
+    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors"
+      >
+        <div className="flex items-center justify-center w-7 h-7 rounded-full bg-blue-600 text-white text-xs font-bold shrink-0">
+          {number}
+        </div>
+        <span className="text-base mr-0.5">{icon}</span>
+        <span className="text-sm font-semibold text-gray-800 flex-1">{title}</span>
+        <span className={`text-gray-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`}>▾</span>
+      </button>
+      {open && (
+        <div className="px-4 pb-4 border-t border-gray-100 pt-3 text-sm text-gray-600 leading-6 space-y-2">
+          {children}
+        </div>
+      )}
+    </div>
   );
 }
 
-const SECTIONS: Section[] = [
-  {
-    id: "inicio",
-    icon: "🏠",
-    title: "Pantalla de inicio — Mis sucursales",
-    content: (
-      <div className="space-y-2 text-sm text-gray-600 leading-6">
-        <p>
-          Al entrar, ves las sucursales asignadas a tu usuario organizadas en tarjetas. Cada tarjeta muestra el
-          nombre, área de negocio (Ventas / Postventa) y si ya tiene calendario generado para el mes actual.
-        </p>
-        <p>
-          Si administras varias sucursales puedes seleccionarlas con los{" "}
-          <span className="font-medium text-gray-800">checkboxes</span> y hacer click en{" "}
-          <span className="font-medium text-gray-800">Asignación de turnos</span> para ver un calendario
-          combinado con todos los equipos juntos.
-        </p>
-        <List
-          items={[
-            {
-              label: "Una sucursal",
-              desc: "Haz click directamente en la tarjeta para abrir su calendario.",
-            },
-            {
-              label: "Varias sucursales",
-              desc: "Activa los checkboxes y presiona Asignación de turnos. El sistema las une automáticamente en un grupo.",
-            },
-            {
-              label: "Grupo ya existente",
-              desc: "Aparece como una tarjeta separada con el icono de grupo. Solo el administrador puede disolverlo.",
-            },
-          ]}
-        />
-        <Tip>
-          Si no ves una sucursal que debería estar asignada a ti, contacta al administrador para que revise tus
-          permisos.
-        </Tip>
-      </div>
-    ),
-  },
-  {
-    id: "navegacion",
-    icon: "📅",
-    title: "Navegación por mes y año",
-    content: (
-      <div className="space-y-2 text-sm text-gray-600 leading-6">
-        <p>
-          Dentro del calendario hay un selector de <span className="font-medium text-gray-800">mes</span> y{" "}
-          <span className="font-medium text-gray-800">año</span> en la esquina superior derecha de la barra de
-          pestañas. Cambiar el mes navega al calendario de ese período.
-        </p>
-        <p>
-          Si tienes cambios sin guardar, la app te preguntará si deseas guardar antes de salir. Responde{" "}
-          <span className="font-medium">Guardar y salir</span> para conservar los cambios o{" "}
-          <span className="font-medium">Salir sin guardar</span> para descartar.
-        </p>
-        <Warning>
-          Cerrar la pestaña del navegador con cambios sin guardar activará el aviso del navegador, pero si
-          navegas dentro de la app usa siempre los botones de la pantalla para no perder trabajo.
-        </Warning>
-      </div>
-    ),
-  },
-  {
-    id: "mensual",
-    icon: "📊",
-    title: "Pestaña: Calendario Mensual",
-    content: (
-      <div className="space-y-2 text-sm text-gray-600 leading-6">
-        <p>
-          Es la vista principal. Muestra una tabla por semana ISO donde las filas son los slots de turno (cada
-          fila corresponde a un vendedor) y las columnas son los días de la semana.
-        </p>
-        <List
-          items={[
-            {
-              label: "Click en el nombre del vendedor (columna izquierda)",
-              desc: "Abre el diálogo de asignación para cambiar qué vendedor está en ese slot.",
-            },
-            {
-              label: "Click en una celda de turno",
-              desc: "Abre el editor de horario para ajustar la hora de entrada y salida de ese día.",
-            },
-            {
-              label: "Click en el encabezado de una columna (día)",
-              desc: "Muestra el Gantt del día debajo de la fila de encabezado para ver todos los horarios en forma visual.",
-            },
-            {
-              label: "Arrastrar una celda de turno",
-              desc: "Mueve el turno a otro día dentro de la misma semana y slot. Útil para intercambiar libre y turno.",
-            },
-            {
-              label: "Columna Hrs Sem",
-              desc: "Muestra las horas laborales netas del vendedor en esa semana (ya descontado el colación).",
-            },
-          ]}
-        />
-        <p className="mt-2">
-          <span className="font-medium text-gray-800">Colores:</span> cada slot tiene un color único. Las celdas
-          con nombre visible tienen el color del slot asignado; las celdas azules claras son slots sin vendedor
-          asignado aún. Las celdas grises son bloqueos (vacaciones, licencia).
-        </p>
-        <Tip>
-          Los días anteriores a hoy están bloqueados en calendarios ya guardados: no se pueden editar ni arrastrar.
-          Esto evita modificar turnos del pasado accidentalmente.
-        </Tip>
-      </div>
-    ),
-  },
-  {
-    id: "vendedor",
-    icon: "👤",
-    title: "Pestaña: Turno por Vendedor",
-    content: (
-      <div className="space-y-2 text-sm text-gray-600 leading-6">
-        <p>
-          Muestra un mini-calendario individual por cada vendedor. Ideal para revisar el mes completo de una
-          persona o comparar el turno de dos vendedores en paralelo.
-        </p>
-        <List
-          items={[
-            {
-              label: "Filtros de vendedores (chips superiores)",
-              desc: "Activa o desactiva qué vendedores se muestran. El botón Todos muestra o esconde a todos.",
-            },
-            {
-              label: "Header del vendedor (barra de color)",
-              desc: "Haz click para cambiar qué vendedor está asignado a ese slot.",
-            },
-            {
-              label: "Click en celda de turno",
-              desc: "Abre el editor de horario exactamente igual que en la vista Mensual.",
-            },
-            {
-              label: "Arrastrar una celda",
-              desc: "Mueve el turno a otro día de la misma semana. También funciona el intercambio entre días con turno y días libres.",
-            },
-            {
-              label: "Columna Hrs",
-              desc: "Horas netas de esa semana. El total mensual aparece en el header junto al número de slot.",
-            },
-          ]}
-        />
-        <Tip>
-          Esta pestaña es especialmente útil cuando un vendedor pide un cambio puntual de día: puedes ver su
-          semana completa, hacer el intercambio con drag & drop y guardar.
-        </Tip>
-      </div>
-    ),
-  },
-  {
-    id: "cobertura",
-    icon: "📈",
-    title: "Pestaña: Cobertura del Día",
-    content: (
-      <div className="space-y-2 text-sm text-gray-600 leading-6">
-        <p>
-          Muestra un diagrama de Gantt para cada día del mes. Permite detectar huecos de cobertura (horas sin
-          nadie atendiendo) y solapamientos que podrían indicar errores en el calendario.
-        </p>
-        <List
-          items={[
-            {
-              label: "Mini-calendario de filtro",
-              desc: "Haz click en los días para mostrar u ocultar. Útil para enfocarse en fines de semana o días específicos.",
-            },
-            {
-              label: "Barras horizontales",
-              desc: "Cada barra es el turno de un vendedor. El ancho representa la duración; el color identifica al vendedor.",
-            },
-            {
-              label: "Días rojos",
-              desc: "Son feriados irrenunciables (1 enero, 1 mayo, 18-19 septiembre, 25 diciembre). Nadie trabaja esos días.",
-            },
-          ]}
-        />
-        <Tip>
-          Esta vista no permite editar. Es solo lectura. Para hacer cambios, vuelve a Calendario Mensual o Turno
-          por Vendedor.
-        </Tip>
-      </div>
-    ),
-  },
-  {
-    id: "generar",
-    icon: "⚙️",
-    title: "Generar, Reiniciar y Guardar",
-    content: (
-      <div className="space-y-2 text-sm text-gray-600 leading-6">
-        <List
-          items={[
-            {
-              label: "Generar",
-              desc: "Crea la plantilla de turnos del mes por primera vez y asigna a los vendedores automáticamente en orden. Aparece cuando el calendario aún no existe.",
-            },
-            {
-              label: "Reiniciar",
-              desc: "Borra todas las asignaciones de vendedores dejando los slots vacíos, pero conserva la estructura de turnos del mes. Úsalo si quieres reasignar desde cero sin cambiar los horarios.",
-            },
-            {
-              label: "Guardar",
-              desc: "Confirma todos los cambios y los guarda en la base de datos. RRHH será notificado automáticamente. El botón está activo solo si hay cambios pendientes.",
-            },
-          ]}
-        />
-        <Warning>
-          Reiniciar es una acción destructiva: borra todas las asignaciones del mes. Te pedirá confirmación
-          antes de proceder. No afecta calendarios de otros meses.
-        </Warning>
-        <Tip>
-          Si guardas un calendario con vendedores sin asignar, se guarda como "versión incompleta". Puedes
-          completarlo después. La app te avisa antes de guardar si faltan asignaciones.
-        </Tip>
-      </div>
-    ),
-  },
-  {
-    id: "asignar",
-    icon: "🔄",
-    title: "Asignar vendedores a slots",
-    content: (
-      <div className="space-y-2 text-sm text-gray-600 leading-6">
-        <p>
-          Cada fila del calendario es un <span className="font-medium text-gray-800">slot</span> (posición de
-          turno). Un slot puede estar vacío o tener asignado un vendedor.
-        </p>
-        <p>
-          Para asignar, haz click en el nombre en la columna izquierda (vista Mensual) o en el header del
-          vendedor (vista Turno por Vendedor). Se abrirá un listado con los vendedores disponibles para ese slot.
-        </p>
-        <List
-          items={[
-            {
-              label: "Vendedor actual",
-              desc: "Aparece marcado como 'actual' en el listado. Haz click en él si quieres mantenerlo.",
-            },
-            {
-              label: "Quitar asignación",
-              desc: "Botón rojo al pie del diálogo. Deja el slot vacío.",
-            },
-            {
-              label: "Vendedores no disponibles",
-              desc: "Los que ya están asignados en otro slot del mismo mes no aparecen en la lista (no se puede duplicar).",
-            },
-          ]}
-        />
-        <Tip>
-          Si un vendedor no aparece en el listado, puede que ya esté asignado en otro slot. Revisa la columna
-          izquierda del calendario para encontrar dónde está asignado actualmente.
-        </Tip>
-      </div>
-    ),
-  },
-  {
-    id: "editar",
-    icon: "✏️",
-    title: "Editar horarios de turno",
-    content: (
-      <div className="space-y-2 text-sm text-gray-600 leading-6">
-        <p>
-          Al hacer click en una celda de turno se abre el editor. Desde ahí puedes ajustar la hora de inicio y
-          término del turno para ese día específico.
-        </p>
-        <List
-          items={[
-            {
-              label: "◀ Atrasar 1h / Adelantar 1h ▶",
-              desc: "Mueve el turno completo 60 minutos hacia atrás o adelante, respetando la franja operativa de la sucursal.",
-            },
-            {
-              label: "◀ 30 min / 30 min ▶",
-              desc: "Igual que los botones de 1h pero en incrementos de 30 minutos.",
-            },
-            {
-              label: "Inputs manuales (Inicio / Final)",
-              desc: "Permite ingresar una hora exacta. La app valida que el turno esté dentro de la franja y no supere 10 horas netas.",
-            },
-            {
-              label: "Redistribuir horas",
-              desc: "Si acortas un turno, la app te pregunta si quieres agregar esas horas a otro día de la misma semana para compensar.",
-            },
-          ]}
-        />
-        <Warning>
-          Cada sucursal tiene una franja operativa (ej. 09:00–19:00). No puedes ingresar horarios fuera de ese
-          rango ni turnos que superen 10 horas netas. El botón Guardar se desactiva si el horario no es válido.
-        </Warning>
-        <Tip>
-          El resumen de horas debajo de los inputs muestra en tiempo real cuántas horas laborales tiene el
-          turno modificado y si hay diferencia respecto al turno original.
-        </Tip>
-      </div>
-    ),
-  },
-  {
-    id: "dragdrop",
-    icon: "↔️",
-    title: "Mover turnos con drag & drop",
-    content: (
-      <div className="space-y-2 text-sm text-gray-600 leading-6">
-        <p>
-          Puedes arrastrar una celda de turno a otro día dentro de la misma semana y el mismo slot. Esto
-          intercambia el contenido de los dos días (uno queda con el turno y el otro con libre, o se intercambian
-          dos turnos entre sí).
-        </p>
-        <List
-          items={[
-            {
-              label: "Arrastrar turno a día libre",
-              desc: "El turno se mueve al día libre; el día original queda libre.",
-            },
-            {
-              label: "Arrastrar turno a otro turno",
-              desc: "Los dos días intercambian sus turnos.",
-            },
-            {
-              label: "Arrastrar día libre a turno",
-              desc: "Equivale a mover el turno al día libre.",
-            },
-          ]}
-        />
-        <Warning>
-          No se puede mover un turno a un día que la sucursal no opera (ej. domingo si el patrón no incluye
-          domingos). Tampoco se permiten cambios que generen más de 6 días laborales consecutivos.
-        </Warning>
-        <Tip>
-          En calendarios ya guardados, los días anteriores a hoy están bloqueados y no se pueden arrastrar.
-        </Tip>
-      </div>
-    ),
-  },
-  {
-    id: "grupos",
-    icon: "🏢",
-    title: "Grupos de sucursales",
-    content: (
-      <div className="space-y-2 text-sm text-gray-600 leading-6">
-        <p>
-          Cuando administras varias sucursales puedes crear un grupo para ver y editar sus calendarios
-          combinados en una sola pantalla.
-        </p>
-        <p>
-          En la pantalla de inicio, activa los checkboxes de 2 o más sucursales y haz click en{" "}
-          <span className="font-medium text-gray-800">Asignación de turnos</span>. La app crea el grupo
-          automáticamente.
-        </p>
-        <List
-          items={[
-            {
-              label: "Vista combinada por área",
-              desc: "Si el grupo tiene sucursales con Ventas y Postventa, aparecen dos bloques separados: uno por área.",
-            },
-            {
-              label: "Guardado automático por equipo",
-              desc: "Al guardar un calendario de grupo, la app guarda por separado el calendar de cada equipo. RRHH recibe un solo archivo Excel consolidado.",
-            },
-            {
-              label: "Disolver un grupo",
-              desc: "Solo el administrador puede hacerlo desde /admin/grupos.",
-            },
-          ]}
-        />
-        <Tip>
-          Una sucursal solo puede pertenecer a un grupo a la vez. Si intentas crear un grupo con una sucursal
-          que ya está en otro, la app te avisará.
-        </Tip>
-      </div>
-    ),
-  },
-  {
-    id: "exportar",
-    icon: "📥",
-    title: "Exportar el calendario",
-    content: (
-      <div className="space-y-2 text-sm text-gray-600 leading-6">
-        <p>
-          Hay dos botones de exportación, disponibles solo cuando el calendario está guardado y no tiene errores
-          bloqueantes:
-        </p>
-        <List
-          items={[
-            {
-              label: "Exportar Calendario",
-              desc: "Genera un Excel con la vista mensual: filas por slot, columnas por día. Útil para imprimir o enviar internamente.",
-            },
-            {
-              label: "Exportar Excel (RRHH)",
-              desc: "Genera el Excel en el formato que usa RRHH: incluye RUT y nombre completo. Requiere que todos los slots estén asignados.",
-            },
-          ]}
-        />
-        <Warning>
-          El Excel de RRHH no se puede generar si hay slots sin vendedor asignado. La app te avisará cuántos
-          faltan. Asigna todos antes de exportar o usa Exportar Calendario como respaldo parcial.
-        </Warning>
-        <Tip>
-          Al exportar se guarda automáticamente el calendario si tiene cambios pendientes, antes de generar el
-          archivo.
-        </Tip>
-      </div>
-    ),
-  },
-  {
-    id: "bloqueos",
-    icon: "🔒",
-    title: "Bloqueos de vendedores",
-    content: (
-      <div className="space-y-2 text-sm text-gray-600 leading-6">
-        <p>
-          Un bloqueo indica que un vendedor no está disponible en un rango de fechas (vacaciones, licencia
-          médica, permiso, etc.). Lo configura el administrador desde el detalle de la sucursal.
-        </p>
-        <List
-          items={[
-            {
-              label: "Celda gris con texto Bloq.",
-              desc: "Aparece en los días en que el vendedor tiene un bloqueo activo. El sistema no cuenta esas horas.",
-            },
-            {
-              label: "Tooltip al pasar el cursor",
-              desc: "Muestra el motivo del bloqueo si fue registrado.",
-            },
-            {
-              label: "Celdas bloqueadas no son editables",
-              desc: "No puedes asignar turnos a un vendedor bloqueado ni arrastrar hacia esas celdas.",
-            },
-          ]}
-        />
-        <Tip>
-          Si un vendedor tiene un bloqueo pero ves que su turno igual aparece asignado, el calendario fue
-          generado antes del bloqueo. Reinicia la asignación o edita manualmente ese día.
-        </Tip>
-      </div>
-    ),
-  },
-  {
-    id: "errores",
-    icon: "❗",
-    title: "Errores y advertencias comunes",
-    content: (
-      <div>
-        <List
-          items={[
-            {
-              label: "Falta categoría",
-              desc: "El equipo no tiene categoría de turno asignada. El administrador debe configurarla desde la ficha de la sucursal. Sin categoría no se puede generar el calendario.",
-            },
-            {
-              label: "Vendedor sin asignar",
-              desc: "Hay uno o más slots sin vendedor. Puedes guardar igualmente como versión incompleta y completarlo después.",
-            },
-            {
-              label: "No veo una sucursal",
-              desc: "Puede que no esté asignada a tu usuario. Contacta al administrador para revisar los permisos.",
-            },
-            {
-              label: "El calendario quedó en blanco al cambiar de mes",
-              desc: "Es normal si ese mes aún no tiene calendario generado. Presiona Generar para crear la plantilla.",
-            },
-            {
-              label: "Horario inválido en el editor",
-              desc: "El turno cae fuera de la franja operativa o supera 10 horas netas. Ajusta usando los botones de ±1h o ±30min hasta que el resumen muestre horas válidas.",
-            },
-            {
-              label: "No puedo mover un turno a ese día",
-              desc: "El día destino no es laborable según el patrón (ej. domingo), o el movimiento generaría más de 6 días consecutivos.",
-            },
-            {
-              label: "El botón Guardar está desactivado",
-              desc: "No hay cambios pendientes o el calendario ya está guardado tal como está.",
-            },
-          ]}
-        />
-      </div>
-    ),
-  },
-];
+interface RefProps {
+  icon: string;
+  title: string;
+  children: React.ReactNode;
+  open: boolean;
+  onToggle: () => void;
+}
+
+function RefSection({ icon, title, children, open, onToggle }: RefProps) {
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors"
+      >
+        <span className="text-base">{icon}</span>
+        <span className="text-sm font-semibold text-gray-800 flex-1">{title}</span>
+        <span className={`text-gray-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`}>▾</span>
+      </button>
+      {open && (
+        <div className="px-4 pb-4 border-t border-gray-100 pt-3 text-sm text-gray-600 leading-6 space-y-2">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Item({ label, desc }: { label: string; desc: string }) {
+  return (
+    <li className="text-sm text-gray-600 leading-6">
+      <span className="font-medium text-gray-800">{label}:</span> {desc}
+    </li>
+  );
+}
 
 export default function SupervisorHelpPage() {
   const [open, setOpen] = useState<Record<string, boolean>>({});
-
-  function toggle(id: string) {
-    setOpen((prev) => ({ ...prev, [id]: !prev[id] }));
-  }
+  const toggle = (id: string) => setOpen((p) => ({ ...p, [id]: !p[id] }));
 
   return (
     <div className="p-6 max-w-3xl">
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-gray-900">Cómo usar el calendario</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Guía completa para supervisores y jefes de sucursal. Haz click en cada sección para expandirla.
+          Sigue estos pasos en orden para generar y publicar el calendario de tu sucursal cada mes.
         </p>
       </div>
 
+      {/* ── PASOS ── */}
       <div className="space-y-2">
-        {SECTIONS.map((sec) => {
-          const isOpen = !!open[sec.id];
-          return (
-            <div key={sec.id} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-              <button
-                onClick={() => toggle(sec.id)}
-                className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 transition-colors"
-              >
-                <div className="flex items-center gap-2.5">
-                  <span className="text-lg">{sec.icon}</span>
-                  <span className="text-sm font-semibold text-gray-800">{sec.title}</span>
-                </div>
-                <span className={`text-gray-400 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}>
-                  ▾
-                </span>
-              </button>
-              {isOpen && (
-                <div className="px-4 pb-4 border-t border-gray-100 pt-3">
-                  {sec.content}
-                </div>
-              )}
-            </div>
-          );
-        })}
+
+        <Step number={1} icon="🏠" title="Entra a tu sucursal" open={!!open["1"]} onToggle={() => toggle("1")}>
+          <p>
+            En la pantalla de inicio (<strong>Mis sucursales</strong>) verás las sucursales asignadas a tu
+            usuario. Haz click en la tarjeta de la sucursal para abrir su calendario.
+          </p>
+          <p>
+            Si administras varias sucursales, puedes activar los{" "}
+            <strong>checkboxes</strong> de dos o más y presionar{" "}
+            <strong>Asignación de turnos</strong> para verlas combinadas en una sola pantalla.
+          </p>
+          <Tip>
+            Si una sucursal no aparece, pide al administrador que revise tus permisos. Solo ves lo que está
+            asignado a tu usuario.
+          </Tip>
+        </Step>
+
+        <Step number={2} icon="📅" title="Elige el mes a trabajar" open={!!open["2"]} onToggle={() => toggle("2")}>
+          <p>
+            Dentro del calendario hay un selector de <strong>mes</strong> y <strong>año</strong> en la
+            esquina superior derecha. Cámbialo para navegar a otro período.
+          </p>
+          <p>
+            Si tienes cambios sin guardar, la app te preguntará si deseas guardarlos antes de cambiar de mes.
+            Responde <strong>Guardar y salir</strong> para conservarlos o{" "}
+            <strong>Salir sin guardar</strong> para descartar.
+          </p>
+          <Warning>
+            Cerrar la pestaña del navegador con cambios sin guardar disparará el aviso del navegador. Usa
+            siempre los botones de la app para navegar sin perder trabajo.
+          </Warning>
+        </Step>
+
+        <Step number={3} icon="⚙️" title="Genera la plantilla del mes" open={!!open["3"]} onToggle={() => toggle("3")}>
+          <p>
+            Si el calendario del mes aún no existe, verás el botón <strong>Generar</strong>. Presiónalo para
+            crear la plantilla de turnos y asignar a los vendedores automáticamente en orden.
+          </p>
+          <p>
+            Si el calendario ya existe y quieres rehacerlo desde cero, usa <strong>Reiniciar</strong>: borra
+            todas las asignaciones de vendedores dejando los slots vacíos, pero conserva la estructura de
+            horarios.
+          </p>
+          <Warning>
+            Reiniciar es irreversible: borra todas las asignaciones del mes. La app te pedirá confirmación
+            antes de proceder.
+          </Warning>
+          <Tip>
+            Si no aparece el botón Generar y el calendario está vacío, puede que la sucursal no tenga
+            categoría de turno asignada. El administrador debe configurarla desde la ficha de la sucursal.
+          </Tip>
+        </Step>
+
+        <Step number={4} icon="👤" title="Asigna los vendedores a cada slot" open={!!open["4"]} onToggle={() => toggle("4")}>
+          <p>
+            Cada fila del calendario es un <strong>slot</strong> (posición de turno). Al generar, los
+            vendedores se asignan automáticamente en orden, pero puedes cambiarlos manualmente.
+          </p>
+          <p>
+            Para cambiar o asignar un vendedor, haz click en el <strong>nombre en la columna
+            izquierda</strong> (vista Mensual) o en el <strong>header de color</strong> (vista Turno por
+            Vendedor). Se abrirá un listado con los vendedores disponibles.
+          </p>
+          <ul className="mt-2 space-y-1.5 list-none">
+            <Item label="Actual" desc="El vendedor asignado aparece marcado. Haz click en él si no quieres cambiarlo." />
+            <Item label="Quitar asignación" desc="Botón rojo al pie del diálogo. Deja el slot vacío." />
+            <Item label="No aparece un vendedor" desc="Puede que ya esté asignado en otro slot. Búscalo en el calendario y quítalo de ahí primero." />
+          </ul>
+        </Step>
+
+        <Step number={5} icon="✏️" title="Ajusta los horarios si es necesario" open={!!open["5"]} onToggle={() => toggle("5")}>
+          <p>
+            Haz click en cualquier <strong>celda de turno</strong> para abrir el editor de horario de ese día.
+          </p>
+          <ul className="mt-2 space-y-1.5 list-none">
+            <Item label="◀ Atrasar / Adelantar 1h ▶" desc="Mueve el turno completo 60 minutos. Los botones se desactivan si se sale de la franja operativa." />
+            <Item label="◀ 30 min / 30 min ▶" desc="Igual, pero en incrementos de 30 minutos." />
+            <Item label="Inputs manuales" desc="Escribe la hora exacta. La app valida que esté dentro de la franja y no supere 10 horas netas." />
+            <Item label="Redistribuir horas" desc="Si acortas un turno, la app te pregunta si quieres agregar esas horas a otro día de la misma semana para compensar." />
+          </ul>
+          <Warning>
+            Cada sucursal tiene una franja operativa (ej. 09:00–19:00). No se pueden ingresar horarios fuera
+            de ese rango ni turnos que superen 10 horas netas. El botón Guardar se desactiva si el horario no
+            es válido.
+          </Warning>
+        </Step>
+
+        <Step number={6} icon="↔️" title="Reordena días con drag & drop" open={!!open["6"]} onToggle={() => toggle("6")}>
+          <p>
+            Puedes <strong>arrastrar una celda de turno</strong> a otro día dentro de la misma semana para
+            intercambiar días. Funciona tanto en la vista Mensual como en Turno por Vendedor.
+          </p>
+          <ul className="mt-2 space-y-1.5 list-none">
+            <Item label="Turno → día libre" desc="El turno se mueve; el día original queda libre." />
+            <Item label="Turno → otro turno" desc="Ambos días intercambian sus turnos." />
+          </ul>
+          <Warning>
+            No se puede mover un turno a un día que la sucursal no opera (ej. domingo si el patrón no
+            incluye domingos), ni si el movimiento genera más de 6 días laborales consecutivos.
+          </Warning>
+          <Tip>
+            En calendarios ya guardados, los días anteriores a hoy están bloqueados y no se pueden arrastrar
+            ni editar.
+          </Tip>
+        </Step>
+
+        <Step number={7} icon="📈" title="Revisa la cobertura del día" open={!!open["7"]} onToggle={() => toggle("7")}>
+          <p>
+            Cambia a la pestaña <strong>Cobertura del Día</strong> para ver un Gantt por día. Muestra quién
+            trabaja en cada hora y facilita detectar huecos o solapamientos.
+          </p>
+          <ul className="mt-2 space-y-1.5 list-none">
+            <Item label="Mini-calendario filtro" desc="Activa o desactiva días para enfocarte en fines de semana o fechas específicas." />
+            <Item label="Barras horizontales" desc="Cada barra es el turno de un vendedor. El ancho representa la duración." />
+            <Item label="Días en rojo" desc="Son feriados irrenunciables (1 enero, 1 mayo, 18-19 sep, 25 dic). Nadie trabaja esos días." />
+          </ul>
+          <Tip>
+            Esta vista es solo lectura. Para hacer cambios, vuelve a Calendario Mensual o Turno por Vendedor.
+          </Tip>
+        </Step>
+
+        <Step number={8} icon="💾" title="Guarda el calendario" open={!!open["8"]} onToggle={() => toggle("8")}>
+          <p>
+            Presiona <strong>Guardar</strong> para confirmar todos los cambios. RRHH recibirá una
+            notificación automática con el calendario adjunto.
+          </p>
+          <p>
+            Si hay vendedores sin asignar, puedes guardar igual como <strong>versión incompleta</strong> para
+            dejar respaldo y completarlo después. La app te preguntará antes.
+          </p>
+          <Tip>
+            El botón Guardar solo está activo cuando hay cambios pendientes. Si está gris, el calendario ya
+            está actualizado en el servidor.
+          </Tip>
+        </Step>
+
+        <Step number={9} icon="📥" title="Exporta si necesitas enviar el Excel" open={!!open["9"]} onToggle={() => toggle("9")}>
+          <p>
+            Hay dos botones de exportación disponibles una vez guardado el calendario:
+          </p>
+          <ul className="mt-2 space-y-1.5 list-none">
+            <Item label="Exportar Calendario" desc="Excel con la vista mensual: filas por slot, columnas por día. Útil para imprimir o enviar internamente." />
+            <Item label="Exportar Excel (RRHH)" desc="Formato oficial RRHH con RUT y nombre completo. Requiere que todos los slots tengan vendedor asignado." />
+          </ul>
+          <Warning>
+            El Excel de RRHH no se puede generar con slots vacíos. Asigna todos los vendedores antes de
+            exportar, o usa Exportar Calendario como respaldo parcial.
+          </Warning>
+        </Step>
+
+      </div>
+
+      {/* ── REFERENCIA ── */}
+      <div className="mt-6 mb-2">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-1">Referencia adicional</p>
+      </div>
+      <div className="space-y-2">
+
+        <RefSection icon="👁️" title="Las tres pestañas del calendario" open={!!open["tabs"]} onToggle={() => toggle("tabs")}>
+          <ul className="space-y-2">
+            <Item
+              label="Calendario Mensual"
+              desc="Vista principal por semana. Un slot por fila, un día por columna. Click en el encabezado de un día muestra el Gantt de ese día debajo de la tabla."
+            />
+            <Item
+              label="Turno por Vendedor"
+              desc="Mini-calendario individual por cada vendedor. Ideal para revisar el mes completo de una persona. Filtra con los chips en la parte superior."
+            />
+            <Item
+              label="Cobertura del Día"
+              desc="Gantt horizontal de todos los días del mes. Solo lectura. Para filtrar días usa el mini-calendario de la parte superior."
+            />
+          </ul>
+        </RefSection>
+
+        <RefSection icon="🏢" title="Grupos de sucursales" open={!!open["grupos"]} onToggle={() => toggle("grupos")}>
+          <p>
+            Cuando seleccionas varias sucursales en la pantalla de inicio y creas un grupo, el sistema muestra
+            un calendario combinado separado por área de negocio (Ventas / Postventa).
+          </p>
+          <ul className="mt-2 space-y-1.5">
+            <Item label="Guardar grupo" desc="Al guardar, se registran los calendarios de cada equipo por separado. RRHH recibe un Excel consolidado." />
+            <Item label="Disolver un grupo" desc="Solo el administrador puede hacerlo desde /admin/grupos." />
+          </ul>
+          <Tip>Una sucursal solo puede pertenecer a un grupo a la vez.</Tip>
+        </RefSection>
+
+        <RefSection icon="🔒" title="Bloqueos de vendedores" open={!!open["bloqueos"]} onToggle={() => toggle("bloqueos")}>
+          <p>
+            Un bloqueo indica que un vendedor no está disponible en un rango de fechas (vacaciones, licencia
+            médica, permiso). Lo configura el administrador.
+          </p>
+          <ul className="mt-2 space-y-1.5">
+            <Item label="Celda gris con Bloq." desc="El vendedor tiene un bloqueo activo ese día. El sistema no cuenta esas horas." />
+            <Item label="Tooltip" desc="Pasa el cursor por la celda para ver el motivo del bloqueo." />
+          </ul>
+          <Tip>
+            Si un vendedor tiene bloqueo pero aparece con turno asignado, el calendario se generó antes de
+            registrar el bloqueo. Edita ese día o reinicia la asignación.
+          </Tip>
+        </RefSection>
+
+        <RefSection icon="❗" title="Errores y problemas comunes" open={!!open["errores"]} onToggle={() => toggle("errores")}>
+          <ul className="space-y-2">
+            <Item label="Falta categoría" desc="El equipo no tiene categoría de turno. El administrador debe asignarla desde la ficha de la sucursal. Sin ella no se puede generar el calendario." />
+            <Item label="Vendedor sin asignar" desc="Hay slots vacíos. Puedes guardar como versión incompleta y completarlo después." />
+            <Item label="No veo una sucursal" desc="Puede que no esté asignada a tu usuario. Contacta al administrador." />
+            <Item label="Calendario en blanco al cambiar mes" desc="Ese mes no tiene calendario. Presiona Generar para crear la plantilla." />
+            <Item label="Horario inválido en el editor" desc="El turno cae fuera de la franja operativa o supera 10 horas netas. Ajusta con los botones de ±1h o ±30min." />
+            <Item label="No puedo mover un turno" desc="El día destino no es laborable según el patrón, o el movimiento generaría más de 6 días consecutivos." />
+            <Item label="Botón Guardar desactivado" desc="No hay cambios pendientes. El calendario ya está actualizado." />
+          </ul>
+        </RefSection>
+
       </div>
 
       <div className="mt-6 bg-amber-50 border border-amber-200 rounded-lg p-4">
         <h2 className="text-sm font-semibold text-amber-900">¿Necesitas ayuda adicional?</h2>
         <p className="text-sm text-amber-800 mt-2 leading-6">
-          Incluye: nombre de la sucursal o grupo, mes, qué acción estabas haciendo y una captura de pantalla si
-          puedes. Con eso se puede revisar el historial mucho más rápido.
+          Incluye: nombre de la sucursal o grupo, mes, qué acción estabas haciendo y una captura de pantalla.
+          Con eso se puede revisar el historial mucho más rápido.
         </p>
         <p className="text-sm text-amber-800 mt-2">
           Contacto:{" "}
