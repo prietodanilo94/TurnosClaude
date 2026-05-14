@@ -31,8 +31,8 @@ async function stepLogin(browser) {
   const context = await browser.newContext();
   const page = await context.newPage();
 
-  await page.goto(process.env.BNOVUS_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
-  await page.waitForSelector('#UserName', { timeout: 15000 });
+  await page.goto(process.env.BNOVUS_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  await page.waitForSelector('#UserName', { timeout: 60000 });
 
   await page.fill('#UserName', process.env.BNOVUS_USER);
   await page.fill('#Password', process.env.BNOVUS_PASS);
