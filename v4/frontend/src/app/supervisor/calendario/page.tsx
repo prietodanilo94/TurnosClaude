@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getSession } from "@/lib/auth/session";
 import { generateCalendar } from "@/lib/calendar/generator";
 import { getAllPatterns } from "@/lib/patterns/catalog";
+import { supervisorLookupKey } from "@/lib/supervisors";
 import type { TeamSlice } from "@/lib/calendar/teamSplit";
 import type { CalendarSlot, ShiftCategory, WorkerBlockInfo } from "@/types";
 import SupervisorCalendarView from "./SupervisorCalendarView";
@@ -92,6 +93,13 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
     orderBy: [{ branch: { nombre: "asc" } }, { areaNegocio: "asc" }],
   });
 
+  // Bug 6: excluir supervisores del listado de trabajadores
+  const branchSupervisors = await prisma.supervisorBranch.findMany({
+    where: { branchId: { in: selectedBranchIds } },
+    include: { supervisor: { select: { nombre: true } } },
+  });
+  const supervisorKeys = new Set(branchSupervisors.map(sb => supervisorLookupKey(sb.supervisor.nombre)));
+
   const allPatterns = getAllPatterns();
 
   interface DisplayBlock {
@@ -123,17 +131,21 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
       const definedCat = areaTeams.find((t) => t.categoria)?.categoria ?? null;
 
       const allWorkers = areaTeams.flatMap((t) =>
-        t.workers.map((w) => ({ id: w.id, nombre: w.nombre })),
+        t.workers
+          .filter(w => !supervisorKeys.has(supervisorLookupKey(w.nombre)))
+          .map((w) => ({ id: w.id, nombre: w.nombre })),
       );
       const allBlocks: WorkerBlockInfo[] = areaTeams.flatMap((t) =>
-        t.workers.flatMap((w) =>
-          w.blocks.map((b) => ({
-            id: b.id, workerId: w.id,
-            startDate: b.startDate.toISOString().slice(0, 10),
-            endDate: b.endDate.toISOString().slice(0, 10),
-            motivo: b.motivo,
-          })),
-        ),
+        t.workers
+          .filter(w => !supervisorKeys.has(supervisorLookupKey(w.nombre)))
+          .flatMap((w) =>
+            w.blocks.map((b) => ({
+              id: b.id, workerId: w.id,
+              startDate: b.startDate.toISOString().slice(0, 10),
+              endDate: b.endDate.toISOString().slice(0, 10),
+              motivo: b.motivo,
+            })),
+          ),
       );
 
       let offset = 0;
@@ -143,7 +155,8 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
       let hasCalendar = false;
 
       for (const team of areaTeams) {
-        const N = team.workers.length;
+        const teamWorkers = team.workers.filter(w => !supervisorKeys.has(supervisorLookupKey(w.nombre)));
+        const N = teamWorkers.length;
         const cal = team.calendars[0];
         if (cal) hasCalendar = true;
 
@@ -166,7 +179,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
           allAssignments[String(Number(k) + offset)] = v;
         }
 
-        slices.push({ teamId: team.id, workerIds: team.workers.map((w) => w.id) });
+        slices.push({ teamId: team.id, workerIds: teamWorkers.map((w) => w.id) });
         offset += N;
       }
 
@@ -189,8 +202,9 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
     }
   } else {
     for (const team of teams) {
+      const teamWorkers = team.workers.filter(w => !supervisorKeys.has(supervisorLookupKey(w.nombre)));
       const cal = team.calendars[0];
-      const N   = team.workers.length;
+      const N   = teamWorkers.length;
       let slots: CalendarSlot[];
       let assignments: Record<string, string | null> = {};
 
@@ -203,8 +217,8 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
         slots = [];
       }
 
-      const workers = team.workers.map((w) => ({ id: w.id, nombre: w.nombre }));
-      const allBlocks: WorkerBlockInfo[] = team.workers.flatMap((w) =>
+      const workers = teamWorkers.map((w) => ({ id: w.id, nombre: w.nombre }));
+      const allBlocks: WorkerBlockInfo[] = teamWorkers.flatMap((w) =>
         w.blocks.map((b) => ({
           id: b.id, workerId: w.id,
           startDate: b.startDate.toISOString().slice(0, 10),

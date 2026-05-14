@@ -199,12 +199,109 @@ export default function CalendarView({
   const [shiftEditDialog, setShiftEditDialog] = useState<{ slotNum: number; dateStr: string } | null>(null);
   const [recalculating, setRecalculating] = useState(false);
   const [changeReminded, setChangeReminded] = useState(false);
+  const [confirmModal, setConfirmModal] = useState<{
+    message: string;
+    yesLabel: string;
+    noLabel: string;
+    onYes: () => void;
+    onNo: () => void;
+  } | null>(null);
 
-  function tryChange(): boolean {
-    if (!changeRemindMessage || changeReminded || !calId) return true;
-    const ok = confirm(changeRemindMessage);
-    if (ok) setChangeReminded(true);
-    return ok;
+  function openConfirm(
+    message: string,
+    yesLabel: string,
+    onYes: () => void,
+    noLabel = "Cancelar",
+    onNo?: () => void,
+  ) {
+    setConfirmModal({ message, yesLabel, noLabel, onYes, onNo: onNo ?? (() => setConfirmModal(null)) });
+  }
+
+  function tryChangeGated(action: () => void) {
+    if (!changeRemindMessage || changeReminded || !calId) { action(); return; }
+    openConfirm(
+      changeRemindMessage,
+      "Continuar",
+      () => { setChangeReminded(true); setConfirmModal(null); action(); },
+      "Cancelar",
+      () => setConfirmModal(null),
+    );
+  }
+
+  async function doSave(): Promise<string | null> {
+    setSaving(true);
+    try {
+      if (onSaveCalendar) {
+        const id = await onSaveCalendar({
+          teamId, year, month,
+          slotsData: localSlots,
+          assignments: assign,
+          validationSummary: buildValidationSummary(validation),
+          scopeLabel: calendarScopeLabel ?? branchName,
+          scopeType: calendarScopeType,
+          id: calId,
+        });
+        if (id) setCalId(id);
+        setDirty(false);
+        setSaveFeedback(buildSaveSuccessFeedback(validation, calendarScopeLabel ?? branchName));
+        return id ?? calId ?? "saved";
+      }
+      const res = await fetch("/api/calendars", {
+        method: calId ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          teamId, year, month,
+          slotsData: localSlots,
+          assignments: assign,
+          validationSummary: buildValidationSummary(validation),
+          scopeLabel: calendarScopeLabel ?? branchName,
+          scopeType: calendarScopeType,
+          id: calId,
+        }),
+      });
+      if (res.ok) {
+        const d = await res.json();
+        setCalId(d.id);
+        setDirty(false);
+        setSaveFeedback(buildSaveSuccessFeedback(validation, calendarScopeLabel ?? branchName));
+        return d.id as string;
+      }
+      const data = await res.json().catch(() => ({}));
+      setSaveFeedback({ tone: "error", text: data.error ?? "No se pudo guardar el calendario." });
+      return null;
+    } catch (error) {
+      setSaveFeedback({ tone: "error", text: error instanceof Error ? error.message : "No se pudo guardar el calendario." });
+      return null;
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function requestSave(onComplete?: (id: string | null) => void) {
+    if (enforceValidationBeforeSave && validation.errors.length > 0) {
+      const sample = validation.errors.slice(0, 4).map((issue) => `• ${issue.title}`).join("\n");
+      const hiddenCount = validation.errors.length - 4;
+      const more = hiddenCount > 0 ? `\n• Y ${hiddenCount} problema${hiddenCount !== 1 ? "s" : ""} más` : "";
+      openConfirm(
+        `Este calendario tiene ${validation.errors.length} problema${validation.errors.length !== 1 ? "s" : ""}:\n\n${sample}${more}\n\n¿Guardarlo como versión incompleta?`,
+        "Guardar incompleto",
+        async () => {
+          setConfirmModal(null);
+          await logValidationAttempt("confirmed_incomplete_save");
+          const id = await doSave();
+          onComplete?.(id ?? null);
+        },
+        "Cancelar",
+        async () => {
+          setConfirmModal(null);
+          await logValidationAttempt("cancelled");
+          setSaveFeedback({ tone: "warning", text: "Guardado cancelado. Corrige los datos pendientes o guarda como versión incompleta cuando quieras dejar respaldo." });
+          onComplete?.(null);
+        },
+      );
+      return;
+    }
+    void doSave().then(id => onComplete?.(id ?? null));
   }
   const [saveFeedback, setSaveFeedback] = useState<{ tone: "success" | "warning" | "error"; text: string } | null>(null);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
@@ -253,82 +350,7 @@ export default function CalendarView({
 
   async function handleSave(): Promise<string | null> {
     if (saveConfirmMessage && !confirm(saveConfirmMessage)) return null;
-
-    if (enforceValidationBeforeSave && validation.errors.length > 0) {
-      const sample = validation.errors
-        .slice(0, 4)
-        .map((issue) => `- ${issue.title}`)
-        .join("\n");
-      const hiddenCount = validation.errors.length - 4;
-      const more = hiddenCount > 0 ? `\n- Y ${hiddenCount} problema${hiddenCount !== 1 ? "s" : ""} mas` : "";
-      const shouldSaveIncomplete = confirm(
-        `Este calendario esta incompleto (${validation.errors.length} problema${validation.errors.length !== 1 ? "s" : ""}).\n\n${sample}${more}\n\nPuedes guardarlo como version incompleta y corregirlo despues. Continuar?`,
-      );
-      await logValidationAttempt(shouldSaveIncomplete ? "confirmed_incomplete_save" : "cancelled");
-
-      if (!shouldSaveIncomplete) {
-        setSaveFeedback({
-          tone: "warning",
-          text: "Guardado cancelado. Corrige los datos pendientes o guarda como version incompleta cuando quieras dejar respaldo.",
-        });
-        return null;
-      }
-    }
-
-    setSaving(true);
-    try {
-      if (onSaveCalendar) {
-        const id = await onSaveCalendar({
-          teamId,
-          year,
-          month,
-          slotsData: localSlots,
-          assignments: assign,
-          validationSummary: buildValidationSummary(validation),
-          scopeLabel: calendarScopeLabel ?? branchName,
-          scopeType: calendarScopeType,
-          id: calId,
-        });
-        if (id) setCalId(id);
-        setDirty(false);
-        setSaveFeedback(buildSaveSuccessFeedback(validation, calendarScopeLabel ?? branchName));
-        return id ?? calId ?? "saved";
-      }
-
-      const res = await fetch("/api/calendars", {
-        method: calId ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          teamId,
-          year,
-          month,
-          slotsData: localSlots,
-          assignments: assign,
-          validationSummary: buildValidationSummary(validation),
-          scopeLabel: calendarScopeLabel ?? branchName,
-          scopeType: calendarScopeType,
-          id: calId,
-        }),
-      });
-      if (res.ok) {
-        const d = await res.json();
-        setCalId(d.id);
-        setDirty(false);
-        setSaveFeedback(buildSaveSuccessFeedback(validation, calendarScopeLabel ?? branchName));
-        return d.id as string;
-      }
-      const data = await res.json().catch(() => ({}));
-      setSaveFeedback({ tone: "error", text: data.error ?? "No se pudo guardar el calendario." });
-      return null;
-    } catch (error) {
-      setSaveFeedback({
-        tone: "error",
-        text: error instanceof Error ? error.message : "No se pudo guardar el calendario.",
-      });
-      return null;
-    } finally {
-      setSaving(false);
-    }
+    return new Promise<string | null>((resolve) => requestSave(resolve));
   }
 
   async function logValidationAttempt(outcome: "cancelled" | "confirmed_incomplete_save") {
@@ -351,11 +373,12 @@ export default function CalendarView({
     }
   }
 
-  async function handleRecalcular() {
+  function handleRecalcular() {
     const msg = recalculateConfirmMessage ?? (calId
       ? "Esto borrará el calendario guardado y regenerará la plantilla limpia. ¿Continuar?"
       : "Esto regenerará la plantilla limpia descartando los cambios actuales. ¿Continuar?");
-    if (!confirm(msg)) return;
+    openConfirm(msg, "Continuar", async () => {
+      setConfirmModal(null);
     const wasNoCalendar = !calId;
     setRecalculating(true);
     try {
@@ -394,6 +417,7 @@ export default function CalendarView({
     } finally {
       setRecalculating(false);
     }
+    });
   }
 
   useEffect(() => {
@@ -403,14 +427,19 @@ export default function CalendarView({
     return () => window.removeEventListener("beforeunload", handler);
   }, [dirty]);
 
-  async function handleNavigateAway(destination: string) {
+  function handleNavigateAway(destination: string) {
     if (!dirty) { router.push(destination); return; }
-    const wantSave = confirm("¿Deseas guardar los cambios antes de salir?");
-    if (wantSave) {
-      const id = await handleSave();
-      if (!id) return;
-    }
-    router.push(destination);
+    openConfirm(
+      "¿Deseas guardar los cambios antes de salir?",
+      "Guardar y salir",
+      async () => {
+        setConfirmModal(null);
+        const id = await doSave();
+        if (id) router.push(destination);
+      },
+      "Salir sin guardar",
+      () => { setConfirmModal(null); router.push(destination); },
+    );
   }
 
   function navigateTo(newYear: number, newMonth: number) {
@@ -418,29 +447,31 @@ export default function CalendarView({
   }
 
   function handleAssign(slotNum: number, workerId: string | null) {
-    if (!tryChange()) return;
-    setAssign((prev) => ({ ...prev, [String(slotNum)]: workerId }));
-    setDirty(true);
-    setDialogSlot(null);
+    tryChangeGated(() => {
+      setAssign((prev) => ({ ...prev, [String(slotNum)]: workerId }));
+      setDirty(true);
+      setDialogSlot(null);
+    });
   }
 
   function handleShiftSave(slotNum: number, dateStr: string, newShift: DayShift, redistributeDate?: string | null) {
-    if (!tryChange()) return;
-    setLocalSlots(prev => prev.map(s => {
-      if (s.slotNumber !== slotNum) return s;
-      const origShift = s.days[dateStr];
-      const newDays: Record<string, DayShift | null> = { ...s.days, [dateStr]: newShift };
-      if (redistributeDate && origShift) {
-        const target = s.days[redistributeDate];
-        if (target) {
-          const diffMins = Math.round((shiftDuration(origShift) - shiftDuration(newShift)) * 60);
-          newDays[redistributeDate] = { ...target, end: addMinutesToTime(target.end, diffMins) };
+    tryChangeGated(() => {
+      setLocalSlots(prev => prev.map(s => {
+        if (s.slotNumber !== slotNum) return s;
+        const origShift = s.days[dateStr];
+        const newDays: Record<string, DayShift | null> = { ...s.days, [dateStr]: newShift };
+        if (redistributeDate && origShift) {
+          const target = s.days[redistributeDate];
+          if (target) {
+            const diffMins = Math.round((shiftDuration(origShift) - shiftDuration(newShift)) * 60);
+            newDays[redistributeDate] = { ...target, end: addMinutesToTime(target.end, diffMins) };
+          }
         }
-      }
-      return { ...s, days: newDays };
-    }));
-    setDirty(true);
-    setShiftEditDialog(null);
+        return { ...s, days: newDays };
+      }));
+      setDirty(true);
+      setShiftEditDialog(null);
+    });
   }
 
   function handleLibreSwap(slotNum: number, d1: string, d2: string) {
@@ -449,16 +480,38 @@ export default function CalendarView({
     const sh1 = slot.days[d1] ?? null;
     const sh2 = slot.days[d2] ?? null;
     if (sh1 === null && sh2 === null) return;
-    const newDays: Record<string, DayShift | null> = { ...slot.days, [d1]: sh2, [d2]: sh1 };
-    if (!validateConsecutiveDays(newDays)) {
-      alert("Este cambio genera más de 6 días laborales consecutivos.");
+
+    // Bug 5: bloquear si el día destino no existe en el patrón (todos los slots tienen null ese día)
+    const targetDay = sh1 !== null ? d2 : d1; // el día que recibirá el turno
+    const branchOperatesOnTarget = slots.some(s => s.days[targetDay] != null);
+    if (!branchOperatesOnTarget) {
+      openConfirm(
+        "Este día no es laborable según el patrón de turnos de la sucursal. No se puede mover un turno aquí.",
+        "Entendido",
+        () => setConfirmModal(null),
+        "",
+        () => setConfirmModal(null),
+      );
       return;
     }
-    if (!tryChange()) return;
-    setLocalSlots(prev => prev.map(s =>
-      s.slotNumber !== slotNum ? s : { ...s, days: { ...s.days, [d1]: sh2, [d2]: sh1 } }
-    ));
-    setDirty(true);
+
+    const newDays: Record<string, DayShift | null> = { ...slot.days, [d1]: sh2, [d2]: sh1 };
+    if (!validateConsecutiveDays(newDays)) {
+      openConfirm(
+        "Este cambio genera más de 6 días laborales consecutivos, lo cual no está permitido.",
+        "Entendido",
+        () => setConfirmModal(null),
+        "",
+        () => setConfirmModal(null),
+      );
+      return;
+    }
+    tryChangeGated(() => {
+      setLocalSlots(prev => prev.map(s =>
+        s.slotNumber !== slotNum ? s : { ...s, days: { ...s.days, [d1]: sh2, [d2]: sh1 } }
+      ));
+      setDirty(true);
+    });
   }
 
   async function handleExport(mode: "calendar" | "rrhh") {
@@ -476,7 +529,7 @@ export default function CalendarView({
         return;
       }
     }
-    const id = await handleSave();
+    const id = await doSave();
     if (!id) return;
     if (onExportCalendar) {
       await onExportCalendar(mode);
@@ -711,7 +764,7 @@ export default function CalendarView({
           onToggleSlot={toggleSlot}
           onSelectAll={() => setSelectedSlots(new Set(sortedSlots.map((s) => s.slotNumber)))}
           onDeselectAll={() => setSelectedSlots(new Set())}
-          onSlotClick={(n) => { if (!tryChange()) return; setDialogSlot(n); setSelectedDay(null); }}
+          onSlotClick={(n) => tryChangeGated(() => { setDialogSlot(n); setSelectedDay(null); })}
           onLibreSwap={handleLibreSwap}
           lockedBefore={calId ? todayStr : undefined}
         />
@@ -753,6 +806,36 @@ export default function CalendarView({
           }
           onClose={() => setShiftEditDialog(null)}
         />
+      )}
+
+      {/* Modal de confirmación personalizado */}
+      {confirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={confirmModal.onNo}>
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-6 py-5">
+              <p className="text-sm text-gray-800 whitespace-pre-line leading-relaxed">{confirmModal.message}</p>
+            </div>
+            <div className={`flex border-t border-gray-100 ${confirmModal.noLabel ? "justify-between" : "justify-end"} px-6 py-4 gap-3`}>
+              {confirmModal.noLabel && (
+                <button
+                  onClick={confirmModal.onNo}
+                  className="px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors"
+                >
+                  {confirmModal.noLabel}
+                </button>
+              )}
+              <button
+                onClick={confirmModal.onYes}
+                className="px-5 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
+              >
+                {confirmModal.yesLabel}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -1695,18 +1778,31 @@ function ShiftEditDialog({
   const curStartMin = minutesFromTime(start);
   const curEndMin   = minutesFromTime(end);
 
-  const canBack    = curStartMin - 60 >= winStartMin;
-  const canForward = curEndMin   + 60 <= winEndMin;
-  const validShift = curStartMin < curEndMin;
+  const canBack60   = curStartMin - 60 >= winStartMin;
+  const canForward60 = curEndMin + 60 <= winEndMin;
+  const canBack30   = curStartMin - 30 >= winStartMin;
+  const canForward30 = curEndMin + 30 <= winEndMin;
+
+  const withinWindow = curStartMin >= winStartMin && curEndMin <= winEndMin;
+  const rawHours = curStartMin < curEndMin ? (curEndMin - curStartMin) / 60 : 0;
+  const netHours = rawHours >= 6 ? rawHours - 1 : rawHours;
+  const validShift = curStartMin < curEndMin && withinWindow && netHours <= 10;
 
   const baseHours = originalShift ? shiftDuration(originalShift) : shiftDuration(currentShift);
   const newHours  = validShift ? shiftDuration({ start, end }) : 0;
   const diffHours = baseHours - newHours; // positivo = nuevo está por debajo del original
   const diffMins  = Math.round(diffHours * 60);
 
-  function moveShift(dir: -1 | 1) {
-    setStart(addMinutesToTime(start, dir * 60));
-    setEnd(addMinutesToTime(end, dir * 60));
+  function moveShift(mins: number) {
+    setStart(addMinutesToTime(start, mins));
+    setEnd(addMinutesToTime(end, mins));
+  }
+
+  function shiftValidationError(): string | null {
+    if (curStartMin >= curEndMin) return "La hora de inicio debe ser anterior a la hora de término.";
+    if (!withinWindow) return `El turno debe estar dentro de la franja ${operatingWindow.start}–${operatingWindow.end}.`;
+    if (netHours > 10) return "El turno no puede superar 10 horas netas laborales.";
+    return null;
   }
 
   function handleSaveClick() {
@@ -1824,24 +1920,43 @@ function ShiftEditDialog({
           </div>
 
           {/* Mover turno completo */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => moveShift(-1)}
-              disabled={!canBack}
-              className="flex-1 py-2 text-xs font-medium border rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed border-gray-300 hover:bg-gray-50 text-gray-700"
-            >
-              ◀ Atrasar 1h
-            </button>
-            <div className={`px-3 py-2 rounded border text-sm font-semibold text-center min-w-[110px] shrink-0 ${color.bg} ${color.text} ${color.border}`}>
-              {start} → {end}
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => moveShift(-60)}
+                disabled={!canBack60}
+                className="flex-1 py-2 text-xs font-medium border rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed border-gray-300 hover:bg-gray-50 text-gray-700"
+              >
+                ◀ Atrasar 1h
+              </button>
+              <div className={`px-3 py-2 rounded border text-sm font-semibold text-center min-w-[110px] shrink-0 ${color.bg} ${color.text} ${color.border}`}>
+                {start} → {end}
+              </div>
+              <button
+                onClick={() => moveShift(60)}
+                disabled={!canForward60}
+                className="flex-1 py-2 text-xs font-medium border rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed border-gray-300 hover:bg-gray-50 text-gray-700"
+              >
+                Adelantar 1h ▶
+              </button>
             </div>
-            <button
-              onClick={() => moveShift(1)}
-              disabled={!canForward}
-              className="flex-1 py-2 text-xs font-medium border rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed border-gray-300 hover:bg-gray-50 text-gray-700"
-            >
-              Adelantar 1h ▶
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => moveShift(-30)}
+                disabled={!canBack30}
+                className="flex-1 py-1.5 text-[11px] font-medium border rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed border-gray-200 hover:bg-gray-50 text-gray-500"
+              >
+                ◀ 30 min
+              </button>
+              <div className="min-w-[110px] shrink-0" />
+              <button
+                onClick={() => moveShift(30)}
+                disabled={!canForward30}
+                className="flex-1 py-1.5 text-[11px] font-medium border rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed border-gray-200 hover:bg-gray-50 text-gray-500"
+              >
+                30 min ▶
+              </button>
+            </div>
           </div>
 
           {/* Inputs manuales */}
@@ -1880,7 +1995,7 @@ function ShiftEditDialog({
                 )}
               </>
             ) : (
-              <span className="text-red-500">Horario inválido</span>
+              <span className="text-red-500">{shiftValidationError() ?? "Horario inválido"}</span>
             )}
           </div>
         </div>

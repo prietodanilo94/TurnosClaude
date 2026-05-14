@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { generateCalendar } from "@/lib/calendar/generator";
 import { resolveCalendarDisplayCategory, type CalendarCategoryTeam } from "@/lib/calendar/categoryFallback";
 import { getSession } from "@/lib/auth/session";
+import { supervisorLookupKey } from "@/lib/supervisors";
 import type { ShiftCategory, CalendarSlot, WorkerBlockInfo } from "@/types";
 import CalendarView from "./CalendarView";
 
@@ -28,7 +29,7 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
     include: {
       branch: true,
       workers: {
-        where: { activo: true },
+        where: { activo: true, esVirtual: false },
         orderBy: { nombre: "asc" },
         include: {
           blocks: {
@@ -45,6 +46,14 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
   });
 
   if (!team || team.branchId !== params.id) notFound();
+
+  // Bug 6: obtener supervisores de la sucursal para excluirlos de los trabajadores
+  const branchSupervisors = await prisma.supervisorBranch.findMany({
+    where: { branchId: params.id },
+    include: { supervisor: { select: { nombre: true } } },
+  });
+  const supervisorKeys = new Set(branchSupervisors.map(sb => supervisorLookupKey(sb.supervisor.nombre)));
+  const filteredWorkers = team.workers.filter(w => !supervisorKeys.has(supervisorLookupKey(w.nombre)));
 
   const existing = team.calendars[0];
   const groupCategoryCandidates =
@@ -108,8 +117,8 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
     }
   }
 
-  const workerMap = Object.fromEntries(team.workers.map((worker) => [worker.id, worker.nombre]));
-  const workerBlocks: WorkerBlockInfo[] = team.workers.flatMap((worker) =>
+  const workerMap = Object.fromEntries(filteredWorkers.map((worker) => [worker.id, worker.nombre]));
+  const workerBlocks: WorkerBlockInfo[] = filteredWorkers.flatMap((worker) =>
     worker.blocks.map((block) => ({
       id: block.id,
       workerId: worker.id,
@@ -131,7 +140,7 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
       month={month}
       slots={slots}
       assignments={assignments}
-      workers={team.workers.map((worker) => ({
+      workers={filteredWorkers.map((worker) => ({
         id: worker.id,
         nombre: worker.nombre,
         rut: worker.rut,
