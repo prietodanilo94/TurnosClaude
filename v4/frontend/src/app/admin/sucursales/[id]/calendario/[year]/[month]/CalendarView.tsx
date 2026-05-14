@@ -501,9 +501,14 @@ export default function CalendarView({
     return set;
   };
 
+  const todayStr = fmt(new Date());
+
   // Datos para ShiftEditDialog
   const shiftForEdit = shiftEditDialog
     ? (localSlots.find(s => s.slotNumber === shiftEditDialog.slotNum)?.days[shiftEditDialog.dateStr] ?? null)
+    : null;
+  const originalShiftForEdit = shiftEditDialog
+    ? (slots.find(s => s.slotNumber === shiftEditDialog.slotNum)?.days[shiftEditDialog.dateStr] ?? null)
     : null;
   const weekForEdit = shiftEditDialog
     ? (weeks.find(w => w.some(d => fmt(d) === shiftEditDialog.dateStr)) ?? null)
@@ -688,6 +693,7 @@ export default function CalendarView({
               onDayClick={(ds) => setSelectedDay((prev) => prev === ds ? null : ds)}
               onShiftCellClick={(slotNum, dateStr) => setShiftEditDialog({ slotNum, dateStr })}
               onLibreSwap={handleLibreSwap}
+              lockedBefore={calId ? todayStr : undefined}
             />
           ))}
         </div>
@@ -707,6 +713,7 @@ export default function CalendarView({
           onDeselectAll={() => setSelectedSlots(new Set())}
           onSlotClick={(n) => { if (!tryChange()) return; setDialogSlot(n); setSelectedDay(null); }}
           onLibreSwap={handleLibreSwap}
+          lockedBefore={calId ? todayStr : undefined}
         />
       ) : (
         <CoberturaDelMesView
@@ -738,6 +745,7 @@ export default function CalendarView({
           slotNumber={shiftEditDialog.slotNum}
           dateStr={shiftEditDialog.dateStr}
           currentShift={shiftForEdit}
+          originalShift={originalShiftForEdit ?? undefined}
           redistributeDays={redistributeDays}
           operatingWindow={operatingWindow}
           onSave={(newShift, redistributeDate) =>
@@ -845,11 +853,12 @@ interface WeekBlockProps {
   onDayClick: (dateStr: string) => void;
   onShiftCellClick: (slotNum: number, dateStr: string) => void;
   onLibreSwap: (slotNum: number, d1: string, d2: string) => void;
+  lockedBefore?: string;
 }
 
 function WeekBlock({
   week, month, slots, assign, prevAssignments, nextAssignments, workerMap, blockMap, slotDisplayNum,
-  onSlotClick, selectedDay, onDayClick, onShiftCellClick, onLibreSwap,
+  onSlotClick, selectedDay, onDayClick, onShiftCellClick, onLibreSwap, lockedBefore,
 }: WeekBlockProps) {
   const [dragSource, setDragSource] = useState<{ slotNum: number; dateStr: string } | null>(null);
   const [dragOver, setDragOver] = useState<{ slotNum: number; dateStr: string } | null>(null);
@@ -988,7 +997,8 @@ function WeekBlock({
                     </div>
                   </td>
                   {cells.map(({ dateStr, shift, inMonth, ci, feriado, dayWorkerId, dayWorkerName, blockReason }) => {
-                    const canDrag = inMonth && !feriado;
+                    const isPast = lockedBefore ? dateStr < lockedBefore : false;
+                    const canDrag = inMonth && !feriado && !isPast;
                     const isBeingDragged = dragSource?.slotNum === slot.slotNumber && dragSource?.dateStr === dateStr;
                     const isDropTarget = dragOver?.slotNum === slot.slotNumber && dragOver?.dateStr === dateStr;
                     return (
@@ -1013,7 +1023,7 @@ function WeekBlock({
                         ) : shift ? (
                           <div
                             draggable={canDrag}
-                            onClick={inMonth ? () => onShiftCellClick(slot.slotNumber, dateStr) : undefined}
+                            onClick={inMonth && !isPast ? () => onShiftCellClick(slot.slotNumber, dateStr) : undefined}
                             onDragStart={canDrag ? () => handleDragStart(slot.slotNumber, dateStr) : undefined}
                             onDragEnd={handleDragEnd}
                             onDragOver={canDrag ? (e) => handleDragOver(e, slot.slotNumber, dateStr) : undefined}
@@ -1021,7 +1031,7 @@ function WeekBlock({
                             className={`px-1 py-1 rounded border text-xs select-none transition-opacity ${
                               isBeingDragged ? "opacity-30" : ""
                             } ${
-                              inMonth ? "cursor-pointer hover:brightness-95 active:scale-95" : ""
+                              inMonth && !isPast ? "cursor-pointer hover:brightness-95 active:scale-95" : isPast ? "opacity-60 cursor-default" : ""
                             } ${
                               dayWorkerId
                                 ? `${color.bg} ${color.text} ${color.border}`
@@ -1359,11 +1369,12 @@ interface VendedorTabViewProps {
   onDeselectAll: () => void;
   onSlotClick: (slotNum: number) => void;
   onLibreSwap: (slotNum: number, d1: string, d2: string) => void;
+  lockedBefore?: string;
 }
 
 function VendedorTabView({
   year, month, weeks, slots, assign, workerMap, blockMap, slotDisplayNum,
-  selectedSlots, onToggleSlot, onSelectAll, onDeselectAll, onSlotClick, onLibreSwap,
+  selectedSlots, onToggleSlot, onSelectAll, onDeselectAll, onSlotClick, onLibreSwap, lockedBefore,
 }: VendedorTabViewProps) {
   const allSelected = selectedSlots.size === slots.length;
 
@@ -1422,6 +1433,7 @@ function VendedorTabView({
                 slotDisplayNum={slotDisplayNum}
                 onSlotClick={onSlotClick}
                 onLibreSwap={onLibreSwap}
+                lockedBefore={lockedBefore}
               />
             ))}
         </div>
@@ -1443,9 +1455,10 @@ interface VendedorCalendarProps {
   slotDisplayNum: Record<number, number>;
   onSlotClick: (slotNum: number) => void;
   onLibreSwap: (slotNum: number, d1: string, d2: string) => void;
+  lockedBefore?: string;
 }
 
-function VendedorCalendar({ slot, year, month, weeks, assign, workerMap, blockMap, slotDisplayNum, onSlotClick, onLibreSwap }: VendedorCalendarProps) {
+function VendedorCalendar({ slot, year, month, weeks, assign, workerMap, blockMap, slotDisplayNum, onSlotClick, onLibreSwap, lockedBefore }: VendedorCalendarProps) {
   const [dragSource, setDragSource] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
 
@@ -1520,8 +1533,9 @@ function VendedorCalendar({ slot, year, month, weeks, assign, workerMap, blockMa
                 {days.map(({ d, shift, inMonth, feriado, blockReason }, ci) => {
                   const isWeekend = ci >= 5;
                   const dateStr = fmt(d);
-                  const canDrag = inMonth && !feriado && blockReason === null;
-                  const canClick = inMonth && !feriado;
+                  const isPast = lockedBefore ? dateStr < lockedBefore : false;
+                  const canDrag = inMonth && !feriado && blockReason === null && !isPast;
+                  const canClick = inMonth && !feriado && !isPast;
                   const isBeingDragged = dragSource === dateStr;
                   const isDropTarget = dragOver === dateStr;
                   return (
@@ -1552,8 +1566,8 @@ function VendedorCalendar({ slot, year, month, weeks, assign, workerMap, blockMa
                           onDragOver={canDrag ? (e) => handleDragOver(e, dateStr) : undefined}
                           onDrop={canDrag ? () => handleDrop(dateStr) : undefined}
                           className={`px-1 py-1 rounded border text-[10px] leading-tight select-none transition-all ${
-                            isBeingDragged ? "opacity-30" : ""
-                          } ${canDrag ? "cursor-grab hover:brightness-90 active:scale-95" : ""} ${color.bg} ${color.text} ${color.border}`}
+                            isBeingDragged ? "opacity-30" : isPast ? "opacity-50" : ""
+                          } ${canDrag ? "cursor-grab hover:brightness-90 active:scale-95" : isPast ? "cursor-default" : ""} ${color.bg} ${color.text} ${color.border}`}
                         >
                           <div>{shift.start}</div>
                           <div className="opacity-80">{shift.end}</div>
@@ -1660,6 +1674,7 @@ interface ShiftEditDialogProps {
   slotNumber: number;
   dateStr: string;
   currentShift: DayShift;
+  originalShift?: DayShift;
   redistributeDays: Array<{ dateStr: string; shift: DayShift; d: Date }>;
   operatingWindow: { start: string; end: string };
   onSave: (newShift: DayShift, redistributeDate?: string | null) => void;
@@ -1667,7 +1682,7 @@ interface ShiftEditDialogProps {
 }
 
 function ShiftEditDialog({
-  slotNumber, dateStr, currentShift, redistributeDays, operatingWindow, onSave, onClose,
+  slotNumber, dateStr, currentShift, originalShift, redistributeDays, operatingWindow, onSave, onClose,
 }: ShiftEditDialogProps) {
   const color = workerColor(slotNumber);
   const [start, setStart] = useState(currentShift.start);
@@ -1684,9 +1699,9 @@ function ShiftEditDialog({
   const canForward = curEndMin   + 60 <= winEndMin;
   const validShift = curStartMin < curEndMin;
 
-  const origHours = shiftDuration(currentShift);
+  const baseHours = originalShift ? shiftDuration(originalShift) : shiftDuration(currentShift);
   const newHours  = validShift ? shiftDuration({ start, end }) : 0;
-  const diffHours = origHours - newHours; // positivo = nuevo es más corto
+  const diffHours = baseHours - newHours; // positivo = nuevo está por debajo del original
   const diffMins  = Math.round(diffHours * 60);
 
   function moveShift(dir: -1 | 1) {
