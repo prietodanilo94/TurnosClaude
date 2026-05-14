@@ -706,6 +706,7 @@ export default function CalendarView({
           onSelectAll={() => setSelectedSlots(new Set(sortedSlots.map((s) => s.slotNumber)))}
           onDeselectAll={() => setSelectedSlots(new Set())}
           onSlotClick={(n) => { if (!tryChange()) return; setDialogSlot(n); setSelectedDay(null); }}
+          onLibreSwap={handleLibreSwap}
         />
       ) : (
         <CoberturaDelMesView
@@ -1357,11 +1358,12 @@ interface VendedorTabViewProps {
   onSelectAll: () => void;
   onDeselectAll: () => void;
   onSlotClick: (slotNum: number) => void;
+  onLibreSwap: (slotNum: number, d1: string, d2: string) => void;
 }
 
 function VendedorTabView({
   year, month, weeks, slots, assign, workerMap, blockMap, slotDisplayNum,
-  selectedSlots, onToggleSlot, onSelectAll, onDeselectAll, onSlotClick,
+  selectedSlots, onToggleSlot, onSelectAll, onDeselectAll, onSlotClick, onLibreSwap,
 }: VendedorTabViewProps) {
   const allSelected = selectedSlots.size === slots.length;
 
@@ -1419,6 +1421,7 @@ function VendedorTabView({
                 blockMap={blockMap}
                 slotDisplayNum={slotDisplayNum}
                 onSlotClick={onSlotClick}
+                onLibreSwap={onLibreSwap}
               />
             ))}
         </div>
@@ -1439,13 +1442,31 @@ interface VendedorCalendarProps {
   blockMap: WorkerBlockDateMap;
   slotDisplayNum: Record<number, number>;
   onSlotClick: (slotNum: number) => void;
+  onLibreSwap: (slotNum: number, d1: string, d2: string) => void;
 }
 
-function VendedorCalendar({ slot, year, month, weeks, assign, workerMap, blockMap, slotDisplayNum, onSlotClick }: VendedorCalendarProps) {
+function VendedorCalendar({ slot, year, month, weeks, assign, workerMap, blockMap, slotDisplayNum, onSlotClick, onLibreSwap }: VendedorCalendarProps) {
+  const [dragSource, setDragSource] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState<string | null>(null);
+
   const workerId = assign[String(slot.slotNumber)] ?? null;
   const displayN = slotDisplayNum[slot.slotNumber] ?? slot.slotNumber;
   const workerName = workerId ? (workerMap[workerId] ?? `Vendedor ${displayN}`) : `Vendedor ${displayN}`;
   const color = workerColor(slot.slotNumber);
+
+  function handleDragStart(dateStr: string) { setDragSource(dateStr); }
+  function handleDragEnd() { setDragSource(null); setDragOver(null); }
+  function handleDragOver(e: React.DragEvent, dateStr: string) {
+    e.preventDefault();
+    if (dragSource && dragSource !== dateStr) setDragOver(dateStr);
+  }
+  function handleDrop(targetDateStr: string) {
+    if (dragSource && dragSource !== targetDateStr) {
+      onLibreSwap(slot.slotNumber, dragSource, targetDateStr);
+    }
+    setDragSource(null);
+    setDragOver(null);
+  }
 
   let totalMonthHours = 0;
   const weekData = weeks.map((week) => {
@@ -1498,13 +1519,19 @@ function VendedorCalendar({ slot, year, month, weeks, assign, workerMap, blockMa
                 <td className="px-3 py-1.5 text-gray-300 font-medium text-center text-[11px]">{isoWeek}</td>
                 {days.map(({ d, shift, inMonth, feriado, blockReason }, ci) => {
                   const isWeekend = ci >= 5;
+                  const dateStr = fmt(d);
+                  const canDrag = inMonth && !feriado && blockReason === null;
                   const canClick = inMonth && !feriado;
+                  const isBeingDragged = dragSource === dateStr;
+                  const isDropTarget = dragOver === dateStr;
                   return (
                     <td
                       key={ci}
                       className={`px-1 py-1.5 text-center border-l border-gray-100 ${
                         !inMonth ? "opacity-30" : ""
-                      } ${feriado ? "bg-red-50/60" : isWeekend ? "bg-orange-50/20" : ""}`}
+                      } ${feriado ? "bg-red-50/60" : isWeekend ? "bg-orange-50/20" : ""} ${
+                        isDropTarget ? "bg-blue-50" : ""
+                      }`}
                     >
                       <div className="text-[9px] text-gray-300 leading-none mb-1">{d.getDate()}</div>
                       {feriado ? (
@@ -1518,18 +1545,30 @@ function VendedorCalendar({ slot, year, month, weeks, assign, workerMap, blockMa
                         </div>
                       ) : shift ? (
                         <div
+                          draggable={canDrag}
                           onClick={canClick ? () => onSlotClick(slot.slotNumber) : undefined}
-                          className={`px-1 py-1 rounded border text-[10px] leading-tight select-none ${
-                            canClick ? "cursor-pointer hover:brightness-90 active:scale-95 transition-all" : ""
-                          } ${color.bg} ${color.text} ${color.border}`}
+                          onDragStart={canDrag ? () => handleDragStart(dateStr) : undefined}
+                          onDragEnd={handleDragEnd}
+                          onDragOver={canDrag ? (e) => handleDragOver(e, dateStr) : undefined}
+                          onDrop={canDrag ? () => handleDrop(dateStr) : undefined}
+                          className={`px-1 py-1 rounded border text-[10px] leading-tight select-none transition-all ${
+                            isBeingDragged ? "opacity-30" : ""
+                          } ${canDrag ? "cursor-grab hover:brightness-90 active:scale-95" : ""} ${color.bg} ${color.text} ${color.border}`}
                         >
                           <div>{shift.start}</div>
                           <div className="opacity-80">{shift.end}</div>
                         </div>
                       ) : (
                         <div
+                          draggable={canDrag}
                           onClick={canClick ? () => onSlotClick(slot.slotNumber) : undefined}
-                          className={`text-[10px] italic text-gray-300 ${canClick ? "cursor-pointer hover:text-gray-400" : ""}`}
+                          onDragStart={canDrag ? () => handleDragStart(dateStr) : undefined}
+                          onDragEnd={handleDragEnd}
+                          onDragOver={canDrag ? (e) => handleDragOver(e, dateStr) : undefined}
+                          onDrop={canDrag ? () => handleDrop(dateStr) : undefined}
+                          className={`text-[10px] italic select-none transition-all ${
+                            isBeingDragged ? "opacity-30" : ""
+                          } ${isDropTarget ? "text-blue-500 font-medium" : "text-gray-300"} ${canDrag ? "cursor-grab hover:text-gray-400" : ""}`}
                         >
                           libre
                         </div>
