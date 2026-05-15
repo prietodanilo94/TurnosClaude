@@ -250,6 +250,14 @@ export default function SupervisoresClient({ initialSupervisors, branches }: Pro
                       >
                         Ver equipo
                       </a>
+                      {supervisor.branches.length > 0 && (
+                        <a
+                          href={buildCalendarUrl(supervisor)}
+                          className="text-sm text-emerald-600 hover:text-emerald-800"
+                        >
+                          Ver calendarios
+                        </a>
+                      )}
                       <button onClick={() => openEdit(supervisor)} className="text-sm text-blue-600 hover:text-blue-800">
                         Editar
                       </button>
@@ -373,6 +381,17 @@ export default function SupervisoresClient({ initialSupervisors, branches }: Pro
       )}
     </div>
   );
+}
+
+function buildCalendarUrl(supervisor: SupervisorWithBranches): string {
+  const now = new Date();
+  const params = new URLSearchParams();
+  params.set("year", String(now.getFullYear()));
+  params.set("month", String(now.getMonth() + 1));
+  for (const sb of supervisor.branches) {
+    params.append("branchId", sb.branch.id);
+  }
+  return `/supervisor/calendario?${params.toString()}`;
 }
 
 function isReadyForProduction(supervisor: SupervisorWithBranches) {
