@@ -197,6 +197,11 @@ export default function CalendarView({
   const [calId, setCalId] = useState(calendarId);
   const [dialogSlot, setDialogSlot] = useState<number | null>(null);
   const [shiftEditDialog, setShiftEditDialog] = useState<{ slotNum: number; dateStr: string } | null>(null);
+  const [workerSwapModal, setWorkerSwapModal] = useState<{
+    slotA: number;
+    slotB: number;
+    weekDates: string[];
+  } | null>(null);
   const [recalculating, setRecalculating] = useState(false);
   const [changeReminded, setChangeReminded] = useState(false);
   const [confirmModal, setConfirmModal] = useState<{
@@ -474,6 +479,46 @@ export default function CalendarView({
     });
   }
 
+  function handleSetShiftLibre(slotNum: number, dateStr: string) {
+    tryChangeGated(() => {
+      setLocalSlots(prev => prev.map(s =>
+        s.slotNumber !== slotNum ? s : { ...s, days: { ...s.days, [dateStr]: null } }
+      ));
+      setDirty(true);
+      setShiftEditDialog(null);
+    });
+  }
+
+  function handleWorkerSwap(slotA: number, slotB: number, weekDates: string[], scope: "week" | "month") {
+    tryChangeGated(() => {
+      if (scope === "month") {
+        const wA = assign[String(slotA)] ?? null;
+        const wB = assign[String(slotB)] ?? null;
+        setAssign(prev => ({ ...prev, [String(slotA)]: wB, [String(slotB)]: wA }));
+      } else {
+        setLocalSlots(prev => {
+          const daysA = prev.find(s => s.slotNumber === slotA)?.days ?? {};
+          const daysB = prev.find(s => s.slotNumber === slotB)?.days ?? {};
+          return prev.map(s => {
+            if (s.slotNumber === slotA) {
+              const newDays = { ...s.days };
+              for (const d of weekDates) newDays[d] = daysB[d] ?? null;
+              return { ...s, days: newDays };
+            }
+            if (s.slotNumber === slotB) {
+              const newDays = { ...s.days };
+              for (const d of weekDates) newDays[d] = daysA[d] ?? null;
+              return { ...s, days: newDays };
+            }
+            return s;
+          });
+        });
+      }
+      setDirty(true);
+      setWorkerSwapModal(null);
+    });
+  }
+
   function handleLibreSwap(slotNum: number, d1: string, d2: string) {
     const slot = localSlots.find(s => s.slotNumber === slotNum);
     if (!slot) return;
@@ -658,33 +703,29 @@ export default function CalendarView({
       </div>
 
       {/* Barra: tabs + mes/año */}
-      <div className="mb-4 flex items-center gap-3 bg-white border border-gray-200 rounded-lg p-2.5">
-        <div className="flex gap-0.5 bg-gray-100 rounded-md p-0.5">
-          <button
-            onClick={() => setView("mensual")}
-            className={`px-3 py-1 text-sm rounded font-medium transition-colors ${
-              view === "mensual" ? "bg-white text-blue-700 shadow-sm" : "text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            Calendario Mensual
-          </button>
-          <button
-            onClick={() => setView("vendedor")}
-            className={`px-3 py-1 text-sm rounded font-medium transition-colors ${
-              view === "vendedor" ? "bg-white text-blue-700 shadow-sm" : "text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            Turno por Vendedor
-          </button>
-          <button
-            onClick={() => setView("diario")}
-            className={`px-3 py-1 text-sm rounded font-medium transition-colors ${
-              view === "diario" ? "bg-white text-blue-700 shadow-sm" : "text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            Cobertura del Día
-          </button>
+      <div className="mb-4 bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+        <div className="flex border-b border-gray-200">
+          {(
+            [
+              { key: "mensual", label: "📅 Calendario Mensual" },
+              { key: "vendedor", label: "👤 Turno por Vendedor" },
+              { key: "diario", label: "📊 Cobertura del Día" },
+            ] as const
+          ).map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setView(key)}
+              className={`flex-1 px-4 py-3 text-sm font-semibold transition-colors border-b-2 ${
+                view === key
+                  ? "border-blue-600 text-blue-700 bg-blue-50"
+                  : "border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-50"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
+        <div className="flex items-center gap-3 px-4 py-2.5">
 
         <h2 className="text-base font-medium text-gray-700 ml-1">
           {MONTH_NAMES[month]} {year}
@@ -709,6 +750,7 @@ export default function CalendarView({
               <option key={y} value={y}>{y}</option>
             ))}
           </select>
+        </div>
         </div>
       </div>
 
@@ -752,6 +794,7 @@ export default function CalendarView({
               onDayClick={(ds) => setSelectedDay((prev) => prev === ds ? null : ds)}
               onShiftCellClick={(slotNum, dateStr) => setShiftEditDialog({ slotNum, dateStr })}
               onLibreSwap={handleLibreSwap}
+              onWorkerSwap={(slotA, slotB, weekDates) => setWorkerSwapModal({ slotA, slotB, weekDates })}
               lockedBefore={calId ? todayStr : undefined}
             />
           ))}
@@ -812,8 +855,48 @@ export default function CalendarView({
             handleShiftSave(shiftEditDialog.slotNum, shiftEditDialog.dateStr, newShift, redistributeDate)
           }
           onClose={() => setShiftEditDialog(null)}
+          onSetLibre={() => handleSetShiftLibre(shiftEditDialog.slotNum, shiftEditDialog.dateStr)}
         />
       )}
+
+      {/* Modal intercambio de trabajadores */}
+      {workerSwapModal && (() => {
+        const nameA = workerMap[assign[String(workerSwapModal.slotA)] ?? ""] ?? `Puesto ${workerSwapModal.slotA}`;
+        const nameB = workerMap[assign[String(workerSwapModal.slotB)] ?? ""] ?? `Puesto ${workerSwapModal.slotB}`;
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setWorkerSwapModal(null)}>
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+              <div className="px-6 py-5">
+                <h3 className="text-sm font-semibold text-gray-900 mb-1">Intercambiar turnos</h3>
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  ¿Desea intercambiar a <span className="font-semibold text-gray-900">{nameA}</span> por{" "}
+                  <span className="font-semibold text-gray-900">{nameB}</span>?
+                </p>
+              </div>
+              <div className="flex flex-col gap-2 border-t border-gray-100 px-6 py-4">
+                <button
+                  onClick={() => handleWorkerSwap(workerSwapModal.slotA, workerSwapModal.slotB, workerSwapModal.weekDates, "week")}
+                  className="w-full px-4 py-2.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
+                >
+                  Solo esta semana
+                </button>
+                <button
+                  onClick={() => handleWorkerSwap(workerSwapModal.slotA, workerSwapModal.slotB, workerSwapModal.weekDates, "month")}
+                  className="w-full px-4 py-2.5 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium transition-colors"
+                >
+                  Todo el mes
+                </button>
+                <button
+                  onClick={() => setWorkerSwapModal(null)}
+                  className="w-full px-4 py-2 text-sm border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Modal de confirmación personalizado */}
       {confirmModal && (
@@ -943,15 +1026,18 @@ interface WeekBlockProps {
   onDayClick: (dateStr: string) => void;
   onShiftCellClick: (slotNum: number, dateStr: string) => void;
   onLibreSwap: (slotNum: number, d1: string, d2: string) => void;
+  onWorkerSwap: (slotA: number, slotB: number, weekDates: string[]) => void;
   lockedBefore?: string;
 }
 
 function WeekBlock({
   week, month, slots, assign, prevAssignments, nextAssignments, workerMap, blockMap, slotDisplayNum,
-  onSlotClick, selectedDay, onDayClick, onShiftCellClick, onLibreSwap, lockedBefore,
+  onSlotClick, selectedDay, onDayClick, onShiftCellClick, onLibreSwap, onWorkerSwap, lockedBefore,
 }: WeekBlockProps) {
   const [dragSource, setDragSource] = useState<{ slotNum: number; dateStr: string } | null>(null);
   const [dragOver, setDragOver] = useState<{ slotNum: number; dateStr: string } | null>(null);
+  const [workerDragSlot, setWorkerDragSlot] = useState<number | null>(null);
+  const [workerDragOver, setWorkerDragOver] = useState<number | null>(null);
 
   function assignForDay(d: Date): Record<string, string | null> {
     const dm = d.getMonth() + 1;
@@ -1075,9 +1161,16 @@ function WeekBlock({
               return (
                 <tr key={slot.slotNumber} className={`border-b border-gray-100 last:border-b-0 ${altRow}`}>
                   <td
-                    className="px-3 py-2 cursor-pointer hover:bg-gray-100 transition-colors"
+                    draggable
+                    onDragStart={(e) => { e.stopPropagation(); setWorkerDragSlot(slot.slotNumber); }}
+                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); if (workerDragSlot !== null && workerDragSlot !== slot.slotNumber) setWorkerDragOver(slot.slotNumber); }}
+                    onDrop={(e) => { e.stopPropagation(); if (workerDragSlot !== null && workerDragSlot !== slot.slotNumber) onWorkerSwap(workerDragSlot, slot.slotNumber, weekDateStrs); setWorkerDragSlot(null); setWorkerDragOver(null); }}
+                    onDragEnd={() => { setWorkerDragSlot(null); setWorkerDragOver(null); }}
                     onClick={() => onSlotClick(slot.slotNumber)}
-                    title="Click para asignar vendedor"
+                    title="Click para asignar · Arrastrar para intercambiar turno"
+                    className={`px-3 py-2 cursor-grab hover:bg-gray-100 transition-colors select-none ${
+                      workerDragSlot === slot.slotNumber ? "opacity-40" : ""
+                    } ${workerDragOver === slot.slotNumber ? "bg-blue-50 ring-1 ring-inset ring-blue-300" : ""}`}
                   >
                     <div className="flex items-center gap-2">
                       <span className={`w-2.5 h-2.5 rounded-full ${color.bg} border ${color.border}`} />
@@ -1772,10 +1865,11 @@ interface ShiftEditDialogProps {
   operatingWindow: { start: string; end: string };
   onSave: (newShift: DayShift, redistributeDate?: string | null) => void;
   onClose: () => void;
+  onSetLibre?: () => void;
 }
 
 function ShiftEditDialog({
-  slotNumber, dateStr, currentShift, originalShift, redistributeDays, operatingWindow, onSave, onClose,
+  slotNumber, dateStr, currentShift, originalShift, redistributeDays, operatingWindow, onSave, onClose, onSetLibre,
 }: ShiftEditDialogProps) {
   const color = workerColor(slotNumber);
   const [start, setStart] = useState(currentShift.start);
@@ -1796,7 +1890,7 @@ function ShiftEditDialog({
   const withinWindow = curStartMin >= winStartMin && curEndMin <= winEndMin;
   const rawHours = curStartMin < curEndMin ? (curEndMin - curStartMin) / 60 : 0;
   const netHours = rawHours >= 6 ? rawHours - 1 : rawHours;
-  const validShift = curStartMin < curEndMin && withinWindow && netHours <= 10;
+  const validShift = curStartMin < curEndMin && withinWindow;
 
   const baseHours = originalShift ? shiftDuration(originalShift) : shiftDuration(currentShift);
   const newHours  = validShift ? shiftDuration({ start, end }) : 0;
@@ -1811,7 +1905,6 @@ function ShiftEditDialog({
   function shiftValidationError(): string | null {
     if (curStartMin >= curEndMin) return "La hora de inicio debe ser anterior a la hora de término.";
     if (!withinWindow) return `El turno debe estar dentro de la franja ${operatingWindow.start}–${operatingWindow.end}.`;
-    if (netHours > 10) return "El turno no puede superar 10 horas netas laborales.";
     return null;
   }
 
@@ -2010,20 +2103,32 @@ function ShiftEditDialog({
           </div>
         </div>
 
-        <div className="border-t border-gray-200 px-4 py-3 flex justify-end gap-2">
-          <button
-            onClick={onClose}
-            className="px-3 py-1.5 text-xs border border-gray-300 rounded hover:bg-gray-50"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={handleSaveClick}
-            disabled={!validShift}
-            className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            {diffHours > 0.01 ? "Continuar →" : "Guardar"}
-          </button>
+        <div className="border-t border-gray-200 px-4 py-3 flex items-center justify-between gap-2">
+          <div>
+            {onSetLibre && (
+              <button
+                onClick={onSetLibre}
+                className="px-3 py-1.5 text-xs border border-rose-300 text-rose-600 rounded hover:bg-rose-50 transition-colors"
+              >
+                Poner como libre
+              </button>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={onClose}
+              className="px-3 py-1.5 text-xs border border-gray-300 rounded hover:bg-gray-50"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleSaveClick}
+              disabled={!validShift}
+              className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {diffHours > 0.01 ? "Continuar →" : "Guardar"}
+            </button>
+          </div>
         </div>
       </div>
     </div>
