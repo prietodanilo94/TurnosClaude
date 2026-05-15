@@ -49,14 +49,15 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Credenciales incorrectas" }, { status: 401 });
       }
 
+      const role = supervisor.isAdmin ? "admin" : "supervisor";
       const token = await createSession({
         email: supervisor.email ?? normalizedEmail,
-        role: "supervisor",
+        role,
         supervisorId: supervisor.id,
         branchIds: supervisor.branches.map((branch) => branch.branchId),
         nombre: supervisor.nombre,
       });
-      const res = NextResponse.json({ ok: true, role: "supervisor" });
+      const res = NextResponse.json({ ok: true, role });
       res.cookies.set(sessionCookieOptions(token));
       return res;
     }

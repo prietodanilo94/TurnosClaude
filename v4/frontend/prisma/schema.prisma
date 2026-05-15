@@ -103,6 +103,7 @@ model Supervisor {
   email        String?            @unique
   passwordHash String?
   activo       Boolean            @default(true)
+  isAdmin      Boolean            @default(false)
   branches     SupervisorBranch[]
   createdAt    DateTime           @default(now())
   updatedAt    DateTime           @updatedAt
