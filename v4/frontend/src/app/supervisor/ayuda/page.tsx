@@ -110,9 +110,9 @@ export default function SupervisorHelpPage() {
             usuario. Haz click en la tarjeta de la sucursal para abrir su calendario.
           </p>
           <p>
-            Si administras varias sucursales, puedes activar los{" "}
-            <strong>checkboxes</strong> de dos o más y presionar{" "}
-            <strong>Asignación de turnos</strong> para verlas combinadas en una sola pantalla.
+            Si administras varias sucursales, puedes marcar las <strong>casillas de selección</strong> de dos
+            o más y presionar <strong>Asignación de turnos</strong> para verlas combinadas en una sola
+            pantalla.
           </p>
           <Tip>
             Si una sucursal no aparece, pide al administrador que revise tus permisos. Solo ves lo que está
@@ -131,8 +131,8 @@ export default function SupervisorHelpPage() {
             <strong>Salir sin guardar</strong> para descartar.
           </p>
           <Warning>
-            Cerrar la pestaña del navegador con cambios sin guardar disparará el aviso del navegador. Usa
-            siempre los botones de la app para navegar sin perder trabajo.
+            Cerrar la pestaña del navegador con cambios sin guardar puede hacer que pierdas el trabajo. Usa
+            siempre los botones de la app para navegar entre meses.
           </Warning>
         </Step>
 
@@ -143,7 +143,7 @@ export default function SupervisorHelpPage() {
           </p>
           <p>
             Si el calendario ya existe y quieres rehacerlo desde cero, usa <strong>Reiniciar</strong>: borra
-            todas las asignaciones de vendedores dejando los slots vacíos, pero conserva la estructura de
+            todas las asignaciones de vendedores dejando las filas vacías, pero conserva la estructura de
             horarios.
           </p>
           <Warning>
@@ -156,20 +156,20 @@ export default function SupervisorHelpPage() {
           </Tip>
         </Step>
 
-        <Step number={4} icon="👤" title="Asigna los vendedores a cada slot" open={!!open["4"]} onToggle={() => toggle("4")}>
+        <Step number={4} icon="👤" title="Asigna los vendedores a cada fila" open={!!open["4"]} onToggle={() => toggle("4")}>
           <p>
-            Cada fila del calendario es un <strong>slot</strong> (posición de turno). Al generar, los
-            vendedores se asignan automáticamente en orden, pero puedes cambiarlos manualmente.
+            Cada fila del calendario es un puesto de turno. Al generar, los vendedores se asignan
+            automáticamente en orden, pero puedes cambiarlos manualmente.
           </p>
           <p>
             Para cambiar o asignar un vendedor, haz click en el <strong>nombre en la columna
-            izquierda</strong> (vista Mensual) o en el <strong>header de color</strong> (vista Turno por
-            Vendedor). Se abrirá un listado con los vendedores disponibles.
+            izquierda</strong> (vista Mensual) o en la <strong>barra de color superior</strong> (vista Turno
+            por Vendedor). Se abrirá una lista con los vendedores disponibles.
           </p>
           <ul className="mt-2 space-y-1.5 list-none">
-            <Item label="Actual" desc="El vendedor asignado aparece marcado. Haz click en él si no quieres cambiarlo." />
-            <Item label="Quitar asignación" desc="Botón rojo al pie del diálogo. Deja el slot vacío." />
-            <Item label="No aparece un vendedor" desc="Puede que ya esté asignado en otro slot. Búscalo en el calendario y quítalo de ahí primero." />
+            <Item label="Vendedor actual" desc="Aparece marcado en la lista. Haz click en él si no quieres cambiarlo." />
+            <Item label="Quitar asignación" desc="Botón rojo al pie de la lista. Deja la fila vacía." />
+            <Item label="No aparece un vendedor" desc="Puede que ya esté asignado en otra fila. Búscalo en el calendario y quítalo de ahí primero." />
           </ul>
         </Step>
 
@@ -178,45 +178,47 @@ export default function SupervisorHelpPage() {
             Haz click en cualquier <strong>celda de turno</strong> para abrir el editor de horario de ese día.
           </p>
           <ul className="mt-2 space-y-1.5 list-none">
-            <Item label="◀ Atrasar / Adelantar 1h ▶" desc="Mueve el turno completo 60 minutos. Los botones se desactivan si se sale de la franja operativa." />
-            <Item label="◀ 30 min / 30 min ▶" desc="Igual, pero en incrementos de 30 minutos." />
-            <Item label="Inputs manuales" desc="Escribe la hora exacta. La app valida que esté dentro de la franja y no supere 10 horas netas." />
+            <Item label="◀ Atrasar / Adelantar 1h ▶" desc="Mueve el turno completo 60 minutos. Los botones se desactivan si se sale del horario permitido." />
+            <Item label="◀ 30 min / 30 min ▶" desc="Igual, pero en pasos de 30 minutos." />
+            <Item label="Escribir hora directamente" desc="Puedes escribir la hora exacta a mano. La app avisa si el horario no es válido." />
             <Item label="Redistribuir horas" desc="Si acortas un turno, la app te pregunta si quieres agregar esas horas a otro día de la misma semana para compensar." />
           </ul>
           <Warning>
-            Cada sucursal tiene una franja operativa (ej. 09:00–19:00). No se pueden ingresar horarios fuera
-            de ese rango ni turnos que superen 10 horas netas. El botón Guardar se desactiva si el horario no
-            es válido.
+            Cada sucursal tiene un horario de apertura y cierre. No se pueden ingresar turnos fuera de ese
+            rango ni que superen 10 horas de trabajo en el día. El botón Guardar se desactiva si el horario
+            no es válido.
           </Warning>
         </Step>
 
-        <Step number={6} icon="↔️" title="Reordena días con drag & drop" open={!!open["6"]} onToggle={() => toggle("6")}>
+        <Step number={6} icon="↔️" title="Cambia días arrastrando" open={!!open["6"]} onToggle={() => toggle("6")}>
           <p>
-            Puedes <strong>arrastrar una celda de turno</strong> a otro día dentro de la misma semana para
-            intercambiar días. Funciona tanto en la vista Mensual como en Turno por Vendedor.
+            Puedes <strong>hacer click y arrastrar una celda de turno hacia otro día</strong> dentro de la
+            misma semana para intercambiar días. Funciona tanto en la vista Mensual como en Turno por
+            Vendedor.
           </p>
           <ul className="mt-2 space-y-1.5 list-none">
             <Item label="Turno → día libre" desc="El turno se mueve; el día original queda libre." />
             <Item label="Turno → otro turno" desc="Ambos días intercambian sus turnos." />
           </ul>
           <Warning>
-            No se puede mover un turno a un día que la sucursal no opera (ej. domingo si el patrón no
-            incluye domingos), ni si el movimiento genera más de 6 días laborales consecutivos.
+            No se puede mover un turno a un día que la sucursal no atiende (por ejemplo, domingo si el
+            patrón no incluye domingos), ni si el movimiento genera más de 6 días laborales consecutivos.
           </Warning>
           <Tip>
-            En calendarios ya guardados, los días anteriores a hoy están bloqueados y no se pueden arrastrar
+            En calendarios ya guardados, los días anteriores a hoy están bloqueados y no se pueden mover
             ni editar.
           </Tip>
         </Step>
 
-        <Step number={7} icon="📈" title="Revisa la cobertura del día" open={!!open["7"]} onToggle={() => toggle("7")}>
+        <Step number={7} icon="📈" title="Revisa quién trabaja a qué hora" open={!!open["7"]} onToggle={() => toggle("7")}>
           <p>
-            Cambia a la pestaña <strong>Cobertura del Día</strong> para ver un Gantt por día. Muestra quién
-            trabaja en cada hora y facilita detectar huecos o solapamientos.
+            Cambia a la pestaña <strong>Cobertura del Día</strong> para ver, en cada día del mes, una barra
+            por cada vendedor que muestra en qué horas trabaja. Es útil para detectar huecos de cobertura o
+            días con poca gente.
           </p>
           <ul className="mt-2 space-y-1.5 list-none">
-            <Item label="Mini-calendario filtro" desc="Activa o desactiva días para enfocarte en fines de semana o fechas específicas." />
-            <Item label="Barras horizontales" desc="Cada barra es el turno de un vendedor. El ancho representa la duración." />
+            <Item label="Filtro de días" desc="Activa o desactiva días del mini-calendario para enfocarte en fines de semana o fechas específicas." />
+            <Item label="Barras horizontales" desc="Cada barra es el turno de un vendedor. El largo representa cuántas horas trabaja." />
             <Item label="Días en rojo" desc="Son feriados irrenunciables (1 enero, 1 mayo, 18-19 sep, 25 dic). Nadie trabaja esos días." />
           </ul>
           <Tip>
@@ -235,20 +237,20 @@ export default function SupervisorHelpPage() {
           </p>
           <Tip>
             El botón Guardar solo está activo cuando hay cambios pendientes. Si está gris, el calendario ya
-            está actualizado en el servidor.
+            está actualizado.
           </Tip>
         </Step>
 
-        <Step number={9} icon="📥" title="Exporta si necesitas enviar el Excel" open={!!open["9"]} onToggle={() => toggle("9")}>
+        <Step number={9} icon="📥" title="Exporta si necesitas el archivo Excel" open={!!open["9"]} onToggle={() => toggle("9")}>
           <p>
             Hay dos botones de exportación disponibles una vez guardado el calendario:
           </p>
           <ul className="mt-2 space-y-1.5 list-none">
-            <Item label="Exportar Calendario" desc="Excel con la vista mensual: filas por slot, columnas por día. Útil para imprimir o enviar internamente." />
-            <Item label="Exportar Excel (RRHH)" desc="Formato oficial RRHH con RUT y nombre completo. Requiere que todos los slots tengan vendedor asignado." />
+            <Item label="Exportar Calendario" desc="Archivo Excel con la vista mensual: filas por puesto, columnas por día. Útil para imprimir o enviar internamente." />
+            <Item label="Exportar Excel (RRHH)" desc="Formato oficial RRHH con número de cédula y nombre completo. Requiere que todas las filas tengan vendedor asignado." />
           </ul>
           <Warning>
-            El Excel de RRHH no se puede generar con slots vacíos. Asigna todos los vendedores antes de
+            El Excel de RRHH no se puede generar si hay filas sin vendedor asignado. Asigna a todos antes de
             exportar, o usa Exportar Calendario como respaldo parcial.
           </Warning>
         </Step>
@@ -265,15 +267,15 @@ export default function SupervisorHelpPage() {
           <ul className="space-y-2">
             <Item
               label="Calendario Mensual"
-              desc="Vista principal por semana. Un slot por fila, un día por columna. Click en el encabezado de un día muestra el Gantt de ese día debajo de la tabla."
+              desc="Vista principal organizada por semanas. Una fila por puesto de turno, una columna por día. Al hacer click en el encabezado de un día aparece un resumen de quién trabaja ese día."
             />
             <Item
               label="Turno por Vendedor"
-              desc="Mini-calendario individual por cada vendedor. Ideal para revisar el mes completo de una persona. Filtra con los chips en la parte superior."
+              desc="Muestra el mes completo de cada vendedor en su propio mini-calendario. Ideal para revisar a una sola persona. Usa los botones de filtro en la parte superior para ver solo algunos vendedores."
             />
             <Item
               label="Cobertura del Día"
-              desc="Gantt horizontal de todos los días del mes. Solo lectura. Para filtrar días usa el mini-calendario de la parte superior."
+              desc="Muestra barras de horario para todos los días del mes. Solo lectura. Usa el filtro de días en la parte superior para ver fechas específicas."
             />
           </ul>
         </RefSection>
@@ -284,8 +286,8 @@ export default function SupervisorHelpPage() {
             un calendario combinado separado por área de negocio (Ventas / Postventa).
           </p>
           <ul className="mt-2 space-y-1.5">
-            <Item label="Guardar grupo" desc="Al guardar, se registran los calendarios de cada equipo por separado. RRHH recibe un Excel consolidado." />
-            <Item label="Disolver un grupo" desc="Solo el administrador puede hacerlo desde /admin/grupos." />
+            <Item label="Guardar grupo" desc="Al guardar, se registran los calendarios de cada sucursal por separado. RRHH recibe un archivo consolidado." />
+            <Item label="Disolver un grupo" desc="Solo el administrador puede hacerlo desde la sección de administración." />
           </ul>
           <Tip>Una sucursal solo puede pertenecer a un grupo a la vez.</Tip>
         </RefSection>
@@ -297,7 +299,7 @@ export default function SupervisorHelpPage() {
           </p>
           <ul className="mt-2 space-y-1.5">
             <Item label="Celda gris con Bloq." desc="El vendedor tiene un bloqueo activo ese día. El sistema no cuenta esas horas." />
-            <Item label="Tooltip" desc="Pasa el cursor por la celda para ver el motivo del bloqueo." />
+            <Item label="Ver el motivo" desc="Pasa el cursor por la celda gris y aparecerá el motivo del bloqueo." />
           </ul>
           <Tip>
             Si un vendedor tiene bloqueo pero aparece con turno asignado, el calendario se generó antes de
@@ -307,12 +309,12 @@ export default function SupervisorHelpPage() {
 
         <RefSection icon="❗" title="Errores y problemas comunes" open={!!open["errores"]} onToggle={() => toggle("errores")}>
           <ul className="space-y-2">
-            <Item label="Falta categoría" desc="El equipo no tiene categoría de turno. El administrador debe asignarla desde la ficha de la sucursal. Sin ella no se puede generar el calendario." />
-            <Item label="Vendedor sin asignar" desc="Hay slots vacíos. Puedes guardar como versión incompleta y completarlo después." />
+            <Item label="Falta categoría" desc="El equipo no tiene tipo de turno configurado. El administrador debe asignarlo desde la ficha de la sucursal. Sin eso no se puede generar el calendario." />
+            <Item label="Vendedor sin asignar" desc="Hay filas vacías. Puedes guardar como versión incompleta y completarlo después." />
             <Item label="No veo una sucursal" desc="Puede que no esté asignada a tu usuario. Contacta al administrador." />
             <Item label="Calendario en blanco al cambiar mes" desc="Ese mes no tiene calendario. Presiona Generar para crear la plantilla." />
-            <Item label="Horario inválido en el editor" desc="El turno cae fuera de la franja operativa o supera 10 horas netas. Ajusta con los botones de ±1h o ±30min." />
-            <Item label="No puedo mover un turno" desc="El día destino no es laborable según el patrón, o el movimiento generaría más de 6 días consecutivos." />
+            <Item label="Horario inválido en el editor" desc="El turno cae fuera del horario de la sucursal o supera 10 horas de trabajo. Ajusta con los botones de ±1h o ±30min." />
+            <Item label="No puedo mover un turno a otro día" desc="El día de destino no es laborable según el patrón de la sucursal, o el movimiento generaría más de 6 días de trabajo seguidos." />
             <Item label="Botón Guardar desactivado" desc="No hay cambios pendientes. El calendario ya está actualizado." />
           </ul>
         </RefSection>
