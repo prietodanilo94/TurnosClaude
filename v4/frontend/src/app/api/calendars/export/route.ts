@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { generateCalendar } from "@/lib/calendar/generator";
 import { logAction } from "@/lib/audit/log";
 import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import type { CalendarSlot, ShiftCategory, DayShift } from "@/types";
 
 const MONTH_NAMES = [
@@ -114,7 +115,7 @@ export async function GET(req: NextRequest) {
     buf = buildRrhhExcel(team.branch.nombre, year, month, slots, assignments, workerMap, workerRutMap);
     fileName = safeFileName(`turnos_rrhh_${team.branch.nombre}_${MONTH_NAMES[month]}_${year}`) + ".xlsx";
   } else {
-    buf = buildCalendarExcel(team.branch.nombre, year, month, slots, assignments, workerMap);
+    buf = await buildCalendarExcel(team.branch.nombre, year, month, slots, assignments, workerMap);
     fileName = safeFileName(`calendario_${team.branch.nombre}_${MONTH_NAMES[month]}_${year}`) + ".xlsx";
   }
 
@@ -142,97 +143,149 @@ export async function GET(req: NextRequest) {
   });
 }
 
-// ─── Exportar Calendario (visual semanal estilo v1) ───────────────────────────
+// ─── Exportar Calendario con colores (ExcelJS) ───────────────────────────────
 
-function buildCalendarExcel(
+const C = {
+  TITLE_BG:    "1F4E79",
+  TITLE_FG:    "FFFFFF",
+  WEEK_BG:     "2E75B6",
+  WEEK_FG:     "FFFFFF",
+  HDR_BG:      "BDD7EE",
+  HDR_FG:      "1F4E79",
+  WKND_HDR_BG: "F4B942",
+  WKND_HDR_FG: "7B3F00",
+  SHIFT_BG:    "E2EFDA",
+  SHIFT_FG:    "1A4731",
+  WKND_SHIFT:  "FFF2CC",
+  WKND_SFG:    "7B4F00",
+  LIBRE_FG:    "AAAAAA",
+  ALT_BG:      "F7FBFF",
+  HOURS_FG:    "1F4E79",
+  BORDER:      "D0D7DE",
+};
+
+function fill(hex: string): ExcelJS.Fill {
+  return { type: "pattern", pattern: "solid", fgColor: { argb: `FF${hex}` } };
+}
+function border(): Partial<ExcelJS.Borders> {
+  const side = { style: "thin" as const, color: { argb: `FF${C.BORDER}` } };
+  return { top: side, left: side, bottom: side, right: side };
+}
+
+async function buildCalendarExcel(
   branchNombre: string,
   year: number,
   month: number,
   slots: CalendarSlot[],
   assignments: Record<string, string | null>,
   workerMap: Record<string, string>,
-): Buffer {
-  const wb = XLSX.utils.book_new();
-  const ws: XLSX.WorkSheet = {};
+): Promise<Buffer> {
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "TeamPlanner";
+  const ws = wb.addWorksheet(`${MONTH_NAMES[month]} ${year}`);
 
-  const COLS = 9; // Vendedor + 7 días + Hrs Sem
-  let row = 1;
+  ws.columns = [
+    { width: 26 },
+    ...Array(7).fill({ width: 14 }),
+    { width: 10 },
+  ];
+
+  const COLS = 9;
 
   // ── Título ──
-  const titleText = `CALENDARIO DE TURNOS  —  ${branchNombre.toUpperCase()}  —  ${MONTH_NAMES[month].toUpperCase()} ${year}`;
-  ws[XLSX.utils.encode_cell({ r: row - 1, c: 0 })] = {
-    v: titleText, t: "s",
-    s: { font: { bold: true, sz: 13, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "1F4E79" } }, alignment: { horizontal: "left" } },
-  };
-  ws["!merges"] = ws["!merges"] ?? [];
-  ws["!merges"].push({ s: { r: row - 1, c: 0 }, e: { r: row - 1, c: COLS - 1 } });
-  row++;
+  const titleRow = ws.addRow([`CALENDARIO DE TURNOS  —  ${branchNombre.toUpperCase()}  —  ${MONTH_NAMES[month].toUpperCase()} ${year}`]);
+  ws.mergeCells(titleRow.number, 1, titleRow.number, COLS);
+  const tc = titleRow.getCell(1);
+  tc.fill = fill(C.TITLE_BG);
+  tc.font = { bold: true, size: 13, color: { argb: `FF${C.TITLE_FG}` } };
+  tc.alignment = { vertical: "middle", horizontal: "left", indent: 1 };
+  titleRow.height = 22;
 
-  row++; // espacio
+  ws.addRow([]); // espacio
 
   const weeks = buildIsoWeeks(year, month);
 
   for (const week of weeks) {
     const isoWeek = isoWeekNumber(week[0]);
-    const weekLabel = `  Sem ${isoWeek}   ${fmtDateRange(week[0], week[6])}`;
 
     // Cabecera semana
-    ws[XLSX.utils.encode_cell({ r: row - 1, c: 0 })] = {
-      v: weekLabel, t: "s",
-      s: { font: { bold: true, sz: 10, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "2E75B6" } }, alignment: { horizontal: "left" } },
-    };
-    ws["!merges"].push({ s: { r: row - 1, c: 0 }, e: { r: row - 1, c: COLS - 1 } });
-    row++;
+    const weekRow = ws.addRow([`  Sem ${isoWeek}   ${fmtDateRange(week[0], week[6])}`]);
+    ws.mergeCells(weekRow.number, 1, weekRow.number, COLS);
+    const wc = weekRow.getCell(1);
+    wc.fill = fill(C.WEEK_BG);
+    wc.font = { bold: true, size: 10, color: { argb: `FF${C.WEEK_FG}` } };
+    wc.alignment = { vertical: "middle", horizontal: "left", indent: 1 };
+    weekRow.height = 18;
 
     // Sub-cabecera días
-    const headerStyle = { font: { bold: true, sz: 9 }, fill: { fgColor: { rgb: "BDD7EE" } }, alignment: { horizontal: "center" } };
-    ws[XLSX.utils.encode_cell({ r: row - 1, c: 0 })] = { v: "Vendedor", t: "s", s: headerStyle };
-    week.forEach((d, ci) => {
-      const isWknd = ci >= 5;
-      const style = { font: { bold: true, sz: 9 }, fill: { fgColor: { rgb: isWknd ? "FCE4D6" : "BDD7EE" } }, alignment: { horizontal: "center" } };
-      ws[XLSX.utils.encode_cell({ r: row - 1, c: ci + 1 })] = {
-        v: `${DOW_LABELS[ci]} ${String(d.getDate()).padStart(2, "0")}`, t: "s", s: style,
-      };
+    const hdrRow = ws.addRow([
+      "Vendedor",
+      ...week.map((d, ci) => `${DOW_LABELS[ci]} ${String(d.getDate()).padStart(2, "0")}`),
+      "Hrs Sem",
+    ]);
+    hdrRow.height = 16;
+    hdrRow.eachCell((cell, col) => {
+      const isWknd = col >= 2 && col <= 8 && (col - 2) >= 5;
+      cell.fill = fill(isWknd ? C.WKND_HDR_BG : C.HDR_BG);
+      cell.font = { bold: true, size: 9, color: { argb: `FF${isWknd ? C.WKND_HDR_FG : C.HDR_FG}` } };
+      cell.alignment = { horizontal: col === 1 ? "left" : "center", vertical: "middle" };
+      cell.border = border();
     });
-    ws[XLSX.utils.encode_cell({ r: row - 1, c: 8 })] = { v: "Hrs Sem", t: "s", s: headerStyle };
-    row++;
 
     // Filas vendedores
     slots.forEach((slot, si) => {
       const workerId = assignments[String(slot.slotNumber)] ?? null;
       const workerName = workerId ? (workerMap[workerId] ?? `Vendedor ${slot.slotNumber}`) : `Vendedor ${slot.slotNumber}`;
-      const altFill = si % 2 === 1 ? { fgColor: { rgb: "F5F5F5" } } : undefined;
-
-      ws[XLSX.utils.encode_cell({ r: row - 1, c: 0 })] = {
-        v: workerName, t: "s",
-        s: { font: { bold: true, sz: 9 }, fill: altFill, alignment: { horizontal: "left" } },
-      };
+      const isAlt = si % 2 === 1;
 
       let totalH = 0;
-      week.forEach((d, ci) => {
+      const rowData: (string | number)[] = [workerName];
+      const shifts: (DayShift | null)[] = [];
+      week.forEach((d) => {
         const dateStr = d.toISOString().slice(0, 10);
-        const shift: DayShift | null = slot.days[dateStr] ?? null;
-        if (shift) totalH += shiftDuration(shift);
-        ws[XLSX.utils.encode_cell({ r: row - 1, c: ci + 1 })] = shift
-          ? { v: `${shift.start}–${shift.end}`, t: "s", s: { font: { sz: 9 }, fill: altFill, alignment: { horizontal: "center" } } }
-          : { v: "libre", t: "s", s: { font: { sz: 9, color: { rgb: "AAAAAA" }, italic: true }, fill: altFill, alignment: { horizontal: "center" } } };
+        const sh = slot.days[dateStr] ?? null;
+        shifts.push(sh);
+        if (sh) totalH += shiftDuration(sh);
+        rowData.push(sh ? `${sh.start}–${sh.end}` : "libre");
       });
+      rowData.push(totalH > 0 ? `${Number.isInteger(totalH) ? totalH : totalH.toFixed(1)}h` : "—");
 
-      ws[XLSX.utils.encode_cell({ r: row - 1, c: 8 })] = {
-        v: totalH > 0 ? `${Number.isInteger(totalH) ? totalH : totalH.toFixed(1)}h` : "—", t: "s",
-        s: { font: { bold: true, sz: 9 }, fill: altFill, alignment: { horizontal: "right" } },
-      };
-      row++;
+      const dataRow = ws.addRow(rowData);
+      dataRow.height = 15;
+
+      dataRow.eachCell((cell, col) => {
+        const isWknd = col >= 2 && col <= 8 && (col - 2) >= 5;
+        const shiftIdx = col - 2;
+        const sh = shiftIdx >= 0 && shiftIdx < 7 ? shifts[shiftIdx] : null;
+        const isLibre = col >= 2 && col <= 8 && sh === null;
+        const isHrs = col === COLS;
+
+        if (col === 1) {
+          cell.fill = fill(isAlt ? C.ALT_BG : "FFFFFF");
+          cell.font = { bold: true, size: 9 };
+          cell.alignment = { horizontal: "left", vertical: "middle", indent: 1 };
+        } else if (isLibre) {
+          cell.fill = fill(isAlt ? "EFEFEF" : "F8F8F8");
+          cell.font = { size: 9, color: { argb: `FF${C.LIBRE_FG}` }, italic: true };
+          cell.alignment = { horizontal: "center", vertical: "middle" };
+        } else if (isHrs) {
+          cell.fill = fill(isAlt ? C.ALT_BG : "FFFFFF");
+          cell.font = { bold: true, size: 9, color: { argb: `FF${C.HOURS_FG}` } };
+          cell.alignment = { horizontal: "right", vertical: "middle" };
+        } else if (sh) {
+          cell.fill = fill(isWknd ? C.WKND_SHIFT : C.SHIFT_BG);
+          cell.font = { size: 9, color: { argb: `FF${isWknd ? C.WKND_SFG : C.SHIFT_FG}` } };
+          cell.alignment = { horizontal: "center", vertical: "middle" };
+        }
+        cell.border = border();
+      });
     });
 
-    row++; // separador entre semanas
+    ws.addRow([]); // separador entre semanas
   }
 
-  ws["!ref"] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: row - 1, c: COLS - 1 } });
-  ws["!cols"] = [{ wch: 24 }, ...Array(7).fill({ wch: 13 }), { wch: 9 }];
-
-  XLSX.utils.book_append_sheet(wb, ws, `${MONTH_NAMES[month]} ${year}`);
-  return XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer;
+  const buf = await wb.xlsx.writeBuffer();
+  return Buffer.from(buf);
 }
 
 // ─── Exportar Excel RRHH (RUT sin DV, DIA1..DIA31) ───────────────────────────

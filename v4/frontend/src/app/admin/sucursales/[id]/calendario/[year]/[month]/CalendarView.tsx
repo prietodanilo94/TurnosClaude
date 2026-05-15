@@ -161,6 +161,7 @@ interface Props {
   saveConfirmMessage?: string;
   changeRemindMessage?: string;
   showExportButtons?: boolean;
+  hideExcelExport?: boolean;
   showValidationPanel?: boolean;
   enforceValidationBeforeSave?: boolean;
   calendarScopeLabel?: string;
@@ -182,6 +183,7 @@ export default function CalendarView({
   saveConfirmMessage,
   changeRemindMessage,
   showExportButtons = true,
+  hideExcelExport = false,
   showValidationPanel = false,
   enforceValidationBeforeSave = false,
   calendarScopeLabel,
@@ -691,12 +693,14 @@ export default function CalendarView({
               >
                 Exportar Calendario
               </button>
-              <button
-                onClick={() => handleExport("rrhh")}
-                className="px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors"
-              >
-                Exportar Excel
-              </button>
+              {!hideExcelExport && (
+                <button
+                  onClick={() => handleExport("rrhh")}
+                  className="px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors"
+                >
+                  Exportar Excel
+                </button>
+              )}
             </>
           )}
         </div>
@@ -717,8 +721,8 @@ export default function CalendarView({
               onClick={() => setView(key)}
               className={`flex-1 px-4 py-3 text-sm font-semibold transition-colors border-b-2 ${
                 view === key
-                  ? "border-blue-600 text-blue-700 bg-blue-50"
-                  : "border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-50"
+                  ? "border-blue-700 text-white bg-blue-700"
+                  : "border-transparent text-gray-600 hover:text-gray-900 hover:bg-blue-50"
               }`}
             >
               {label}
@@ -2110,7 +2114,7 @@ function ShiftEditDialog({
                 onClick={onSetLibre}
                 className="px-3 py-1.5 text-xs border border-rose-300 text-rose-600 rounded hover:bg-rose-50 transition-colors"
               >
-                Poner como libre
+                Eliminar turno
               </button>
             )}
           </div>
