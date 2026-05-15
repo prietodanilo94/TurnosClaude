@@ -2,11 +2,12 @@ import * as XLSX from "xlsx";
 import type { ParseResult, WorkerRow, AreaNegocio } from "@/types";
 
 const COL_ALIASES: Record<string, string[]> = {
-  rut:          ["rut"],
-  nombre:       ["nombre"],
-  area:         ["área", "area"],
-  areaNegocio:  ["área de negocio", "area de negocio", "area_negocio", "servicios/ventas"],
-  supervisor:   ["supervisor"],
+  rut:              ["rut"],
+  nombre:           ["nombre"],
+  area:             ["área", "area"],
+  areaNegocio:      ["área de negocio", "area de negocio", "area_negocio", "servicios/ventas"],
+  supervisor:       ["supervisor"],
+  cargoHomologado:  ["cargo homologado"],
 };
 
 function findHeader(headers: string[], field: keyof typeof COL_ALIASES): number {
@@ -32,7 +33,7 @@ function parseAreaCodigo(raw: string): { codigo: string; nombre: string } | null
 
 function normalizeBranchName(raw: string): string {
   return raw
-    .replace(/\bseminuevos\b/gi, "Usados")
+    .replace(/\busados\b/gi, "Seminuevos")
     .replace(/\blocal\b/gi, "")
     .replace(/\s+/g, " ")
     .trim();
@@ -57,11 +58,12 @@ export function parseDotacionExcel(buffer: ArrayBuffer): ParseResult {
   if (raw.length < 2) return { rows: [], errors: [] };
 
   const headerRow = raw[0].map((c) => String(c));
-  const colRut         = findHeader(headerRow, "rut");
-  const colNombre      = findHeader(headerRow, "nombre");
-  const colArea        = findHeader(headerRow, "area");
-  const colAreaNeg     = findHeader(headerRow, "areaNegocio");
-  const colSupervisor  = findHeader(headerRow, "supervisor");
+  const colRut            = findHeader(headerRow, "rut");
+  const colNombre         = findHeader(headerRow, "nombre");
+  const colArea           = findHeader(headerRow, "area");
+  const colAreaNeg        = findHeader(headerRow, "areaNegocio");
+  const colSupervisor     = findHeader(headerRow, "supervisor");
+  const colCargo          = findHeader(headerRow, "cargoHomologado");
 
   const missing: string[] = [];
   if (colRut < 0)    missing.push("Rut");
@@ -85,9 +87,12 @@ export function parseDotacionExcel(buffer: ArrayBuffer): ParseResult {
     const rawArea       = String(row[colArea] ?? "").trim();
     const rawAreaNeg    = String(row[colAreaNeg] ?? "").trim();
     const rawSupervisor = colSupervisor >= 0 ? String(row[colSupervisor] ?? "").trim() : "";
+    const rawCargo      = colCargo >= 0 ? String(row[colCargo] ?? "").trim() : "";
     const fila = i + 1;
 
     if (!rawRut) continue;
+
+    if (colCargo >= 0 && rawCargo.toLowerCase() !== "asesores de venta") continue;
 
     const rut = normalizeRut(rawRut);
     if (!rut) {
