@@ -7,7 +7,7 @@ import { logAction } from "@/lib/audit/log";
 
 function normalizeBranchName(raw: string): string {
   return raw
-    .replace(/\bseminuevos\b/gi, "Usados")
+    .replace(/\busados\b/gi, "Seminuevos")
     .replace(/\blocal\b/gi, "")
     .replace(/\s+/g, " ")
     .trim();
