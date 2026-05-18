@@ -139,6 +139,19 @@ model WorkerBlock {
   createdAt DateTime @default(now())
 }
 
+model AttendanceRecord {
+  id        String   @id @default(cuid())
+  rut       String
+  fecha     String
+  entrada   String?
+  salida    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([rut, fecha])
+  @@index([fecha])
+}
+
 model AuditLog {
   id         String   @id @default(cuid())
   userId     String?

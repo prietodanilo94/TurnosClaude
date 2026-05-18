@@ -355,6 +355,11 @@ export default function CalendarView({
     return map;
   }, [sortedSlots]);
 
+  const workerRutMap = useMemo(
+    () => Object.fromEntries(workers.map((w) => [w.id, w.rut])),
+    [workers]
+  );
+
   async function handleSave(): Promise<string | null> {
     if (saveConfirmMessage && !confirm(saveConfirmMessage)) return null;
     return new Promise<string | null>((resolve) => requestSave(resolve));
@@ -831,6 +836,8 @@ export default function CalendarView({
           slotDisplayNum={slotDisplayNum}
           workerMap={workerMap}
           blockMap={blockMap}
+          teamId={teamId}
+          workerRutMap={workerRutMap}
         />
       )}
 
@@ -1286,6 +1293,8 @@ function WeekBlock({
 
 // ─── Tab: Cobertura del Día ───────────────────────────────────────────────────
 
+type AttendanceByRut = Record<string, Record<string, { entrada: string | null; salida: string | null }>>;
+
 interface CoberturaDelMesViewProps {
   year: number;
   month: number;
@@ -1294,9 +1303,11 @@ interface CoberturaDelMesViewProps {
   workerMap: Record<string, string>;
   blockMap: WorkerBlockDateMap;
   slotDisplayNum: Record<number, number>;
+  teamId: string;
+  workerRutMap: Record<string, string>;
 }
 
-function CoberturaDelMesView({ year, month, slots, assign, workerMap, blockMap, slotDisplayNum }: CoberturaDelMesViewProps) {
+function CoberturaDelMesView({ year, month, slots, assign, workerMap, blockMap, slotDisplayNum, teamId, workerRutMap }: CoberturaDelMesViewProps) {
   const daysInMonth = new Date(year, month, 0).getDate();
   const days: Date[] = [];
   for (let d = 1; d <= daysInMonth; d++) {
@@ -1306,6 +1317,21 @@ function CoberturaDelMesView({ year, month, slots, assign, workerMap, blockMap, 
   const allDateStrs = days.map(fmt);
   const [selectedDays, setSelectedDays] = useState<Set<string>>(() => new Set(allDateStrs));
   const [calOpen, setCalOpen] = useState(true);
+  const [attendanceByRut, setAttendanceByRut] = useState<AttendanceByRut>({});
+
+  useEffect(() => {
+    fetch(`/api/attendance?teamId=${teamId}&year=${year}&month=${month}`)
+      .then((r) => r.json())
+      .then((records: { rut: string; fecha: string; entrada: string | null; salida: string | null }[]) => {
+        const byRut: AttendanceByRut = {};
+        for (const r of records) {
+          if (!byRut[r.rut]) byRut[r.rut] = {};
+          byRut[r.rut][r.fecha] = { entrada: r.entrada, salida: r.salida };
+        }
+        setAttendanceByRut(byRut);
+      })
+      .catch(() => {});
+  }, [teamId, year, month]);
 
   function toggleDay(ds: string) {
     setSelectedDays((prev) => {
@@ -1432,6 +1458,8 @@ function CoberturaDelMesView({ year, month, slots, assign, workerMap, blockMap, 
                   workerMap={workerMap}
                   blockMap={blockMap}
                   slotDisplayNum={slotDisplayNum}
+                  workerRutMap={workerRutMap}
+                  attendanceByRut={attendanceByRut}
                 />
               ) : (
                 <div className="px-4 py-3 text-xs text-gray-400 italic text-center">
@@ -1455,18 +1483,22 @@ interface GanttInlineProps {
   workerMap: Record<string, string>;
   blockMap: WorkerBlockDateMap;
   slotDisplayNum: Record<number, number>;
+  workerRutMap: Record<string, string>;
+  attendanceByRut: AttendanceByRut;
 }
 
-function GanttInline({ dateStr, slots, assign, workerMap, blockMap, slotDisplayNum }: GanttInlineProps) {
+function GanttInline({ dateStr, slots, assign, workerMap, blockMap, slotDisplayNum, workerRutMap, attendanceByRut }: GanttInlineProps) {
   const date = new Date(dateStr + "T12:00:00");
   const feriado = isFeriadoIrrenunciable(date);
 
   const activeSlots = slots
-    .map((slot) => ({
-      slot,
-      shift: slot.days[dateStr] ?? null,
-      workerId: assign[String(slot.slotNumber)] ?? null,
-    }))
+    .map((slot) => {
+      const workerId = assign[String(slot.slotNumber)] ?? null;
+      const shift = slot.days[dateStr] ?? null;
+      const rut = workerId ? (workerRutMap[workerId] ?? null) : null;
+      const att = rut ? (attendanceByRut[rut]?.[dateStr] ?? null) : null;
+      return { slot, shift, workerId, att };
+    })
     .filter(({ shift, workerId }) => shift !== null && !feriado && !isWorkerBlockedOnDate(blockMap, workerId, dateStr));
 
   if (activeSlots.length === 0) {
@@ -1477,10 +1509,16 @@ function GanttInline({ dateStr, slots, assign, workerMap, blockMap, slotDisplayN
     );
   }
 
-  const allStarts = activeSlots.map(({ shift }) => minutesFromTime(shift!.start));
-  const allEnds   = activeSlots.map(({ shift }) => minutesFromTime(shift!.end));
-  const axisStart = Math.floor(Math.min(...allStarts) / 60) * 60;
-  const axisEnd   = Math.ceil(Math.max(...allEnds) / 60) * 60;
+  const allTimeMins = [
+    ...activeSlots.map(({ shift }) => minutesFromTime(shift!.start)),
+    ...activeSlots.map(({ shift }) => minutesFromTime(shift!.end)),
+    ...activeSlots.flatMap(({ att }) => [
+      att?.entrada ? minutesFromTime(att.entrada) : null,
+      att?.salida  ? minutesFromTime(att.salida)  : null,
+    ]).filter((v): v is number => v !== null),
+  ];
+  const axisStart = Math.floor(Math.min(...allTimeMins) / 60) * 60;
+  const axisEnd   = Math.ceil(Math.max(...allTimeMins) / 60) * 60;
   const axisRange = axisEnd - axisStart;
 
   const hourMarks: number[] = [];
@@ -1513,7 +1551,7 @@ function GanttInline({ dateStr, slots, assign, workerMap, blockMap, slotDisplayN
       </div>
 
       <div className="space-y-1.5">
-        {activeSlots.map(({ slot, shift, workerId }) => {
+        {activeSlots.map(({ slot, shift, workerId, att }) => {
           const workerName = workerId ? (workerMap[workerId] ?? "?") : `Vendedor ${slotDisplayNum[slot.slotNumber] ?? slot.slotNumber}`;
           const color = workerColor(slot.slotNumber);
           const startMin = minutesFromTime(shift!.start);
@@ -1526,7 +1564,7 @@ function GanttInline({ dateStr, slots, assign, workerMap, blockMap, slotDisplayN
                 <span className={`w-2 h-2 rounded-full ${color.bg} border ${color.border} shrink-0`} />
                 <span className="text-[11px] text-gray-700 truncate">{shortWorkerName(workerName)}</span>
               </div>
-              <div className="flex-1 relative h-6 bg-white rounded border border-gray-200">
+              <div className="flex-1 relative h-8 bg-white rounded border border-gray-200">
                 {hourMarks.map((h) => (
                   <div
                     key={h}
@@ -1535,7 +1573,7 @@ function GanttInline({ dateStr, slots, assign, workerMap, blockMap, slotDisplayN
                   />
                 ))}
                 <div
-                  className={`absolute top-0.5 bottom-0.5 rounded ${color.bg} ${color.border} border flex items-center justify-center overflow-hidden`}
+                  className={`absolute top-1 bottom-1 rounded ${color.bg} ${color.border} border flex items-center justify-center overflow-hidden`}
                   style={{
                     left:  `${pct(startMin)}%`,
                     width: `${pct(endMin) - pct(startMin)}%`,
@@ -1545,6 +1583,30 @@ function GanttInline({ dateStr, slots, assign, workerMap, blockMap, slotDisplayN
                     {shift!.start}–{shift!.end}
                   </span>
                 </div>
+                {[
+                  { time: att?.entrada ?? null, isEntry: true  },
+                  { time: att?.salida  ?? null, isEntry: false },
+                ].map(({ time, isEntry }) => {
+                  if (!time) return null;
+                  const pos = Math.max(0, Math.min(100, pct(minutesFromTime(time))));
+                  return (
+                    <div
+                      key={isEntry ? "in" : "out"}
+                      className="absolute top-0 bottom-0 flex flex-col items-center z-20 pointer-events-none"
+                      style={{ left: `${pos}%`, transform: "translateX(-50%)" }}
+                    >
+                      <span className={`text-[7px] font-bold leading-none mt-0.5 whitespace-nowrap bg-white/95 border rounded px-0.5 ${
+                        isEntry ? "text-emerald-700 border-emerald-300" : "text-orange-600 border-orange-300"
+                      }`}>
+                        {time}
+                      </span>
+                      <div className={`flex-1 w-px ${isEntry ? "bg-emerald-500" : "bg-orange-500"}`} />
+                      <div className={`w-2 h-2 rounded-full border-2 border-white shadow-sm shrink-0 mb-0.5 ${
+                        isEntry ? "bg-emerald-500" : "bg-orange-500"
+                      }`} />
+                    </div>
+                  );
+                })}
               </div>
               <div className="w-12 text-right text-[10px] font-medium text-gray-600 shrink-0">
                 {fmtHours(labHours)}
