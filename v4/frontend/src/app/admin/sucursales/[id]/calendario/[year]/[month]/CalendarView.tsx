@@ -1579,7 +1579,7 @@ function GanttInline({ dateStr, slots, assign, workerMap, blockMap, slotDisplayN
                     width: `${pct(endMin) - pct(startMin)}%`,
                   }}
                 >
-                  <span className={`text-[9px] font-medium ${color.text} px-1 truncate`}>
+                  <span className={`text-[11px] font-medium ${color.text} px-1 truncate`}>
                     {shift!.start}–{shift!.end}
                   </span>
                 </div>
