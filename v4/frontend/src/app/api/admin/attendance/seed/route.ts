@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSessionFromRequest } from "@/lib/auth/session";
 
@@ -12,7 +12,7 @@ function fmtT(mins: number) {
 }
 function rnd(min: number, max: number) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   const session = await getSessionFromRequest(req);
   if (!session || session.role !== "admin")
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
