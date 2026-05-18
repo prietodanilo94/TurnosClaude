@@ -716,11 +716,11 @@ export default function CalendarView({
             <button
               key={key}
               onClick={() => setView(key)}
-              className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold transition-colors border-b-2 ${
+              className={`flex-1 relative flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold transition-colors border-b-2 ${
                 view === key ? active : inactive
               }`}
             >
-              <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-xs font-bold shrink-0 ${
+              <span className={`absolute left-3 inline-flex items-center justify-center w-5 h-5 rounded-full text-xs font-bold shrink-0 ${
                 view === key ? badgeActive : badge
               }`}>
                 {n}
@@ -1350,7 +1350,7 @@ function CoberturaDelMesView({ year, month, slots, assign, workerMap, blockMap, 
         {/* Cuerpo */}
         {calOpen && (
           <div className="px-3 pb-3">
-            <p className="text-[10px] text-gray-400 italic mb-2">Haz click en un día para mostrarlo u ocultarlo de la vista.</p>
+            <p className="text-xs text-gray-500 mb-2">Selecciona los días que quieres ver en el gráfico de cobertura. Haz clic para activar o desactivar cada uno.</p>
             <div className="grid grid-cols-7 mb-0.5" style={{ width: 196 }}>
               {["L", "M", "X", "J", "V", "S", "D"].map((d, i) => (
                 <div key={i} className={`w-7 text-center text-[10px] font-semibold ${i >= 5 ? "text-orange-400" : "text-gray-400"}`}>
