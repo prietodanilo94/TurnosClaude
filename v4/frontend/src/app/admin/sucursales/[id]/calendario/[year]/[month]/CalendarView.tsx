@@ -1564,7 +1564,7 @@ function GanttInline({ dateStr, slots, assign, workerMap, blockMap, slotDisplayN
                 <span className={`w-2 h-2 rounded-full ${color.bg} border ${color.border} shrink-0`} />
                 <span className="text-[11px] text-gray-700 truncate">{shortWorkerName(workerName)}</span>
               </div>
-              <div className="flex-1 relative h-8 bg-white rounded border border-gray-200">
+              <div className="flex-1 relative h-10 bg-white rounded border border-gray-200">
                 {hourMarks.map((h) => (
                   <div
                     key={h}
@@ -1595,7 +1595,7 @@ function GanttInline({ dateStr, slots, assign, workerMap, blockMap, slotDisplayN
                       className="absolute top-0 bottom-0 flex flex-col items-center z-20 pointer-events-none"
                       style={{ left: `${pos}%`, transform: "translateX(-50%)" }}
                     >
-                      <span className={`text-[7px] font-bold leading-none mt-0.5 whitespace-nowrap bg-white/95 border rounded px-0.5 ${
+                      <span className={`text-[10px] font-bold leading-none mt-0.5 whitespace-nowrap bg-white/95 border rounded px-0.5 ${
                         isEntry ? "text-emerald-700 border-emerald-300" : "text-orange-600 border-orange-300"
                       }`}>
                         {time}
