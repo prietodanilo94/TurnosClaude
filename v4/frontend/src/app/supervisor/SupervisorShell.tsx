@@ -43,7 +43,7 @@ export default function SupervisorShell({
         <nav className="flex-1 px-2 py-4 space-y-1">
           <NavLink href="/supervisor">Mis sucursales</NavLink>
           <NavLink href="/supervisor/ayuda">Cómo usar</NavLink>
-          <NavLink href="/supervisor/comentarios">Comentarios</NavLink>
+          <NavLink href="/supervisor/comentarios">Deja tu comentario</NavLink>
         </nav>
 
         <div className="px-4 py-4 border-t border-gray-700 space-y-1">

@@ -714,18 +714,16 @@ export default function CalendarView({
         <div className="flex border-b border-gray-200">
           {(
             [
-              { key: "mensual",  label: "📅 Calendario Mensual", active: "border-blue-700 bg-blue-700 text-white",     hover: "hover:text-blue-800 hover:bg-blue-50" },
-              { key: "vendedor", label: "👤 Turno por Vendedor",  active: "border-violet-600 bg-violet-600 text-white", hover: "hover:text-violet-800 hover:bg-violet-50" },
-              { key: "diario",   label: "📊 Cobertura del Día",   active: "border-emerald-600 bg-emerald-600 text-white", hover: "hover:text-emerald-800 hover:bg-emerald-50" },
+              { key: "mensual",  label: "📅 Calendario Mensual", active: "border-blue-700 bg-blue-700 text-white",       inactive: "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100" },
+              { key: "vendedor", label: "👤 Turno por Vendedor",  active: "border-violet-600 bg-violet-600 text-white",   inactive: "border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100" },
+              { key: "diario",   label: "📊 Cobertura del Día",   active: "border-emerald-600 bg-emerald-600 text-white", inactive: "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100" },
             ] as const
-          ).map(({ key, label, active, hover }) => (
+          ).map(({ key, label, active, inactive }) => (
             <button
               key={key}
               onClick={() => setView(key)}
               className={`flex-1 px-4 py-3 text-sm font-semibold transition-colors border-b-2 ${
-                view === key
-                  ? active
-                  : `border-transparent text-gray-600 ${hover}`
+                view === key ? active : inactive
               }`}
             >
               {label}
@@ -911,12 +909,17 @@ export default function CalendarView({
           <button
             onClick={() => void handleSave()}
             disabled={saving}
-            className="flex items-center gap-2 px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-full shadow-2xl transition-colors disabled:opacity-60"
+            className="flex items-center gap-3 pl-4 pr-5 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl shadow-[0_8px_24px_rgba(37,99,235,0.45)] hover:shadow-[0_8px_28px_rgba(37,99,235,0.6)] transition-all disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-            </svg>
-            {saving ? "Guardando…" : "Guardar cambios"}
+            <div className="flex items-center justify-center w-8 h-8 bg-white/20 rounded-xl shrink-0">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+              </svg>
+            </div>
+            <div className="text-left">
+              <p className="text-xs font-medium text-blue-100 leading-none mb-0.5">Cambios pendientes</p>
+              <p className="text-sm font-bold leading-none">{saving ? "Guardando…" : "Guardar ahora"}</p>
+            </div>
           </button>
         </div>
       )}
