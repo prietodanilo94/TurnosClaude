@@ -24,7 +24,8 @@ export async function POST(req: NextRequest) {
   });
   if (!calendar) return NextResponse.json({ error: "Calendar not found" }, { status: 404 });
 
-  const slotsData = JSON.parse(calendar.slotsData) as Record<string, Record<string, { start: string; end: string } | null>>;
+  type SlotEntry = { slotNumber: number; days: Record<string, { start: string; end: string } | null> };
+  const slotsArr = JSON.parse(calendar.slotsData) as SlotEntry[];
   const assignments = JSON.parse(calendar.assignments) as Record<string, string | null>;
 
   const workers = await prisma.worker.findMany({
@@ -38,14 +39,13 @@ export async function POST(req: NextRequest) {
 
   const toUpsert: { rut: string; fecha: string; entrada: string; salida: string | null }[] = [];
 
-  for (const [slotNum, workerId] of Object.entries(assignments)) {
+  for (const slot of slotsArr) {
+    const workerId = assignments[String(slot.slotNumber)];
     if (!workerId) continue;
     const rut = workerRutMap[workerId];
     if (!rut) continue;
-    const slotDays = slotsData[slotNum];
-    if (!slotDays) continue;
 
-    for (const [fecha, shift] of Object.entries(slotDays)) {
+    for (const [fecha, shift] of Object.entries(slot.days)) {
       if (!shift || !fecha.startsWith(monthPrefix) || fecha >= todayStr) continue;
       const entrada = fmtT(parseT(shift.start) + rnd(-5, 25));
       const salida  = Math.random() > 0.08 ? fmtT(parseT(shift.end) + rnd(-5, 20)) : null;
