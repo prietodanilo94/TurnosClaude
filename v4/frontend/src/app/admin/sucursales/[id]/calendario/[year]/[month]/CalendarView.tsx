@@ -1345,6 +1345,7 @@ function CoberturaDelMesView({ year, month, slots, assign, workerMap, blockMap, 
         {/* Cuerpo */}
         {calOpen && (
           <div className="px-3 pb-3">
+            <p className="text-[10px] text-gray-400 italic mb-2">Haz click en un día para mostrarlo u ocultarlo de la vista.</p>
             <div className="grid grid-cols-7 mb-0.5" style={{ width: 196 }}>
               {["L", "M", "X", "J", "V", "S", "D"].map((d, i) => (
                 <div key={i} className={`w-7 text-center text-[10px] font-semibold ${i >= 5 ? "text-orange-400" : "text-gray-400"}`}>
