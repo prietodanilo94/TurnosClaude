@@ -820,6 +820,8 @@ export default function CalendarView({
               onLibreSwap={handleLibreSwap}
               onWorkerSwap={(slotA, slotB, weekDates) => setWorkerSwapModal({ slotA, slotB, weekDates })}
               lockedBefore={calId ? todayStr : undefined}
+              workerRutMap={workerRutMap}
+              attendanceByRut={attendanceByRut}
             />
           ))}
         </div>
@@ -1071,11 +1073,14 @@ interface WeekBlockProps {
   onLibreSwap: (slotNum: number, d1: string, d2: string) => void;
   onWorkerSwap: (slotA: number, slotB: number, weekDates: string[]) => void;
   lockedBefore?: string;
+  workerRutMap?: Record<string, string>;
+  attendanceByRut?: AttendanceByRut;
 }
 
 function WeekBlock({
   week, month, slots, assign, prevAssignments, nextAssignments, workerMap, blockMap, slotDisplayNum,
   onSlotClick, selectedDay, onDayClick, onShiftCellClick, onLibreSwap, onWorkerSwap, lockedBefore,
+  workerRutMap = {}, attendanceByRut = {},
 }: WeekBlockProps) {
   const [dragSource, setDragSource] = useState<{ slotNum: number; dateStr: string } | null>(null);
   const [dragOver, setDragOver] = useState<{ slotNum: number; dateStr: string } | null>(null);
