@@ -1483,11 +1483,11 @@ interface GanttInlineProps {
   workerMap: Record<string, string>;
   blockMap: WorkerBlockDateMap;
   slotDisplayNum: Record<number, number>;
-  workerRutMap: Record<string, string>;
-  attendanceByRut: AttendanceByRut;
+  workerRutMap?: Record<string, string>;
+  attendanceByRut?: AttendanceByRut;
 }
 
-function GanttInline({ dateStr, slots, assign, workerMap, blockMap, slotDisplayNum, workerRutMap, attendanceByRut }: GanttInlineProps) {
+function GanttInline({ dateStr, slots, assign, workerMap, blockMap, slotDisplayNum, workerRutMap = {}, attendanceByRut = {} }: GanttInlineProps) {
   const date = new Date(dateStr + "T12:00:00");
   const feriado = isFeriadoIrrenunciable(date);
 
