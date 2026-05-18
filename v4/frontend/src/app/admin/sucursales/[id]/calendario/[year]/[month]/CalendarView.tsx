@@ -655,12 +655,6 @@ export default function CalendarView({
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">{branchName}</h1>
           <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-            <span>{branchCodigo}</span>
-            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-              areaNegocio === "ventas" ? "bg-blue-100 text-blue-800" : "bg-emerald-100 text-emerald-800"
-            }`}>
-              {areaNegocio === "ventas" ? "Ventas" : "Postventa"}
-            </span>
             {getScheduleBreakdown(categoria).map(({ days, range }, i) => (
               <Fragment key={days}>
                 {i > 0 && <span className="text-gray-300">·</span>}
@@ -852,6 +846,7 @@ export default function CalendarView({
         <ShiftEditDialog
           slotNumber={shiftEditDialog.slotNum}
           dateStr={shiftEditDialog.dateStr}
+          workerName={workerMap[assign[String(shiftEditDialog.slotNum)] ?? ""] ?? undefined}
           currentShift={shiftForEdit}
           originalShift={originalShiftForEdit ?? undefined}
           redistributeDays={redistributeDays}
@@ -909,17 +904,12 @@ export default function CalendarView({
           <button
             onClick={() => void handleSave()}
             disabled={saving}
-            className="flex items-center gap-3 pl-4 pr-5 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl shadow-[0_8px_24px_rgba(37,99,235,0.45)] hover:shadow-[0_8px_28px_rgba(37,99,235,0.6)] transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+            className="flex items-center gap-2.5 px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl shadow-[0_4px_20px_rgba(37,99,235,0.4)] hover:shadow-[0_6px_24px_rgba(37,99,235,0.55)] transition-all disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            <div className="flex items-center justify-center w-8 h-8 bg-white/20 rounded-xl shrink-0">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-              </svg>
-            </div>
-            <div className="text-left">
-              <p className="text-xs font-medium text-blue-100 leading-none mb-0.5">Cambios pendientes</p>
-              <p className="text-sm font-bold leading-none">{saving ? "Guardando…" : "Guardar ahora"}</p>
-            </div>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            {saving ? "Guardando…" : "Guardar cambios"}
           </button>
         </div>
       )}
@@ -1885,6 +1875,7 @@ function AssignDialog({ slotNumber, currentWorkerId, workers, occupied, onClose,
 interface ShiftEditDialogProps {
   slotNumber: number;
   dateStr: string;
+  workerName?: string;
   currentShift: DayShift;
   originalShift?: DayShift;
   redistributeDays: Array<{ dateStr: string; shift: DayShift; d: Date }>;
@@ -1895,7 +1886,7 @@ interface ShiftEditDialogProps {
 }
 
 function ShiftEditDialog({
-  slotNumber, dateStr, currentShift, originalShift, redistributeDays, operatingWindow, onSave, onClose, onSetLibre,
+  slotNumber, dateStr, workerName, currentShift, originalShift, redistributeDays, operatingWindow, onSave, onClose, onSetLibre,
 }: ShiftEditDialogProps) {
   const color = workerColor(slotNumber);
   const [start, setStart] = useState(currentShift.start);
@@ -2037,7 +2028,7 @@ function ShiftEditDialog({
           <div className="flex items-center gap-2">
             <span className={`w-3 h-3 rounded-full ${color.bg} border ${color.border}`} />
             <h3 className="text-sm font-semibold text-gray-900">
-              Editar turno — Slot {slotNumber} · {dayLabel}
+              Editar turno{workerName ? ` — ${workerName}` : ""} · {dayLabel}
             </h3>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg leading-none">×</button>
