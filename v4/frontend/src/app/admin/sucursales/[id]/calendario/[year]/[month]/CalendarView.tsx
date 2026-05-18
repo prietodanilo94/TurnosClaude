@@ -360,6 +360,21 @@ export default function CalendarView({
     [workers]
   );
 
+  const [attendanceByRut, setAttendanceByRut] = useState<AttendanceByRut>({});
+  useEffect(() => {
+    fetch(`/api/attendance?teamId=${teamId}&year=${year}&month=${month}`)
+      .then((r) => r.json())
+      .then((records: { rut: string; fecha: string; entrada: string | null; salida: string | null }[]) => {
+        const byRut: AttendanceByRut = {};
+        for (const r of records) {
+          if (!byRut[r.rut]) byRut[r.rut] = {};
+          byRut[r.rut][r.fecha] = { entrada: r.entrada, salida: r.salida };
+        }
+        setAttendanceByRut(byRut);
+      })
+      .catch(() => {});
+  }, [teamId, year, month]);
+
   async function handleSave(): Promise<string | null> {
     if (saveConfirmMessage && !confirm(saveConfirmMessage)) return null;
     return new Promise<string | null>((resolve) => requestSave(resolve));
@@ -836,8 +851,8 @@ export default function CalendarView({
           slotDisplayNum={slotDisplayNum}
           workerMap={workerMap}
           blockMap={blockMap}
-          teamId={teamId}
           workerRutMap={workerRutMap}
+          attendanceByRut={attendanceByRut}
         />
       )}
 
@@ -1159,6 +1174,8 @@ function WeekBlock({
                     workerMap={workerMap}
                     blockMap={blockMap}
                     slotDisplayNum={slotDisplayNum}
+                    workerRutMap={workerRutMap}
+                    attendanceByRut={attendanceByRut}
                   />
                 </td>
               </tr>
@@ -1303,11 +1320,11 @@ interface CoberturaDelMesViewProps {
   workerMap: Record<string, string>;
   blockMap: WorkerBlockDateMap;
   slotDisplayNum: Record<number, number>;
-  teamId: string;
   workerRutMap: Record<string, string>;
+  attendanceByRut: AttendanceByRut;
 }
 
-function CoberturaDelMesView({ year, month, slots, assign, workerMap, blockMap, slotDisplayNum, teamId, workerRutMap }: CoberturaDelMesViewProps) {
+function CoberturaDelMesView({ year, month, slots, assign, workerMap, blockMap, slotDisplayNum, workerRutMap, attendanceByRut }: CoberturaDelMesViewProps) {
   const daysInMonth = new Date(year, month, 0).getDate();
   const days: Date[] = [];
   for (let d = 1; d <= daysInMonth; d++) {
@@ -1317,21 +1334,6 @@ function CoberturaDelMesView({ year, month, slots, assign, workerMap, blockMap, 
   const allDateStrs = days.map(fmt);
   const [selectedDays, setSelectedDays] = useState<Set<string>>(() => new Set(allDateStrs));
   const [calOpen, setCalOpen] = useState(true);
-  const [attendanceByRut, setAttendanceByRut] = useState<AttendanceByRut>({});
-
-  useEffect(() => {
-    fetch(`/api/attendance?teamId=${teamId}&year=${year}&month=${month}`)
-      .then((r) => r.json())
-      .then((records: { rut: string; fecha: string; entrada: string | null; salida: string | null }[]) => {
-        const byRut: AttendanceByRut = {};
-        for (const r of records) {
-          if (!byRut[r.rut]) byRut[r.rut] = {};
-          byRut[r.rut][r.fecha] = { entrada: r.entrada, salida: r.salida };
-        }
-        setAttendanceByRut(byRut);
-      })
-      .catch(() => {});
-  }, [teamId, year, month]);
 
   function toggleDay(ds: string) {
     setSelectedDays((prev) => {
