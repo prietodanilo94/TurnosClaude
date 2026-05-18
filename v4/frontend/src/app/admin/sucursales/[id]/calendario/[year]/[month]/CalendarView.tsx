@@ -708,18 +708,23 @@ export default function CalendarView({
         <div className="flex border-b border-gray-200">
           {(
             [
-              { key: "mensual",  label: "📅 Calendario Mensual", active: "border-blue-700 bg-blue-700 text-white",       inactive: "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100" },
-              { key: "vendedor", label: "👤 Turno por Vendedor",  active: "border-violet-600 bg-violet-600 text-white",   inactive: "border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100" },
-              { key: "diario",   label: "📊 Cobertura del Día",   active: "border-emerald-600 bg-emerald-600 text-white", inactive: "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100" },
+              { key: "mensual",  label: "📅 Calendario Mensual", n: "1", active: "border-blue-700 bg-blue-700 text-white",       inactive: "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100",     badge: "bg-blue-200 text-blue-800",   badgeActive: "bg-white/25 text-white" },
+              { key: "vendedor", label: "👤 Turno por Vendedor",  n: "2", active: "border-violet-600 bg-violet-600 text-white",   inactive: "border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100", badge: "bg-violet-200 text-violet-800", badgeActive: "bg-white/25 text-white" },
+              { key: "diario",   label: "📊 Cobertura del Día",   n: "3", active: "border-emerald-600 bg-emerald-600 text-white", inactive: "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100", badge: "bg-emerald-200 text-emerald-800", badgeActive: "bg-white/25 text-white" },
             ] as const
-          ).map(({ key, label, active, inactive }) => (
+          ).map(({ key, label, n, active, inactive, badge, badgeActive }) => (
             <button
               key={key}
               onClick={() => setView(key)}
-              className={`flex-1 px-4 py-3 text-sm font-semibold transition-colors border-b-2 ${
+              className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold transition-colors border-b-2 ${
                 view === key ? active : inactive
               }`}
             >
+              <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-xs font-bold shrink-0 ${
+                view === key ? badgeActive : badge
+              }`}>
+                {n}
+              </span>
               {label}
             </button>
           ))}
