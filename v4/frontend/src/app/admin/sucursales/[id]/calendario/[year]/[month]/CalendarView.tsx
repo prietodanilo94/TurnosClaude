@@ -1712,9 +1712,6 @@ function VendedorCalendar({ slot, year, month, weeks, assign, workerMap, blockMa
       >
         <span className={`w-2.5 h-2.5 rounded-full border-2 ${color.border} ${workerId ? color.bg : "bg-white"}`} />
         <span className={`text-sm font-semibold ${color.text}`}>{workerName}</span>
-        <span className="ml-auto text-[11px] text-gray-500 font-normal">
-          {fmtHours(totalMonthHours)} · Slot {displayN}
-        </span>
       </div>
 
       <div className="overflow-x-auto">
