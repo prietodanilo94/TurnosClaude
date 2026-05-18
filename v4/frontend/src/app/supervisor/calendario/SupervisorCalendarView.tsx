@@ -151,7 +151,7 @@ export default function SupervisorCalendarView({
       calendarScopeLabel={title}
       calendarScopeType={slices.length > 1 ? "group" : "branch"}
       changeRemindMessage="Cuidado: estás haciendo cambios en un calendario ya constituido. Los cambios serán informados a RRHH. Para que queden aplicados debes presionar Guardar al terminar. ¿Continuar?"
-      recalculateLabel={hasCalendar ? "Reiniciar" : "Generar"}
+      recalculateLabel="Generar"
       recalculateConfirmMessage={
         hasCalendar
           ? "Esto borrará todas las asignaciones de trabajadores de este mes y dejará los turnos vacíos. ¿Continuar?"

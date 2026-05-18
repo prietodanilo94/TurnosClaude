@@ -671,7 +671,7 @@ export default function CalendarView({
             className="px-3 py-1.5 text-sm border border-rose-300 text-rose-700 rounded hover:bg-rose-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             title="Regenerar plantilla limpia desde cero"
           >
-            {recalculating ? "Regenerando…" : recalculateLabel ?? "Recalcular"}
+            {recalculating ? "Generando…" : recalculateLabel ?? "Generar"}
           </button>
           <button
             onClick={() => void handleSave()}
