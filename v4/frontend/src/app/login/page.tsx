@@ -37,8 +37,11 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="bg-white rounded-lg shadow-md w-full max-w-sm p-8">
-        <h1 className="text-lg font-semibold text-gray-900 mb-1">TeamPlanner</h1>
-        <p className="text-xs text-gray-400 mb-6">Ingresa con tu email o RUT. Si es tu primer acceso, la contraseña que elijas quedará guardada.</p>
+        <div className="flex justify-center mb-6">
+          <img src="/logo-pompeyo.png" alt="Pompeyo Carrasco" className="h-14 w-auto object-contain" />
+        </div>
+        <h1 className="text-base font-semibold text-gray-900 mb-1 text-center">TeamPlanner</h1>
+        <p className="text-xs text-gray-400 mb-6 text-center">Ingresa con tu email o RUT. Si es tu primer acceso, la contraseña que elijas quedará guardada.</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
