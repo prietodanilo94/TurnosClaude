@@ -98,15 +98,26 @@ model Calendar {
 }
 
 model Supervisor {
-  id           String             @id @default(cuid())
+  id           String               @id @default(cuid())
   nombre       String
-  email        String?            @unique
+  email        String?              @unique
   passwordHash String?
-  activo       Boolean            @default(true)
-  isAdmin      Boolean            @default(false)
+  activo       Boolean              @default(true)
+  isAdmin      Boolean              @default(false)
   branches     SupervisorBranch[]
-  createdAt    DateTime           @default(now())
-  updatedAt    DateTime           @updatedAt
+  comments     SupervisorComment[]
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+}
+
+model SupervisorComment {
+  id             String     @id @default(cuid())
+  supervisorId   String
+  supervisor     Supervisor @relation(fields: [supervisorId], references: [id], onDelete: Cascade)
+  texto          String
+  adminRespuesta String?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
 }
 
 model SupervisorBranch {

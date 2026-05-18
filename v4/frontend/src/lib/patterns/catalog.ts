@@ -334,6 +334,45 @@ export function getOperatingHours(id: ShiftCategory): string {
   return minStart === "23:59" ? "" : `${minStart}–${maxEnd}`;
 }
 
+const DOW_FULL = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+
+export function getScheduleBreakdown(id: ShiftCategory): { days: string; range: string }[] {
+  const pattern = getPattern(id);
+  const coverage: (string | null)[] = Array.from({ length: 7 }, (_, dow) => {
+    let minStart: string | null = null;
+    let maxEnd: string | null = null;
+    for (const week of pattern.rotationWeeks) {
+      const shift = week[dow];
+      if (shift) {
+        if (!minStart || shift.start < minStart) minStart = shift.start;
+        if (!maxEnd || shift.end > maxEnd) maxEnd = shift.end;
+      }
+    }
+    return minStart ? `${minStart}–${maxEnd}` : null;
+  });
+  const groups = new Map<string, number[]>();
+  const order: string[] = [];
+  for (let i = 0; i < 7; i++) {
+    const cov = coverage[i];
+    if (!cov) continue;
+    if (!groups.has(cov)) { groups.set(cov, []); order.push(cov); }
+    groups.get(cov)!.push(i);
+  }
+  return order.map((cov) => {
+    const indices = groups.get(cov)!;
+    const isConsecutive = indices.every((idx, i) => i === 0 || idx === indices[i - 1] + 1);
+    let days: string;
+    if (indices.length === 1) {
+      days = DOW_FULL[indices[0]];
+    } else if (isConsecutive) {
+      days = `${DOW_FULL[indices[0]]}–${DOW_FULL[indices[indices.length - 1]]}`;
+    } else {
+      days = indices.map((i) => DOW_FULL[i]).join(", ");
+    }
+    return { days, range: cov };
+  });
+}
+
 export function getOperatingWindow(id: ShiftCategory): { start: string; end: string } {
   const pattern = getPattern(id);
   let minStart = "23:59";
