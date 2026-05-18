@@ -2,10 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-* {
+button, a, nav, label, h1, h2, h3, h4, h5, h6, th, [role="button"] {
   user-select: none;
-}
-
-input, textarea, [contenteditable] {
-  user-select: text;
 }
