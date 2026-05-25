@@ -168,6 +168,106 @@ const PATTERNS: ShiftPatternDef[] = [
     weeklyHours: [42, 42],
   },
 
+  // ── Geely Oeste (2 semanas) ─────────────────────────────────────────────
+  {
+    id: "ventas_geely_oeste",
+    label: "Geely Oeste",
+    areaNegocio: "ventas",
+    rotationWeeks: [
+      semana(
+        turno("10:00","18:00"), turno("10:00","18:00"),
+        turno("10:00","18:00"), L,
+        turno("10:00","18:00"), turno("10:00","18:00"), turno("11:00","19:00"),
+      ),
+      semana(
+        turno("10:00","20:00"), L,
+        turno("10:00","20:00"), turno("10:00","20:00"),
+        turno("10:00","20:00"), L, L,
+      ),
+    ],
+    weeklyHours: [42, 36],
+  },
+
+  // ── Usados Oeste (2 semanas) ─────────────────────────────────────────────
+  {
+    id: "ventas_usados_oeste",
+    label: "Usados Oeste",
+    areaNegocio: "ventas",
+    rotationWeeks: [
+      semana(
+        turno("10:00","20:00"), turno("10:00","20:00"),
+        L, L,
+        turno("10:00","19:00"), turno("11:00","20:00"), turno("10:00","19:00"),
+      ),
+      semana(
+        turno("10:00","19:00"), L,
+        turno("10:30","20:00"), turno("10:30","20:00"),
+        turno("10:30","19:00"), turno("10:00","19:00"), L,
+      ),
+    ],
+    weeklyHours: [42, 42],
+  },
+
+  // ── KIA Oeste (2 semanas) ────────────────────────────────────────────────
+  {
+    id: "ventas_kia_oeste",
+    label: "KIA Oeste",
+    areaNegocio: "ventas",
+    rotationWeeks: [
+      semana(
+        turno("13:00","20:00"), turno("10:00","20:00"),
+        L, L,
+        turno("10:00","20:00"), turno("10:00","20:00"), turno("10:00","20:00"),
+      ),
+      semana(
+        turno("10:00","17:00"), L,
+        turno("10:30","20:00"), turno("10:30","20:00"),
+        turno("10:30","20:00"), turno("10:30","20:00"), L,
+      ),
+    ],
+    weeklyHours: [42, 42],
+  },
+
+  // ── DFSK Oeste (2 semanas) ───────────────────────────────────────────────
+  {
+    id: "ventas_dfsk_oeste",
+    label: "DFSK Oeste",
+    areaNegocio: "ventas",
+    rotationWeeks: [
+      semana(
+        turno("10:00","20:00"), L,
+        turno("10:00","20:00"), turno("10:00","20:00"),
+        turno("10:00","20:00"), L, L,
+      ),
+      semana(
+        turno("10:00","18:00"), turno("10:00","18:00"),
+        turno("10:00","18:00"), L,
+        turno("10:00","16:00"), turno("10:30","19:30"), turno("11:30","19:30"),
+      ),
+    ],
+    weeklyHours: [36, 42],
+  },
+
+  // ── DFSK Oeste 2 (2 semanas) ─────────────────────────────────────────────
+  {
+    id: "ventas_dfsk_oeste2",
+    label: "DFSK Oeste 2",
+    areaNegocio: "ventas",
+    rotationWeeks: [
+      semana(
+        turno("10:00","20:00"), L,
+        turno("10:00","20:00"), turno("10:00","20:00"),
+        turno("10:00","20:00"), L, L,
+      ),
+      semana(
+        turno("10:00","18:00"), turno("12:00","20:00"),
+        turno("10:00","18:00"), L,
+        turno("10:00","16:00"), turno("10:30","19:30"), turno("11:30","19:30"),
+      ),
+    ],
+    weeklyHours: [36, 42],
+  },
+
   // ── Postventa Vista Hermosa (fijo, sin rotación) ─────────────────────────
   {
     id: "postventa_vista_hermosa",
