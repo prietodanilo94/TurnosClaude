@@ -9,7 +9,7 @@ interface Props {
   supervisorLabel?: string;
 }
 
-const EMPTY_FORM = { rut: "", nombre: "", branchTeamId: "" };
+const EMPTY_FORM = { rut: "", nombre: "", branchTeamId: "", activo: true };
 
 export default function TrabajadoresClient({ initialWorkers, branchTeams, supervisorLabel }: Props) {
   const [workers, setWorkers] = useState(initialWorkers);
@@ -43,7 +43,7 @@ export default function TrabajadoresClient({ initialWorkers, branchTeams, superv
 
   function openEdit(worker: WorkerWithTeam) {
     setEditing(worker);
-    setForm({ rut: worker.rut, nombre: worker.nombre, branchTeamId: worker.branchTeamId });
+    setForm({ rut: worker.rut, nombre: worker.nombre, branchTeamId: worker.branchTeamId, activo: worker.activo });
     setError("");
     setShowForm(true);
   }
@@ -56,7 +56,7 @@ export default function TrabajadoresClient({ initialWorkers, branchTeams, superv
         const res = await fetch(`/api/workers/${editing.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ nombre: form.nombre, branchTeamId: form.branchTeamId }),
+          body: JSON.stringify({ nombre: form.nombre, branchTeamId: form.branchTeamId, activo: form.activo }),
         });
         if (!res.ok) { setError((await res.json()).error ?? "Error"); return; }
         const updated = await res.json();
@@ -262,6 +262,25 @@ export default function TrabajadoresClient({ initialWorkers, branchTeams, superv
                   ))}
                 </select>
               </div>
+              {editing && (
+                <div className="flex items-center justify-between py-1">
+                  <span className="text-xs font-medium text-gray-700">Estado</span>
+                  <button
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, activo: !f.activo }))}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                      form.activo ? "bg-green-500" : "bg-gray-300"
+                    }`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                      form.activo ? "translate-x-6" : "translate-x-1"
+                    }`} />
+                  </button>
+                  <span className={`text-xs font-medium w-14 text-right ${form.activo ? "text-green-700" : "text-gray-400"}`}>
+                    {form.activo ? "Activo" : "Inactivo"}
+                  </span>
+                </div>
+              )}
             </div>
 
             {error && <p className="text-xs text-red-600">{error}</p>}
