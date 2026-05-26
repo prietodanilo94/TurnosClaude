@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import type { ParseResult, WorkerRow, AreaNegocio } from "@/types";
+import type { ParseResult, WorkerRow, SupervisorRow, AreaNegocio } from "@/types";
 
 const COL_ALIASES: Record<string, string[]> = {
   rut:              ["rut"],
@@ -8,6 +8,7 @@ const COL_ALIASES: Record<string, string[]> = {
   areaNegocio:      ["área de negocio", "area de negocio", "area_negocio", "servicios/ventas"],
   supervisor:       ["supervisor"],
   cargoHomologado:  ["cargo homologado"],
+  esSupervisor:     ["es supervisor"],
 };
 
 function findHeader(headers: string[], field: keyof typeof COL_ALIASES): number {
@@ -55,7 +56,7 @@ export function parseDotacionExcel(buffer: ArrayBuffer): ParseResult {
     raw: false,
   }) as string[][];
 
-  if (raw.length < 2) return { rows: [], errors: [] };
+  if (raw.length < 2) return { rows: [], supervisorRows: [], errors: [] };
 
   const headerRow = raw[0].map((c) => String(c));
   const colRut            = findHeader(headerRow, "rut");
@@ -64,6 +65,7 @@ export function parseDotacionExcel(buffer: ArrayBuffer): ParseResult {
   const colAreaNeg        = findHeader(headerRow, "areaNegocio");
   const colSupervisor     = findHeader(headerRow, "supervisor");
   const colCargo          = findHeader(headerRow, "cargoHomologado");
+  const colEsSupervisor   = findHeader(headerRow, "esSupervisor");
 
   const missing: string[] = [];
   if (colRut < 0)    missing.push("Rut");
@@ -78,6 +80,7 @@ export function parseDotacionExcel(buffer: ArrayBuffer): ParseResult {
   }
 
   const rows: WorkerRow[] = [];
+  const supervisorRows: SupervisorRow[] = [];
   const errors: { fila: number; motivo: string }[] = [];
 
   for (let i = 1; i < raw.length; i++) {
@@ -88,17 +91,10 @@ export function parseDotacionExcel(buffer: ArrayBuffer): ParseResult {
     const rawAreaNeg    = String(row[colAreaNeg] ?? "").trim();
     const rawSupervisor = colSupervisor >= 0 ? String(row[colSupervisor] ?? "").trim() : "";
     const rawCargo      = colCargo >= 0 ? String(row[colCargo] ?? "").trim() : "";
+    const rawEsSup      = colEsSupervisor >= 0 ? String(row[colEsSupervisor] ?? "").trim().toLowerCase() : "";
     const fila = i + 1;
 
     if (!rawRut) continue;
-
-    if (colCargo >= 0 && rawCargo.toLowerCase() !== "asesores de venta") continue;
-
-    const rut = normalizeRut(rawRut);
-    if (!rut) {
-      errors.push({ fila, motivo: `RUT inválido: "${rawRut}"` });
-      continue;
-    }
 
     if (!rawArea) {
       errors.push({ fila, motivo: "Columna Área vacía" });
@@ -107,6 +103,27 @@ export function parseDotacionExcel(buffer: ArrayBuffer): ParseResult {
     const area = parseAreaCodigo(rawArea);
     if (!area) {
       errors.push({ fila, motivo: `Área sin código al inicio: "${rawArea}"` });
+      continue;
+    }
+
+    const isEsSupervisor = rawEsSup === "true" || rawEsSup === "1";
+
+    // Rows that are not "Asesores de Venta": treat as supervisor if flagged
+    if (colCargo >= 0 && rawCargo.toLowerCase() !== "asesores de venta") {
+      if (isEsSupervisor && rawNombre) {
+        supervisorRows.push({
+          nombre: rawNombre,
+          codigoBranch: area.codigo,
+          nombreBranch: normalizeBranchName(area.nombre),
+          filaExcel: fila,
+        });
+      }
+      continue;
+    }
+
+    const rut = normalizeRut(rawRut);
+    if (!rut) {
+      errors.push({ fila, motivo: `RUT inválido: "${rawRut}"` });
       continue;
     }
 
@@ -127,5 +144,5 @@ export function parseDotacionExcel(buffer: ArrayBuffer): ParseResult {
     });
   }
 
-  return { rows, errors };
+  return { rows, supervisorRows, errors };
 }

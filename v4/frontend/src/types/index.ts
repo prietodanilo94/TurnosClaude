@@ -57,8 +57,16 @@ export interface WorkerRow {
   filaExcel: number;
 }
 
+export interface SupervisorRow {
+  nombre: string;
+  codigoBranch: string;
+  nombreBranch: string;
+  filaExcel: number;
+}
+
 export interface ParseResult {
   rows: WorkerRow[];
+  supervisorRows: SupervisorRow[];
   errors: { fila: number; motivo: string }[];
 }
 

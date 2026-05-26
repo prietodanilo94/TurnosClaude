@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
     if (!file) return NextResponse.json({ error: "Sin archivo" }, { status: 400 });
 
     const buffer = await file.arrayBuffer();
-    const { rows, errors } = parseDotacionExcel(buffer);
+    const { rows, supervisorRows, errors } = parseDotacionExcel(buffer);
 
     let branchesCreated = 0;
     let branchesUpdated = 0;
@@ -197,6 +197,59 @@ export async function POST(req: NextRequest) {
           });
           workersDeactivated += toDeactivate.length;
         }
+      }
+    }
+
+    // Process supervisor rows from the Excel (staff flagged as "Es supervisor")
+    for (const supRow of supervisorRows) {
+      const key = supervisorLookupKey(normalizeSupervisorName(supRow.nombre));
+      let supervisor = supervisorsByKey.get(key) ?? null;
+
+      if (!supervisor) {
+        supervisor = await prisma.supervisor.create({
+          data: { nombre: normalizeSupervisorName(supRow.nombre) },
+        });
+        supervisorsByKey.set(key, supervisor);
+        supervisorsCreated++;
+
+        await logAction({
+          action: "supervisor.create",
+          entityType: "supervisor",
+          entityId: supervisor.id,
+          metadata: { nombre: supervisor.nombre, origen: "dotacion.sync.esSupervisor" },
+          req,
+        });
+      } else if (!supervisor.activo) {
+        await prisma.supervisor.update({
+          where: { id: supervisor.id },
+          data: { activo: true },
+        });
+        supervisor = { ...supervisor, activo: true };
+        supervisorsByKey.set(key, supervisor);
+        supervisorsActivated++;
+      }
+
+      incomingSupervisorIds.add(supervisor.id);
+
+      // Ensure branch exists
+      const branch = await prisma.branch.upsert({
+        where: { codigo: supRow.codigoBranch },
+        create: { codigo: supRow.codigoBranch, nombre: supRow.nombreBranch },
+        update: {},
+      });
+
+      if (!branchSupervisorIds.has(branch.id)) branchSupervisorIds.set(branch.id, new Set());
+      branchSupervisorIds.get(branch.id)!.add(supervisor.id);
+
+      const existingLink = await prisma.supervisorBranch.findUnique({
+        where: { supervisorId_branchId: { supervisorId: supervisor.id, branchId: branch.id } },
+      });
+
+      if (!existingLink) {
+        await prisma.supervisorBranch.create({
+          data: { supervisorId: supervisor.id, branchId: branch.id },
+        });
+        supervisorLinksCreated++;
       }
     }
 
