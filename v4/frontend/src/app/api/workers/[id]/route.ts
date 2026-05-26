@@ -32,7 +32,16 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     data,
     include: {
       branchTeam: {
-        include: { branch: { select: { id: true, nombre: true, codigo: true } } },
+        include: {
+          branch: {
+            select: {
+              id: true,
+              nombre: true,
+              codigo: true,
+              supervisors: { select: { supervisor: { select: { id: true, nombre: true } } } },
+            },
+          },
+        },
       },
     },
   });
