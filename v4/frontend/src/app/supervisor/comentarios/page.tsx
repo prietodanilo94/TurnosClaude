@@ -14,6 +14,7 @@ export default function SupervisorComentariosPage() {
   const [texto, setTexto] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -46,6 +47,14 @@ export default function SupervisorComentariosPage() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm("¿Eliminar este comentario?")) return;
+    setDeleting(id);
+    await fetch(`/api/comments/${id}`, { method: "DELETE" });
+    setComments((prev) => prev.filter((c) => c.id !== id));
+    setDeleting(null);
   }
 
   return (
@@ -94,7 +103,16 @@ export default function SupervisorComentariosPage() {
         {comments.map((c) => (
           <div key={c.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
             <div className="px-4 py-3">
-              <p className="text-sm text-gray-800 whitespace-pre-wrap">{c.texto}</p>
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-sm text-gray-800 whitespace-pre-wrap flex-1">{c.texto}</p>
+                <button
+                  onClick={() => handleDelete(c.id)}
+                  disabled={deleting === c.id}
+                  className="text-xs text-red-500 hover:text-red-700 shrink-0 disabled:opacity-40 transition-colors"
+                >
+                  {deleting === c.id ? "Eliminando…" : "Eliminar"}
+                </button>
+              </div>
               <p className="text-xs text-gray-400 mt-2">
                 {new Date(c.createdAt).toLocaleDateString("es-CL", {
                   day: "numeric", month: "long", year: "numeric",

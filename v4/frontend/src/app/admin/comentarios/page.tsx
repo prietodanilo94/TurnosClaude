@@ -66,7 +66,16 @@ function ReplyForm({ comment, onSave }: { comment: Comment; onSave: (id: string,
   );
 }
 
-function CommentCard({ comment, onSave }: { comment: Comment; onSave: (id: string, resp: string) => void }) {
+function CommentCard({ comment, onSave, onDelete }: { comment: Comment; onSave: (id: string, resp: string) => void; onDelete: (id: string) => void }) {
+  const [deleting, setDeleting] = useState(false);
+
+  async function handleDelete() {
+    if (!confirm("¿Eliminar este comentario?")) return;
+    setDeleting(true);
+    await fetch(`/api/admin/comments/${comment.id}`, { method: "DELETE" });
+    onDelete(comment.id);
+  }
+
   return (
     <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
       <div className="px-4 py-3">
@@ -77,12 +86,21 @@ function CommentCard({ comment, onSave }: { comment: Comment; onSave: (id: strin
               <span className="text-xs text-gray-400 ml-1.5">{comment.supervisor.email}</span>
             )}
           </div>
-          <span className="text-xs text-gray-400 shrink-0">
-            {new Date(comment.createdAt).toLocaleDateString("es-CL", {
-              day: "numeric", month: "short", year: "numeric",
-              hour: "2-digit", minute: "2-digit",
-            })}
-          </span>
+          <div className="flex items-center gap-3 shrink-0">
+            <span className="text-xs text-gray-400">
+              {new Date(comment.createdAt).toLocaleDateString("es-CL", {
+                day: "numeric", month: "short", year: "numeric",
+                hour: "2-digit", minute: "2-digit",
+              })}
+            </span>
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="text-xs text-red-500 hover:text-red-700 disabled:opacity-40 transition-colors"
+            >
+              {deleting ? "Eliminando…" : "Eliminar"}
+            </button>
+          </div>
         </div>
         <p className="text-sm text-gray-800 whitespace-pre-wrap">{comment.texto}</p>
       </div>
@@ -116,6 +134,10 @@ export default function AdminComentariosPage() {
     );
   }
 
+  function handleDelete(id: string) {
+    setComments((prev) => prev.filter((c) => c.id !== id));
+  }
+
   const pending = comments.filter((c) => !c.adminRespuesta);
   const replied  = comments.filter((c) => c.adminRespuesta);
 
@@ -142,7 +164,7 @@ export default function AdminComentariosPage() {
             Sin responder ({pending.length})
           </p>
           <div className="space-y-3">
-            {pending.map((c) => <CommentCard key={c.id} comment={c} onSave={handleSave} />)}
+            {pending.map((c) => <CommentCard key={c.id} comment={c} onSave={handleSave} onDelete={handleDelete} />)}
           </div>
         </div>
       )}
@@ -153,7 +175,7 @@ export default function AdminComentariosPage() {
             Respondidos ({replied.length})
           </p>
           <div className="space-y-3">
-            {replied.map((c) => <CommentCard key={c.id} comment={c} onSave={handleSave} />)}
+            {replied.map((c) => <CommentCard key={c.id} comment={c} onSave={handleSave} onDelete={handleDelete} />)}
           </div>
         </div>
       )}
