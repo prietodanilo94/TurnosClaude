@@ -9,6 +9,11 @@ interface SyncResult {
   branchesUpdated: number;
   workersUpserted: number;
   workersDeactivated: number;
+  supervisorsCreated: number;
+  supervisorsActivated: number;
+  supervisorsDeactivated: number;
+  supervisorLinksCreated: number;
+  supervisorLinksRemoved: number;
   errors: { fila: number; motivo: string }[];
 }
 
@@ -191,6 +196,11 @@ export default function DotacionPage() {
               <span>Sucursales actualizadas: <strong>{result.branchesUpdated}</strong></span>
               <span>Vendedores actualizados: <strong>{result.workersUpserted}</strong></span>
               <span>Vendedores desactivados: <strong>{result.workersDeactivated}</strong></span>
+              <span>Supervisores creados: <strong>{result.supervisorsCreated}</strong></span>
+              <span>Supervisores activados: <strong>{result.supervisorsActivated}</strong></span>
+              <span>Supervisores desactivados: <strong>{result.supervisorsDeactivated}</strong></span>
+              <span>Links supervisor nuevos: <strong>{result.supervisorLinksCreated}</strong></span>
+              <span>Links supervisor removidos: <strong>{result.supervisorLinksRemoved}</strong></span>
             </div>
           </div>
 
