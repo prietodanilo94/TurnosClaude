@@ -162,10 +162,12 @@ model AuditLog {
   entityId   String?
   metadata   String?
   branchId   String?
+  visto      Boolean  @default(false)
   branch     Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
   createdAt  DateTime @default(now())
 
   @@index([createdAt])
   @@index([action])
   @@index([branchId])
+  @@index([visto])
 }

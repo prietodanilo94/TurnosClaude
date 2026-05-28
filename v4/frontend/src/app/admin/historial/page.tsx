@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db/prisma";
+import ToggleVisto from "./ToggleVisto";
 
 interface Props {
   searchParams: {
@@ -10,6 +11,7 @@ interface Props {
     from?: string;
     to?: string;
     page?: string;
+    noVistos?: string;
   };
 }
 
@@ -104,8 +106,8 @@ export const dynamic = "force-dynamic";
 export default async function HistorialPage({ searchParams }: Props) {
   const page = Math.max(1, Number(searchParams.page ?? "1") || 1);
   const skip = (page - 1) * PAGE_SIZE;
+  const soloNoVistos = searchParams.noVistos === "1";
 
-  // Si hay filtro por supervisor, resolver sus branchIds
   let branchIdsForSupervisor: string[] | undefined;
   if (searchParams.supervisorId) {
     const links = await prisma.supervisorBranch.findMany({
@@ -125,9 +127,10 @@ export default async function HistorialPage({ searchParams }: Props) {
       gte: searchParams.from ? new Date(`${searchParams.from}T00:00:00`) : undefined,
       lte: searchParams.to ? new Date(`${searchParams.to}T23:59:59`) : undefined,
     },
+    visto: soloNoVistos ? false : undefined,
   };
 
-  const [logs, total, branches, supervisors] = await Promise.all([
+  const [logs, total, noVistosTotal, branches, supervisors] = await Promise.all([
     prisma.auditLog.findMany({
       where,
       include: { branch: { select: { nombre: true, codigo: true } } },
@@ -136,6 +139,7 @@ export default async function HistorialPage({ searchParams }: Props) {
       skip,
     }),
     prisma.auditLog.count({ where }),
+    prisma.auditLog.count({ where: { visto: false } }),
     prisma.branch.findMany({
       orderBy: { nombre: "asc" },
       select: { id: true, nombre: true, codigo: true },
@@ -155,12 +159,22 @@ export default async function HistorialPage({ searchParams }: Props) {
   if (searchParams.user) query.set("user", searchParams.user);
   if (searchParams.from) query.set("from", searchParams.from);
   if (searchParams.to) query.set("to", searchParams.to);
+  if (soloNoVistos) query.set("noVistos", "1");
 
   return (
     <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold text-gray-900">Historial</h1>
-        <p className="text-xs text-gray-400 mt-0.5">{total} registro{total !== 1 ? "s" : ""}</p>
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-gray-900">Historial</h1>
+          <p className="text-xs text-gray-400 mt-0.5">
+            {total} registro{total !== 1 ? "s" : ""}
+            {noVistosTotal > 0 && (
+              <span className="ml-2 px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-xs font-medium">
+                {noVistosTotal} sin revisar
+              </span>
+            )}
+          </p>
+        </div>
       </div>
 
       <form className="bg-white border border-gray-200 rounded-lg p-4 mb-4 grid gap-3 md:grid-cols-3 lg:grid-cols-6">
@@ -220,13 +234,25 @@ export default async function HistorialPage({ searchParams }: Props) {
           <label className="block text-xs font-medium text-gray-700 mb-1">Hasta</label>
           <input type="date" name="to" defaultValue={searchParams.to ?? ""} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" />
         </div>
-        <div className="md:col-span-3 lg:col-span-6 flex items-center justify-end gap-2">
-          <Link href="/admin/historial" className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800">
-            Limpiar
-          </Link>
-          <button type="submit" className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors">
-            Filtrar
-          </button>
+        <div className="md:col-span-3 lg:col-span-6 flex items-center justify-between gap-2">
+          <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              name="noVistos"
+              value="1"
+              defaultChecked={soloNoVistos}
+              className="w-4 h-4 rounded border-gray-300 text-blue-600"
+            />
+            Solo sin revisar
+          </label>
+          <div className="flex items-center gap-2">
+            <Link href="/admin/historial" className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800">
+              Limpiar
+            </Link>
+            <button type="submit" className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors">
+              Filtrar
+            </button>
+          </div>
         </div>
       </form>
 
@@ -234,6 +260,9 @@ export default async function HistorialPage({ searchParams }: Props) {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-8">
+                Visto
+              </th>
               {["Fecha", "Usuario", "Acción", "Sucursal", "Detalle", ""].map((h) => (
                 <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   {h}
@@ -244,7 +273,7 @@ export default async function HistorialPage({ searchParams }: Props) {
           <tbody className="bg-white divide-y divide-gray-100">
             {logs.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-400">
+                <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-400">
                   No hay registros para esos filtros.
                 </td>
               </tr>
@@ -253,7 +282,10 @@ export default async function HistorialPage({ searchParams }: Props) {
                 const metadata = parseMetadata(log.metadata);
                 const link = calendarLink(log);
                 return (
-                  <tr key={log.id} className="hover:bg-gray-50">
+                  <tr key={log.id} className={`hover:bg-gray-50 ${!log.visto ? "bg-amber-50" : ""}`}>
+                    <td className="px-3 py-3">
+                      <ToggleVisto id={log.id} initialVisto={log.visto} />
+                    </td>
                     <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
                       {log.createdAt.toLocaleString("es-CL")}
                     </td>
