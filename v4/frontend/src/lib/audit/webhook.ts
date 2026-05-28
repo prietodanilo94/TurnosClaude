@@ -6,6 +6,7 @@ export interface WebhookPayload {
   supervisorNombre?: string | null;
   branchId?: string | null;
   branchName?: string | null;
+  asunto?: string;
   descripcion?: string;
   calendarUrl?: string | null;
   timestamp: string;

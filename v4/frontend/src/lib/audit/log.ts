@@ -67,6 +67,45 @@ function buildDescription(
   }
 }
 
+function buildSubject(
+  action: string,
+  metadata: Record<string, unknown> | null,
+  branchName: string | null,
+): string {
+  const branch = branchName ?? "";
+  const period =
+    metadata?.month && metadata?.year ? ` — ${metadata.month}/${metadata.year}` : "";
+
+  switch (action) {
+    case "calendar.generate": {
+      const scope = String(metadata?.scopeLabel ?? branch);
+      const verb = metadata?.mode === "update" ? "Calendario actualizado" : "Nuevo calendario";
+      return `${verb} — ${scope}${period}`.trim();
+    }
+    case "calendar.save": {
+      const scope = String(metadata?.scopeLabel ?? branch);
+      return `Calendario listo para revisión — ${scope}${period}`.trim();
+    }
+    case "calendar.delete": {
+      return `Calendario eliminado — ${branch}${period}`.trim();
+    }
+    case "dotacion.sync": {
+      const count = metadata?.workersUpserted ? ` (${metadata.workersUpserted} vendedores)` : "";
+      return `Dotación sincronizada${count}`.trim();
+    }
+    case "worker.block": {
+      const nombre = metadata?.workerNombre ? String(metadata.workerNombre) : "Vendedor";
+      return `Vendedor bloqueado — ${nombre} (${branch})`.trim();
+    }
+    case "worker.unblock": {
+      const nombre = metadata?.workerNombre ? String(metadata.workerNombre) : "Vendedor";
+      return `Vendedor desbloqueado — ${nombre} (${branch})`.trim();
+    }
+    default:
+      return action;
+  }
+}
+
 function buildCalendarUrl(
   branchId: string | null,
   metadata: Record<string, unknown> | null,
@@ -119,6 +158,7 @@ export async function logAction({
       supervisorNombre,
       branchId,
       branchName,
+      asunto: buildSubject(action, metadata, branchName),
       descripcion: buildDescription(action, metadata, supervisorNombre, branchName),
       calendarUrl: buildCalendarUrl(branchId, metadata),
       timestamp: log.createdAt.toISOString(),
