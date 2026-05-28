@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionFromRequest } from "@/lib/auth/session";
 import { generateGroupCalendarExcel } from "@/lib/excel/calendarExport";
-import { sendAuditWebhook } from "@/lib/audit/webhook";
+import { logAction } from "@/lib/audit/log";
+import { prisma } from "@/lib/db/prisma";
 
 export async function POST(req: NextRequest) {
   const session = await getSessionFromRequest(req);
@@ -13,20 +14,33 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Faltan datos" }, { status: 400 });
   }
 
+  // Resolves branchId and teamId for calendar URL (uses first team)
+  const firstTeam = await prisma.branchTeam.findUnique({
+    where: { id: teamIds[0] },
+    select: { branchId: true },
+  });
+
   try {
     const { buffer, fileName } = await generateGroupCalendarExcel({ teamIds, year, month, scopeLabel });
 
-    void sendAuditWebhook({
+    await logAction({
       action: "calendar.save",
       entityType: "calendar",
       entityId: null,
-      userEmail: session.email ?? null,
-      branchId: null,
-      branchName: scopeLabel ?? null,
-      timestamp: new Date().toISOString(),
-      metadata: { teamIds, year, month, scopeLabel: scopeLabel ?? null, scopeType: scopeType ?? "branch" },
-      fileBase64: buffer.toString("base64"),
-      fileName,
+      branchId: firstTeam?.branchId ?? null,
+      metadata: {
+        teamId: teamIds[0],
+        teamIds,
+        year,
+        month,
+        scopeLabel: scopeLabel ?? null,
+        scopeType: scopeType ?? "branch",
+      },
+      req,
+      webhookExtras: {
+        fileBase64: buffer.toString("base64"),
+        fileName,
+      },
     });
   } catch (err) {
     console.error("Error generando Excel para webhook:", err);

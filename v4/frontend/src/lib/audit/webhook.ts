@@ -1,10 +1,13 @@
-interface WebhookPayload {
+export interface WebhookPayload {
   action: string;
   entityType: string;
   entityId?: string | null;
   userEmail?: string | null;
+  supervisorNombre?: string | null;
   branchId?: string | null;
   branchName?: string | null;
+  descripcion?: string;
+  calendarUrl?: string | null;
   timestamp: string;
   metadata?: Record<string, unknown> | null;
   fileBase64?: string;
@@ -12,9 +15,12 @@ interface WebhookPayload {
 }
 
 const DEFAULT_NOTIFIABLE = new Set([
+  "calendar.generate",
   "calendar.save",
   "calendar.delete",
   "dotacion.sync",
+  "worker.block",
+  "worker.unblock",
 ]);
 
 export function isNotifiableAction(action: string): boolean {

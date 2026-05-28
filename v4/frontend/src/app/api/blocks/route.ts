@@ -60,6 +60,7 @@ export async function POST(req: NextRequest) {
     include: {
       branchTeam: {
         select: {
+          id: true,
           branchId: true,
           branch: { select: { nombre: true } },
         },
@@ -92,12 +93,16 @@ export async function POST(req: NextRequest) {
     },
   });
 
+  const blockStart = new Date(startDate);
   await logAction({
     action: "worker.block",
     entityType: "block",
     entityId: block.id,
     branchId: worker.branchTeam.branchId,
     metadata: {
+      teamId: worker.branchTeam.id,
+      year: blockStart.getUTCFullYear(),
+      month: blockStart.getUTCMonth() + 1,
       workerId,
       workerNombre: worker.nombre,
       branchName: worker.branchTeam.branch.nombre,
@@ -134,6 +139,7 @@ export async function DELETE(req: NextRequest) {
         include: {
           branchTeam: {
             select: {
+              id: true,
               branchId: true,
               branch: { select: { nombre: true } },
             },
@@ -155,6 +161,9 @@ export async function DELETE(req: NextRequest) {
     entityId: id,
     branchId: block.worker.branchTeam.branchId,
     metadata: {
+      teamId: block.worker.branchTeam.id,
+      year: block.startDate.getUTCFullYear(),
+      month: block.startDate.getUTCMonth() + 1,
       workerId: block.workerId,
       workerNombre: block.worker.nombre,
       branchName: block.worker.branchTeam.branch.nombre,
