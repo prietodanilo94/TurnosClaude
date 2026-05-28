@@ -35,7 +35,7 @@ export async function sendAuditWebhook(payload: WebhookPayload): Promise<void> {
   try {
     await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json; charset=utf-8" },
       body: JSON.stringify(payload),
       cache: "no-store",
     });
