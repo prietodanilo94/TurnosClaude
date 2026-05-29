@@ -36,9 +36,24 @@ export default function SupervisorBranchSelector({ groups, ungrouped }: Props) {
   const [selected, setSelected] = useState<string[]>([]);
   const [creating, setCreating]   = useState(false);
   const [createError, setCreateError] = useState("");
+  const [managingGroup, setManagingGroup] = useState<GroupInfo | null>(null);
+  const [dissolving, setDissolving] = useState(false);
 
   function toggle(id: string) {
     setSelected((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+  }
+
+  async function handleDissolve(group: GroupInfo) {
+    setDissolving(true);
+    try {
+      const res = await fetch(`/api/grupos/${group.id}`, { method: "DELETE" });
+      if (res.ok) {
+        setManagingGroup(null);
+        router.refresh();
+      }
+    } finally {
+      setDissolving(false);
+    }
   }
 
   async function handleCreateGroup() {
@@ -84,12 +99,20 @@ export default function SupervisorBranchSelector({ groups, ungrouped }: Props) {
                     ))}
                   </div>
                 </div>
-                <button
-                  onClick={() => router.push(`/supervisor/calendario?groupId=${group.id}&year=${DEFAULT_YEAR}&month=${DEFAULT_MONTH}`)}
-                  className="text-sm text-blue-600 hover:text-blue-800 shrink-0 font-medium whitespace-nowrap"
-                >
-                  {getGroupActionLabel(group.branches)} →
-                </button>
+                <div className="flex items-center gap-3 shrink-0">
+                  <button
+                    onClick={() => setManagingGroup(group)}
+                    className="text-xs text-gray-500 hover:text-gray-700 whitespace-nowrap"
+                  >
+                    Gestionar
+                  </button>
+                  <button
+                    onClick={() => router.push(`/supervisor/calendario?groupId=${group.id}&year=${DEFAULT_YEAR}&month=${DEFAULT_MONTH}`)}
+                    className="text-sm text-blue-600 hover:text-blue-800 font-medium whitespace-nowrap"
+                  >
+                    {getGroupActionLabel(group.branches)} →
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -146,6 +169,49 @@ export default function SupervisorBranchSelector({ groups, ungrouped }: Props) {
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Modal gestionar grupo */}
+      {managingGroup && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <h2 className="text-base font-semibold text-gray-900">{managingGroup.nombre}</h2>
+                <p className="text-xs text-gray-400 mt-0.5">{managingGroup.branches.length} sucursales</p>
+              </div>
+              <button onClick={() => setManagingGroup(null)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
+            </div>
+
+            <div className="border border-gray-200 rounded-lg divide-y divide-gray-100">
+              {managingGroup.branches.map((b) => (
+                <div key={b.id} className="flex items-center justify-between px-3 py-2.5">
+                  <span className="text-sm text-gray-800">{b.nombre}</span>
+                  <span className="text-xs text-gray-400">{b.codigo}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex items-center justify-between pt-1">
+              <button
+                onClick={() => handleDissolve(managingGroup)}
+                disabled={dissolving}
+                className="px-3 py-2 text-sm text-red-600 hover:text-red-800 disabled:opacity-50"
+              >
+                {dissolving ? "Disolviendo..." : "Disolver grupo"}
+              </button>
+              <button
+                onClick={() => {
+                  setManagingGroup(null);
+                  router.push(`/supervisor/calendario?groupId=${managingGroup.id}&year=${DEFAULT_YEAR}&month=${DEFAULT_MONTH}`);
+                }}
+                className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors"
+              >
+                Ver calendario →
+              </button>
+            </div>
           </div>
         </div>
       )}
