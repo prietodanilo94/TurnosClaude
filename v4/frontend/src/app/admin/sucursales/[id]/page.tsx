@@ -47,9 +47,8 @@ export default async function BranchDetailPage({ params, searchParams }: Props) 
   const allPatterns = getAllPatterns();
 
   const now = new Date();
-  const _next = now.getMonth() + 2;
-  const year = _next > 12 ? now.getFullYear() + 1 : now.getFullYear();
-  const month = _next > 12 ? 1 : _next;
+  const year = now.getFullYear();
+  const month = now.getMonth() === 4 ? 6 : now.getMonth() + 1;
 
   return (
     <div className="p-6 max-w-3xl">
