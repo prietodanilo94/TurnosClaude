@@ -385,9 +385,10 @@ export default function SupervisoresClient({ initialSupervisors, branches }: Pro
 
 function buildCalendarUrl(supervisor: SupervisorWithBranches): string {
   const now = new Date();
+  const _next = now.getMonth() + 2;
   const params = new URLSearchParams();
-  params.set("year", String(now.getFullYear()));
-  params.set("month", String(now.getMonth() + 1));
+  params.set("year", String(_next > 12 ? now.getFullYear() + 1 : now.getFullYear()));
+  params.set("month", String(_next > 12 ? 1 : _next));
   for (const sb of supervisor.branches) {
     params.append("branchId", sb.branch.id);
   }

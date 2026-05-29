@@ -35,8 +35,9 @@ export default async function SucursalesPage() {
 
   const allPatterns = getAllPatterns();
   const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
+  const _next = now.getMonth() + 2;
+  const year = _next > 12 ? now.getFullYear() + 1 : now.getFullYear();
+  const month = _next > 12 ? 1 : _next;
 
   const tableHead = (
     <thead className="bg-gray-50">
