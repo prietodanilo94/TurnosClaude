@@ -43,6 +43,7 @@ export default function SucursalesClient({ branches, groups, allPatterns, year, 
   const [search, setSearch] = useState("");
 
   const q = search.toLowerCase();
+  const patternLabelMap = new Map(allPatterns.map((p) => [p.id, p.label.toLowerCase()]));
   const groupedBranchIds = new Set(groups.flatMap((g) => g.branches.map((b) => b.id)));
 
   const visibleGroups = groups.filter(
@@ -54,7 +55,15 @@ export default function SucursalesClient({ branches, groups, allPatterns, year, 
 
   const ungrouped = branches
     .filter((b) => !groupedBranchIds.has(b.id))
-    .filter((b) => !q || b.nombre.toLowerCase().includes(q) || b.codigo.toLowerCase().includes(q));
+    .filter((b) => {
+      if (!q) return true;
+      if (b.nombre.toLowerCase().includes(q) || b.codigo.toLowerCase().includes(q)) return true;
+      return b.teams.some((t) => {
+        if (!t.categoria) return false;
+        const label = patternLabelMap.get(t.categoria) ?? t.categoria.toLowerCase();
+        return label.includes(q) || t.categoria.toLowerCase().includes(q);
+      });
+    });
 
   const tableHead = (
     <thead className="bg-gray-50">
