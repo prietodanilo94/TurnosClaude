@@ -1,4 +1,4 @@
-import type { ShiftPatternDef, ShiftCategory, WeekPattern, DayShift } from "@/types";
+import type { ShiftPatternDef, WeekPattern, DayShift } from "@/types";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -366,14 +366,33 @@ const PATTERNS: ShiftPatternDef[] = [
 
 // ─── accesores ────────────────────────────────────────────────────────────────
 
-const CATALOG = new Map<ShiftCategory, ShiftPatternDef>(
+const CATALOG = new Map<string, ShiftPatternDef>(
   PATTERNS.map((p) => [p.id, p]),
 );
 
-export function getPattern(id: ShiftCategory): ShiftPatternDef {
-  const p = CATALOG.get(id);
+export function isBuiltIn(id: string): boolean {
+  return CATALOG.has(id);
+}
+
+export function getPattern(id: string, override?: ShiftPatternDef): ShiftPatternDef | null {
+  if (override && override.id === id) return override;
+  return CATALOG.get(id) ?? null;
+}
+
+export function getPatternOrThrow(id: string, override?: ShiftPatternDef): ShiftPatternDef {
+  const p = getPattern(id, override);
   if (!p) throw new Error(`Categoría de turno desconocida: ${id}`);
   return p;
+}
+
+export function patternFromRow(row: { id: string; label: string; areaNegocio: string; rotationJson: string; weeklyHoursJson: string }): ShiftPatternDef {
+  return {
+    id: row.id,
+    label: row.label,
+    areaNegocio: row.areaNegocio as "ventas" | "postventa",
+    rotationWeeks: JSON.parse(row.rotationJson) as WeekPattern[],
+    weeklyHours: JSON.parse(row.weeklyHoursJson) as number[],
+  };
 }
 
 export function getAllPatterns(): ShiftPatternDef[] {
@@ -384,14 +403,14 @@ export function getPatternsByArea(area: "ventas" | "postventa"): ShiftPatternDef
   return PATTERNS.filter((p) => p.areaNegocio === area);
 }
 
-export const CATEGORY_LABELS: Record<ShiftCategory, string> = Object.fromEntries(
+export const CATEGORY_LABELS: Record<string, string> = Object.fromEntries(
   PATTERNS.map((p) => [p.id, p.label]),
-) as Record<ShiftCategory, string>;
+);
 
 const DOW_ABBR = ["L", "M", "X", "J", "V", "S", "D"] as const;
 
-export function getWeeklyScheduleSummary(id: ShiftCategory): string {
-  const pattern = getPattern(id);
+export function getWeeklyScheduleSummary(id: string, override?: ShiftPatternDef): string {
+  const pattern = getPatternOrThrow(id, override);
 
   // Para cada día de la semana, calcular la cobertura total (todos los slots/semanas)
   const coverage: (string | null)[] = DOW_ABBR.map((_, dow) => {
@@ -420,8 +439,8 @@ export function getWeeklyScheduleSummary(id: ShiftCategory): string {
   return order.map((cov) => `${groups.get(cov)!.join("")} ${cov}`).join(" · ");
 }
 
-export function getOperatingHours(id: ShiftCategory): string {
-  const pattern = getPattern(id);
+export function getOperatingHours(id: string, override?: ShiftPatternDef): string {
+  const pattern = getPatternOrThrow(id, override);
   let minStart = "23:59";
   let maxEnd = "00:00";
   for (const week of pattern.rotationWeeks) {
@@ -436,8 +455,8 @@ export function getOperatingHours(id: ShiftCategory): string {
 
 const DOW_FULL = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 
-export function getScheduleBreakdown(id: ShiftCategory): { days: string; range: string }[] {
-  const pattern = getPattern(id);
+export function getScheduleBreakdown(id: string, override?: ShiftPatternDef): { days: string; range: string }[] {
+  const pattern = getPatternOrThrow(id, override);
   const coverage: (string | null)[] = Array.from({ length: 7 }, (_, dow) => {
     let minStart: string | null = null;
     let maxEnd: string | null = null;
@@ -473,8 +492,8 @@ export function getScheduleBreakdown(id: ShiftCategory): { days: string; range: 
   });
 }
 
-export function getOperatingWindow(id: ShiftCategory): { start: string; end: string } {
-  const pattern = getPattern(id);
+export function getOperatingWindow(id: string, override?: ShiftPatternDef): { start: string; end: string } {
+  const pattern = getPatternOrThrow(id, override);
   let minStart = "23:59";
   let maxEnd = "00:00";
   for (const week of pattern.rotationWeeks) {

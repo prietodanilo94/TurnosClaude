@@ -27,7 +27,7 @@ export interface DayShift {
 export type WeekPattern = (DayShift | null)[];
 
 export interface ShiftPatternDef {
-  id: ShiftCategory;
+  id: string;
   label: string;
   areaNegocio: AreaNegocio;
   rotationWeeks: WeekPattern[]; // 1, 2 o 4 semanas
@@ -42,7 +42,7 @@ export interface BranchSummary {
   teams: {
     id: string;
     areaNegocio: AreaNegocio;
-    categoria: ShiftCategory | null;
+    categoria: string | null;
     workerCount: number;
   }[];
 }

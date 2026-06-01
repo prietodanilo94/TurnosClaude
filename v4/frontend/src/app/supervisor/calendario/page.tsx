@@ -6,7 +6,7 @@ import { generateCalendar } from "@/lib/calendar/generator";
 import { getAllPatterns } from "@/lib/patterns/catalog";
 import { supervisorLookupKey } from "@/lib/supervisors";
 import type { TeamSlice } from "@/lib/calendar/teamSplit";
-import type { CalendarSlot, ShiftCategory, WorkerBlockInfo } from "@/types";
+import type { CalendarSlot, WorkerBlockInfo } from "@/types";
 import SupervisorCalendarView from "./SupervisorCalendarView";
 
 interface Props {
@@ -107,7 +107,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
     title: string;
     areaLabel: string;
     areaNegocio: "ventas" | "postventa";
-    categoria: ShiftCategory | null;
+    categoria: string | null;
     teamIds: string[];
     categoryOptions: { id: string; label: string }[];
     slots: CalendarSlot[];
@@ -167,7 +167,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
           teamSlots  = JSON.parse(cal.slotsData) as CalendarSlot[];
           teamAssign = JSON.parse(cal.assignments) as Record<string, string | null>;
         } else if (definedCat) {
-          teamSlots  = generateCalendar(definedCat as ShiftCategory, year, month, N).slots;
+          teamSlots  = generateCalendar(definedCat, year, month, N).slots;
           teamAssign = {};
         } else {
           teamSlots  = [];
@@ -189,7 +189,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
         title: branchNames.join(" · "),
         areaLabel: area === "ventas" ? "Ventas" : "Postventa",
         areaNegocio: area as "ventas" | "postventa",
-        categoria: definedCat as ShiftCategory | null,
+        categoria: definedCat,
         teamIds: areaTeams.map((t) => t.id),
         categoryOptions: allPatterns.filter((p) => p.areaNegocio === area).map((p) => ({ id: p.id, label: p.label })),
         slots: allSlots,
@@ -212,7 +212,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
         slots       = JSON.parse(cal.slotsData) as CalendarSlot[];
         assignments = JSON.parse(cal.assignments) as Record<string, string | null>;
       } else if (team.categoria) {
-        slots = generateCalendar(team.categoria as ShiftCategory, year, month, N).slots;
+        slots = generateCalendar(team.categoria, year, month, N).slots;
       } else {
         slots = [];
       }
@@ -232,7 +232,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
         title: team.branch.nombre,
         areaLabel: team.areaNegocio === "ventas" ? "Ventas" : "Postventa",
         areaNegocio: team.areaNegocio as "ventas" | "postventa",
-        categoria: team.categoria as ShiftCategory | null,
+        categoria: team.categoria,
         teamIds: [team.id],
         categoryOptions: allPatterns.filter((p) => p.areaNegocio === team.areaNegocio).map((p) => ({ id: p.id, label: p.label })),
         slots,

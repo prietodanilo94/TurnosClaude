@@ -29,7 +29,10 @@ export default async function SucursalesPage() {
     }),
   ]);
 
-  const allPatterns = getAllPatterns();
+  const [allPatterns, dbPatterns] = await Promise.all([
+    Promise.resolve(getAllPatterns()),
+    prisma.shiftPattern.findMany({ orderBy: { createdAt: "asc" } }),
+  ]);
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth() + 1;
@@ -52,11 +55,10 @@ export default async function SucursalesPage() {
     branches: g.branches,
   }));
 
-  const patternData = allPatterns.map((p) => ({
-    id: p.id,
-    label: p.label,
-    areaNegocio: p.areaNegocio,
-  }));
+  const patternData = [
+    ...allPatterns.map((p) => ({ id: p.id, label: p.label, areaNegocio: p.areaNegocio })),
+    ...dbPatterns.map((p) => ({ id: p.id, label: p.label, areaNegocio: p.areaNegocio })),
+  ];
 
   return (
     <div className="p-6 space-y-6">

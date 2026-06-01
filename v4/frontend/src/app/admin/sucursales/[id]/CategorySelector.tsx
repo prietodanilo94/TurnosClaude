@@ -2,11 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { ShiftCategory } from "@/types";
-
 interface Props {
   teamId: string;
-  current: ShiftCategory | null;
+  current: string | null;
   options: { id: string; label: string }[];
   compact?: boolean;
 }

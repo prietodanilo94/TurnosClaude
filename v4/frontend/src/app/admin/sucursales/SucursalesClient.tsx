@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import type { ShiftCategory } from "@/types";
 import CategorySelector from "./[id]/CategorySelector";
 
 export type TeamData = {
@@ -141,7 +140,7 @@ export default function SucursalesClient({ branches, groups, allPatterns, year, 
                     <td className="px-4 py-3 text-sm text-gray-700">
                       <CategorySelector
                         teamId={team.id}
-                        current={team.categoria as ShiftCategory | null}
+                        current={team.categoria}
                         options={categoryOptions}
                         compact
                       />

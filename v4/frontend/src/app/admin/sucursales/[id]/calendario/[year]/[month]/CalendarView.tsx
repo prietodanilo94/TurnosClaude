@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import { workerColor } from "@/components/calendar/worker-colors";
-import type { CalendarSlot, DayShift, ShiftCategory, WorkerInfo, WorkerBlockInfo } from "@/types";
+import type { CalendarSlot, DayShift, ShiftPatternDef, WorkerInfo, WorkerBlockInfo } from "@/types";
 import { getOperatingWindow, getScheduleBreakdown } from "@/lib/patterns/catalog";
 import {
   buildWorkerBlockDateMap,
@@ -113,7 +113,8 @@ interface Props {
   branchCodigo: string;
   teamId: string;
   areaNegocio: "ventas" | "postventa";
-  categoria: ShiftCategory;
+  categoria: string;
+  patternOverride?: ShiftPatternDef;
   year: number;
   month: number;
   slots: CalendarSlot[];
@@ -169,7 +170,7 @@ interface Props {
 }
 
 export default function CalendarView({
-  branchId, branchName, branchCodigo, teamId, areaNegocio, categoria,
+  branchId, branchName, branchCodigo, teamId, areaNegocio, categoria, patternOverride,
   year, month, slots, assignments, workers, workerMap, calendarId, generateAlert,
   workerBlocks = [], prevAssignments = {}, nextAssignments = {}, currentYear, currentMonth,
   backHref = "/admin/sucursales",
@@ -323,7 +324,7 @@ export default function CalendarView({
   );
 
   const weeks = useMemo(() => buildIsoWeeks(year, month), [year, month]);
-  const operatingWindow = useMemo(() => getOperatingWindow(categoria), [categoria]);
+  const operatingWindow = useMemo(() => getOperatingWindow(categoria, patternOverride), [categoria, patternOverride]);
   const blockMap = useMemo(() => buildWorkerBlockDateMap(workerBlocks), [workerBlocks]);
   const validation = useMemo(
     () => validateCalendarForPublish({
@@ -680,7 +681,7 @@ export default function CalendarView({
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">{branchName}</h1>
           <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-            {getScheduleBreakdown(categoria).map(({ days, range }, i) => (
+            {getScheduleBreakdown(categoria, patternOverride).map(({ days, range }, i) => (
               <Fragment key={days}>
                 {i > 0 && <span className="text-gray-300">·</span>}
                 <span className="text-gray-600">{days}: <span className="font-medium text-gray-700">{range}</span></span>

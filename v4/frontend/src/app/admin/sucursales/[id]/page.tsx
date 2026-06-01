@@ -3,7 +3,6 @@ import Link from "next/link";
 import { prisma } from "@/lib/db/prisma";
 import { getAllPatterns } from "@/lib/patterns/catalog";
 import { getSession } from "@/lib/auth/session";
-import type { ShiftCategory } from "@/types";
 import CategorySelector from "./CategorySelector";
 import WorkerAccessManager from "./WorkerAccessManager";
 
@@ -44,7 +43,14 @@ export default async function BranchDetailPage({ params, searchParams }: Props) 
   if (!branch) notFound();
 
   const teams = searchParams.team ? branch.teams.filter((team) => team.id === searchParams.team) : branch.teams;
-  const allPatterns = getAllPatterns();
+  const [builtIns, dbPatterns] = await Promise.all([
+    Promise.resolve(getAllPatterns()),
+    prisma.shiftPattern.findMany({ orderBy: { createdAt: "asc" } }),
+  ]);
+  const allPatterns = [
+    ...builtIns,
+    ...dbPatterns.map((p) => ({ id: p.id, label: p.label, areaNegocio: p.areaNegocio as "ventas" | "postventa", rotationWeeks: JSON.parse(p.rotationJson), weeklyHours: JSON.parse(p.weeklyHoursJson) })),
+  ];
 
   const now = new Date();
   const year = now.getFullYear();
@@ -103,7 +109,7 @@ export default async function BranchDetailPage({ params, searchParams }: Props) 
                     <p className="text-xs font-medium text-gray-700 mb-2">Horario</p>
                     <CategorySelector
                       teamId={team.id}
-                      current={team.categoria as ShiftCategory | null}
+                      current={team.categoria}
                       options={allPatterns
                         .filter((pattern) => pattern.areaNegocio === team.areaNegocio)
                         .map((pattern) => ({ id: pattern.id, label: pattern.label }))}

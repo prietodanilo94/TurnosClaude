@@ -1,7 +1,7 @@
 import * as XLSX from "xlsx";
 import { prisma } from "@/lib/db/prisma";
 import { generateCalendar } from "@/lib/calendar/generator";
-import type { CalendarSlot, DayShift, ShiftCategory } from "@/types";
+import type { CalendarSlot, DayShift } from "@/types";
 
 const MONTH_NAMES = [
   "", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -81,7 +81,7 @@ export async function generateGroupCalendarExcel({
 
     const slots: CalendarSlot[] = existing
       ? JSON.parse(existing.slotsData)
-      : generateCalendar(team.categoria as ShiftCategory, year, month, team.workers.length).slots;
+      : generateCalendar(team.categoria!, year, month, team.workers.length).slots;
     const assignments: Record<string, string | null> = existing ? JSON.parse(existing.assignments) : {};
     const workerMap = Object.fromEntries(team.workers.map((w) => [w.id, w.nombre]));
     const sheetName = safeSheetName(`${team.branch.nombre}_${team.areaNegocio}`);

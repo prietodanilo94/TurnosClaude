@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { generateCalendar } from "@/lib/calendar/generator";
-import type { ShiftCategory } from "@/types";
+import type { ShiftPatternDef } from "@/types";
 
 export interface TeamSlice {
   teamId: string;
@@ -10,14 +10,15 @@ export interface TeamSlice {
 }
 
 interface Props {
-  categoria: ShiftCategory;
+  categoria: string;
+  patternOverride?: ShiftPatternDef;
   year: number;
   month: number;
   slices: TeamSlice[]; // one per team, in order
   hasCalendar: boolean;
 }
 
-export default function GenerateButton({ categoria, year, month, slices, hasCalendar }: Props) {
+export default function GenerateButton({ categoria, patternOverride, year, month, slices, hasCalendar }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -28,7 +29,7 @@ export default function GenerateButton({ categoria, year, month, slices, hasCale
     setError("");
     try {
       // Generate one combined calendar for all workers
-      const { slots: combinedSlots } = generateCalendar(categoria, year, month, totalWorkers);
+      const { slots: combinedSlots } = generateCalendar(categoria, year, month, totalWorkers, patternOverride);
 
       let offset = 0;
       for (const slice of slices) {

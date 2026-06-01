@@ -4,7 +4,8 @@ import { generateCalendar } from "@/lib/calendar/generator";
 import { resolveCalendarDisplayCategory, type CalendarCategoryTeam } from "@/lib/calendar/categoryFallback";
 import { getSession } from "@/lib/auth/session";
 import { supervisorLookupKey } from "@/lib/supervisors";
-import type { ShiftCategory, CalendarSlot, WorkerBlockInfo } from "@/types";
+import { isBuiltIn, patternFromRow } from "@/lib/patterns/catalog";
+import type { CalendarSlot, WorkerBlockInfo } from "@/types";
 import CalendarView from "./CalendarView";
 
 interface Props {
@@ -101,6 +102,11 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
   let calendarId: string | undefined;
   let alert: string | undefined;
 
+  const catId = categoryResolution.categoria;
+  const patternOverride = catId && !isBuiltIn(catId)
+    ? await prisma.shiftPattern.findUnique({ where: { id: catId } }).then((r) => r ? patternFromRow(r) : undefined)
+    : undefined;
+
   if (existing) {
     slots = JSON.parse(existing.slotsData);
     assignments = JSON.parse(existing.assignments);
@@ -109,7 +115,7 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
       alert = `Este equipo no tiene categoria propia. Se muestra usando la categoria del grupo${categoryResolution.sourceBranchName ? ` desde ${categoryResolution.sourceBranchName}` : ""}.`;
     }
   } else {
-    const result = generateCalendar(categoryResolution.categoria as ShiftCategory, year, month, workerCount);
+    const result = generateCalendar(catId, year, month, workerCount, patternOverride);
     slots = result.slots;
     alert = result.alert;
     if (Object.keys(prevAssignments).length > 0) {
@@ -135,7 +141,8 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
       branchCodigo={team.branch.codigo}
       teamId={team.id}
       areaNegocio={team.areaNegocio as "ventas" | "postventa"}
-      categoria={categoryResolution.categoria as ShiftCategory}
+      categoria={catId}
+      patternOverride={patternOverride}
       year={year}
       month={month}
       slots={slots}

@@ -4,7 +4,7 @@ import { generateCalendar } from "@/lib/calendar/generator";
 import { logAction } from "@/lib/audit/log";
 import * as XLSX from "xlsx";
 import ExcelJS from "exceljs";
-import type { CalendarSlot, ShiftCategory, DayShift } from "@/types";
+import type { CalendarSlot, DayShift } from "@/types";
 
 const MONTH_NAMES = [
   "", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -101,7 +101,7 @@ export async function GET(req: NextRequest) {
     slots = JSON.parse(existing.slotsData);
     assignments = JSON.parse(existing.assignments);
   } else {
-    const result = generateCalendar(team.categoria as ShiftCategory, year, month, team.workers.length);
+    const result = generateCalendar(team.categoria, year, month, team.workers.length);
     slots = result.slots;
   }
 

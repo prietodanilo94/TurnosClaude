@@ -152,6 +152,15 @@ model AttendanceRecord {
   @@index([fecha])
 }
 
+model ShiftPattern {
+  id              String   @id @default(cuid())
+  label           String
+  areaNegocio     String
+  rotationJson    String
+  weeklyHoursJson String
+  createdAt       DateTime @default(now())
+}
+
 model AuditLog {
   id         String   @id @default(cuid())
   userId     String?

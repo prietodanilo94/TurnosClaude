@@ -1,6 +1,6 @@
-import { getPattern } from "../patterns/catalog";
+import { getPatternOrThrow } from "../patterns/catalog";
 import { dateRangeInclusive } from "../dates";
-import type { CalendarSlot, ShiftCategory, DayShift, WorkerBlockInfo } from "../../types";
+import type { CalendarSlot, ShiftPatternDef, DayShift, WorkerBlockInfo } from "../../types";
 
 // Devuelve índice de día de la semana: Lun=0 ... Dom=6
 function dowIndex(date: Date): number {
@@ -31,12 +31,13 @@ export type WorkerBlockDateMap = Record<string, Record<string, string | null>>;
  * consistente entre meses (misma semana ISO → mismo patrón de semana).
  */
 export function generateCalendar(
-  category: ShiftCategory,
+  category: string,
   year: number,
   month: number,  // 1-based
   workerCount: number,
+  patternOverride?: ShiftPatternDef,
 ): GenerateResult {
-  const pattern = getPattern(category);
+  const pattern = getPatternOrThrow(category, patternOverride);
   const rotLen = pattern.rotationWeeks.length;
 
   let alert: string | undefined;

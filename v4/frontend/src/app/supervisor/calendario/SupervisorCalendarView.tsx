@@ -4,7 +4,7 @@ import CalendarView from "@/app/admin/sucursales/[id]/calendario/[year]/[month]/
 import CategoryPicker from "./CategoryPicker";
 import { generateCalendar } from "@/lib/calendar/generator";
 import { splitCalendarByTeam, type TeamSlice } from "@/lib/calendar/teamSplit";
-import type { CalendarSlot, ShiftCategory, WorkerBlockInfo, WorkerInfo } from "@/types";
+import type { CalendarSlot, ShiftPatternDef, WorkerBlockInfo, WorkerInfo } from "@/types";
 
 interface SimpleWorker {
   id: string;
@@ -15,7 +15,8 @@ interface Props {
   title: string;
   areaLabel: string;
   areaNegocio: "ventas" | "postventa";
-  categoria: ShiftCategory | null;
+  categoria: string | null;
+  patternOverride?: ShiftPatternDef;
   teamIds: string[];
   categoryOptions: { id: string; label: string }[];
   year: number;
@@ -93,6 +94,7 @@ export default function SupervisorCalendarView({
   areaLabel,
   areaNegocio,
   categoria,
+  patternOverride,
   teamIds,
   categoryOptions,
   year,
@@ -135,6 +137,7 @@ export default function SupervisorCalendarView({
       teamId={slices[0]?.teamId ?? "supervisor"}
       areaNegocio={areaNegocio}
       categoria={categoria}
+      patternOverride={patternOverride}
       year={year}
       month={month}
       slots={slots}
@@ -195,7 +198,7 @@ export default function SupervisorCalendarView({
         }
 
         // Generar por primera vez: mostrar plantilla sin guardar aún (usuario debe presionar Guardar)
-        const generated = generateCalendar(categoria, year, month, totalWorkers);
+        const generated = generateCalendar(categoria, year, month, totalWorkers, patternOverride ?? undefined);
         const nextAssignments: Record<string, string | null> = {};
 
         let offset = 0;

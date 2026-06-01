@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { getSession } from "@/lib/auth/session";
 import { generateCalendar } from "@/lib/calendar/generator";
-import type { ShiftCategory, CalendarSlot, WorkerBlockInfo } from "@/types";
+import type { CalendarSlot, WorkerBlockInfo } from "@/types";
 import VendedorView from "./VendedorView";
 
 export const dynamic = "force-dynamic";
@@ -65,7 +65,7 @@ export default async function VendedorMesPage({ params }: Props) {
     assignments = JSON.parse(calendar.assignments);
     calendarId = calendar.id;
   } else if (team.categoria) {
-    const result = generateCalendar(team.categoria as ShiftCategory, year, month, team.workers.length);
+    const result = generateCalendar(team.categoria, year, month, team.workers.length);
     slots = result.slots;
   } else {
     slots = [];

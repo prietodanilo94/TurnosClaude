@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
-import { getAllPatterns } from "@/lib/patterns/catalog";
-
-const VALID_CATS = new Set(getAllPatterns().map((p) => p.id));
+import { isBuiltIn } from "@/lib/patterns/catalog";
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const { categoria } = await req.json();
 
-  if (!VALID_CATS.has(categoria)) {
+  const valid = isBuiltIn(categoria) || (await prisma.shiftPattern.findUnique({ where: { id: categoria } })) !== null;
+  if (!valid) {
     return NextResponse.json({ error: "Categoría inválida" }, { status: 400 });
   }
 
