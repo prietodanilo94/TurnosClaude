@@ -18,11 +18,18 @@ const EMPTY_FORM = {
 
 export default function SupervisoresClient({ initialSupervisors, branches }: Props) {
   const [supervisors, setSupervisors] = useState(initialSupervisors);
+  const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<SupervisorWithBranches | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const q = search.toLowerCase();
+  const visible = q
+    ? supervisors.filter(
+        (s) => s.nombre.toLowerCase().includes(q) || (s.email ?? "").toLowerCase().includes(q),
+      )
+    : supervisors;
   const readyCount = supervisors.filter((supervisor) => isReadyForProduction(supervisor)).length;
   const missingEmailCount = supervisors.filter((supervisor) => !supervisor.email).length;
   const missingPasswordCount = supervisors.filter((supervisor) => !supervisor.passwordHash).length;
@@ -141,12 +148,21 @@ export default function SupervisoresClient({ initialSupervisors, branches }: Pro
             {supervisors.length} supervisor{supervisors.length !== 1 ? "es" : ""}
           </p>
         </div>
-        <button
-          onClick={openCreate}
-          className="px-3 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors"
-        >
-          + Nuevo supervisor
-        </button>
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar supervisor..."
+            className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-52"
+          />
+          <button
+            onClick={openCreate}
+            className="px-3 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors"
+          >
+            + Nuevo supervisor
+          </button>
+        </div>
       </div>
 
       {supervisors.length > 0 && (
@@ -178,7 +194,7 @@ export default function SupervisoresClient({ initialSupervisors, branches }: Pro
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-100">
-              {supervisors.map((supervisor) => {
+              {visible.map((supervisor) => {
                 const setupIssues = getSetupIssues(supervisor);
                 return (
                   <tr key={supervisor.id} className={`hover:bg-gray-50 ${setupIssues.length > 0 ? "bg-amber-50/30" : ""}`}>
@@ -273,6 +289,13 @@ export default function SupervisoresClient({ initialSupervisors, branches }: Pro
                   </tr>
                 );
               })}
+              {visible.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-400">
+                    Sin resultados para &ldquo;{search}&rdquo;
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
