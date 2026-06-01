@@ -60,7 +60,7 @@ export default function AdminShell({ userEmail, children }: Props) {
         </div>
       </aside>
 
-      <main className="flex-1 bg-gray-50 min-h-screen overflow-auto">{children}</main>
+      <main className="flex-1 bg-gray-50 min-h-screen">{children}</main>
     </div>
   );
 }
