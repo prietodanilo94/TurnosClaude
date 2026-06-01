@@ -80,7 +80,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
   const teams = await prisma.branchTeam.findMany({
     where: { branchId: { in: selectedBranchIds } },
     include: {
-      branch: { select: { id: true, nombre: true, codigo: true } },
+      branch: { select: { id: true, nombre: true, codigo: true, groupId: true } },
       workers: {
         where: { activo: true, esVirtual: false },
         orderBy: { nombre: "asc" },
@@ -124,49 +124,34 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
 
   const blocks: DisplayBlock[] = [];
 
-  if (isGroup) {
+  function buildGroupBlock(groupTeams: typeof teams, groupTitle: string, blockKey: string) {
     const byArea = new Map<string, typeof teams>();
-    for (const team of teams) {
+    for (const team of groupTeams) {
       if (!byArea.has(team.areaNegocio)) byArea.set(team.areaNegocio, []);
       byArea.get(team.areaNegocio)!.push(team);
     }
-
     for (const [area, areaTeams] of byArea) {
       const definedCat = areaTeams.find((t) => t.categoria)?.categoria ?? null;
-
       const allWorkers = areaTeams.flatMap((t) =>
-        t.workers
-          .filter(w => !supervisorKeys.has(supervisorLookupKey(w.nombre)))
-          .map((w) => ({ id: w.id, nombre: w.nombre })),
+        t.workers.filter(w => !supervisorKeys.has(supervisorLookupKey(w.nombre))).map((w) => ({ id: w.id, nombre: w.nombre })),
       );
-      const allBlocks: WorkerBlockInfo[] = areaTeams.flatMap((t) =>
-        t.workers
-          .filter(w => !supervisorKeys.has(supervisorLookupKey(w.nombre)))
-          .flatMap((w) =>
-            w.blocks.map((b) => ({
-              id: b.id, workerId: w.id,
-              startDate: b.startDate.toISOString().slice(0, 10),
-              endDate: b.endDate.toISOString().slice(0, 10),
-              motivo: b.motivo,
-            })),
-          ),
+      const allWorkerBlocks: WorkerBlockInfo[] = areaTeams.flatMap((t) =>
+        t.workers.filter(w => !supervisorKeys.has(supervisorLookupKey(w.nombre))).flatMap((w) =>
+          w.blocks.map((b) => ({ id: b.id, workerId: w.id, startDate: b.startDate.toISOString().slice(0, 10), endDate: b.endDate.toISOString().slice(0, 10), motivo: b.motivo })),
+        ),
       );
-
       let offset = 0;
       const allSlots: CalendarSlot[] = [];
       const allAssignments: Record<string, string | null> = {};
       const slices: TeamSlice[] = [];
       let hasCalendar = false;
-
       for (const team of areaTeams) {
         const teamWorkers = team.workers.filter(w => !supervisorKeys.has(supervisorLookupKey(w.nombre)));
         const N = teamWorkers.length;
         const cal = team.calendars[0];
         if (cal) hasCalendar = true;
-
         let teamSlots: CalendarSlot[];
         let teamAssign: Record<string, string | null>;
-
         if (cal) {
           teamSlots  = JSON.parse(cal.slotsData) as CalendarSlot[];
           teamAssign = JSON.parse(cal.assignments) as Record<string, string | null>;
@@ -177,20 +162,14 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
           teamSlots  = [];
           teamAssign = {};
         }
-
         allSlots.push(...teamSlots.map((s) => ({ ...s, slotNumber: s.slotNumber + offset })));
-        for (const [k, v] of Object.entries(teamAssign)) {
-          allAssignments[String(Number(k) + offset)] = v;
-        }
-
+        for (const [k, v] of Object.entries(teamAssign)) allAssignments[String(Number(k) + offset)] = v;
         slices.push({ teamId: team.id, workerIds: teamWorkers.map((w) => w.id) });
         offset += N;
       }
-
-      const branchNames = [...new Set(areaTeams.map((t) => t.branch.nombre))];
       blocks.push({
-        key: area,
-        title: branchNames.join(" · "),
+        key: `${blockKey}-${area}`,
+        title: groupTitle,
         areaLabel: area === "ventas" ? "Ventas" : "Postventa",
         areaNegocio: area as "ventas" | "postventa",
         categoria: definedCat,
@@ -199,55 +178,72 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
         slots: allSlots,
         assignments: allAssignments,
         workers: allWorkers,
-        blocks: allBlocks,
+        blocks: allWorkerBlocks,
         slices,
         hasCalendar,
         patternOverride: definedCat ? patternMap[definedCat] : undefined,
       });
     }
+  }
+
+  function buildSoloBlock(team: (typeof teams)[0]) {
+    const teamWorkers = team.workers.filter(w => !supervisorKeys.has(supervisorLookupKey(w.nombre)));
+    const cal = team.calendars[0];
+    const N   = teamWorkers.length;
+    let slots: CalendarSlot[];
+    let assignments: Record<string, string | null> = {};
+    if (cal) {
+      slots       = JSON.parse(cal.slotsData) as CalendarSlot[];
+      assignments = JSON.parse(cal.assignments) as Record<string, string | null>;
+    } else if (team.categoria) {
+      slots = generateCalendar(team.categoria, year, month, N).slots;
+    } else {
+      slots = [];
+    }
+    const workers = teamWorkers.map((w) => ({ id: w.id, nombre: w.nombre }));
+    const workerBlocks: WorkerBlockInfo[] = teamWorkers.flatMap((w) =>
+      w.blocks.map((b) => ({ id: b.id, workerId: w.id, startDate: b.startDate.toISOString().slice(0, 10), endDate: b.endDate.toISOString().slice(0, 10), motivo: b.motivo })),
+    );
+    blocks.push({
+      key: team.id,
+      title: team.branch.nombre,
+      areaLabel: team.areaNegocio === "ventas" ? "Ventas" : "Postventa",
+      areaNegocio: team.areaNegocio as "ventas" | "postventa",
+      categoria: team.categoria,
+      teamIds: [team.id],
+      categoryOptions: allDbPatterns.filter((p) => p.areaNegocio === team.areaNegocio).map((p) => ({ id: p.id, label: p.label })),
+      slots,
+      assignments,
+      workers,
+      blocks: workerBlocks,
+      slices: [{ teamId: team.id, workerIds: workers.map((w) => w.id) }],
+      hasCalendar: !!cal,
+      patternOverride: team.categoria ? patternMap[team.categoria] : undefined,
+    });
+  }
+
+  if (searchParams.groupId) {
+    // Single explicit group — merge all teams by area
+    buildGroupBlock(teams, pageTitle, searchParams.groupId);
   } else {
+    // Detect actual groups among the selected branches
+    const teamsByRealGroup = new Map<string, typeof teams>();
+    const soloTeams: typeof teams = [];
     for (const team of teams) {
-      const teamWorkers = team.workers.filter(w => !supervisorKeys.has(supervisorLookupKey(w.nombre)));
-      const cal = team.calendars[0];
-      const N   = teamWorkers.length;
-      let slots: CalendarSlot[];
-      let assignments: Record<string, string | null> = {};
-
-      if (cal) {
-        slots       = JSON.parse(cal.slotsData) as CalendarSlot[];
-        assignments = JSON.parse(cal.assignments) as Record<string, string | null>;
-      } else if (team.categoria) {
-        slots = generateCalendar(team.categoria, year, month, N).slots;
+      const gid = team.branch.groupId;
+      if (gid) {
+        if (!teamsByRealGroup.has(gid)) teamsByRealGroup.set(gid, []);
+        teamsByRealGroup.get(gid)!.push(team);
       } else {
-        slots = [];
+        soloTeams.push(team);
       }
-
-      const workers = teamWorkers.map((w) => ({ id: w.id, nombre: w.nombre }));
-      const allBlocks: WorkerBlockInfo[] = teamWorkers.flatMap((w) =>
-        w.blocks.map((b) => ({
-          id: b.id, workerId: w.id,
-          startDate: b.startDate.toISOString().slice(0, 10),
-          endDate: b.endDate.toISOString().slice(0, 10),
-          motivo: b.motivo,
-        })),
-      );
-
-      blocks.push({
-        key: team.id,
-        title: team.branch.nombre,
-        areaLabel: team.areaNegocio === "ventas" ? "Ventas" : "Postventa",
-        areaNegocio: team.areaNegocio as "ventas" | "postventa",
-        categoria: team.categoria,
-        teamIds: [team.id],
-        categoryOptions: allDbPatterns.filter((p) => p.areaNegocio === team.areaNegocio).map((p) => ({ id: p.id, label: p.label })),
-        slots,
-        assignments,
-        workers,
-        blocks: allBlocks,
-        slices: [{ teamId: team.id, workerIds: workers.map((w) => w.id) }],
-        hasCalendar: !!cal,
-        patternOverride: team.categoria ? patternMap[team.categoria] : undefined,
-      });
+    }
+    for (const [gid, groupTeams] of teamsByRealGroup) {
+      const branchNames = [...new Set(groupTeams.map((t) => t.branch.nombre))];
+      buildGroupBlock(groupTeams, branchNames.join(" · "), gid);
+    }
+    for (const team of soloTeams) {
+      buildSoloBlock(team);
     }
   }
 
