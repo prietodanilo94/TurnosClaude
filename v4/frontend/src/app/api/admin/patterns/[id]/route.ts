@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
-import { isBuiltIn } from "@/lib/patterns/catalog";
 
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
-  if (isBuiltIn(params.id)) {
-    return NextResponse.json({ error: "No se puede modificar una categoría incorporada" }, { status: 400 });
-  }
   const { label, areaNegocio, rotationWeeks, weeklyHours } = await req.json() as {
     label: string;
     areaNegocio: string;
@@ -28,10 +24,6 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
-  if (isBuiltIn(params.id)) {
-    return NextResponse.json({ error: "No se puede eliminar una categoría incorporada" }, { status: 400 });
-  }
-
   const exists = await prisma.shiftPattern.findUnique({ where: { id: params.id } });
   if (!exists) return NextResponse.json({ error: "No encontrada" }, { status: 404 });
 

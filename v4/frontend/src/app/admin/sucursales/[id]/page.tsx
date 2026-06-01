@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/db/prisma";
-import { getAllPatterns } from "@/lib/patterns/catalog";
 import { getSession } from "@/lib/auth/session";
 import CategorySelector from "./CategorySelector";
 import WorkerAccessManager from "./WorkerAccessManager";
@@ -43,14 +42,14 @@ export default async function BranchDetailPage({ params, searchParams }: Props) 
   if (!branch) notFound();
 
   const teams = searchParams.team ? branch.teams.filter((team) => team.id === searchParams.team) : branch.teams;
-  const [builtIns, dbPatterns] = await Promise.all([
-    Promise.resolve(getAllPatterns()),
-    prisma.shiftPattern.findMany({ orderBy: { createdAt: "asc" } }),
-  ]);
-  const allPatterns = [
-    ...builtIns,
-    ...dbPatterns.map((p) => ({ id: p.id, label: p.label, areaNegocio: p.areaNegocio as "ventas" | "postventa", rotationWeeks: JSON.parse(p.rotationJson), weeklyHours: JSON.parse(p.weeklyHoursJson) })),
-  ];
+  const dbPatterns = await prisma.shiftPattern.findMany({ orderBy: { createdAt: "asc" } });
+  const allPatterns = dbPatterns.map((p) => ({
+    id: p.id,
+    label: p.label,
+    areaNegocio: p.areaNegocio as "ventas" | "postventa",
+    rotationWeeks: JSON.parse(p.rotationJson) as unknown[],
+    weeklyHours: JSON.parse(p.weeklyHoursJson) as number[],
+  }));
 
   const now = new Date();
   const year = now.getFullYear();

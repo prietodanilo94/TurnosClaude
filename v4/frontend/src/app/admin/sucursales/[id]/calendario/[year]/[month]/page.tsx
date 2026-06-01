@@ -4,7 +4,7 @@ import { generateCalendar } from "@/lib/calendar/generator";
 import { resolveCalendarDisplayCategory, type CalendarCategoryTeam } from "@/lib/calendar/categoryFallback";
 import { getSession } from "@/lib/auth/session";
 import { supervisorLookupKey } from "@/lib/supervisors";
-import { isBuiltIn, patternFromRow } from "@/lib/patterns/catalog";
+import { patternFromRow } from "@/lib/patterns/catalog";
 import type { CalendarSlot, WorkerBlockInfo } from "@/types";
 import CalendarView from "./CalendarView";
 
@@ -103,9 +103,8 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
   let alert: string | undefined;
 
   const catId = categoryResolution.categoria;
-  const patternOverride = catId && !isBuiltIn(catId)
-    ? await prisma.shiftPattern.findUnique({ where: { id: catId } }).then((r) => r ? patternFromRow(r) : undefined)
-    : undefined;
+  const patternRow = catId ? await prisma.shiftPattern.findUnique({ where: { id: catId } }) : null;
+  const patternOverride = patternRow ? patternFromRow(patternRow) : undefined;
 
   if (existing) {
     slots = JSON.parse(existing.slotsData);

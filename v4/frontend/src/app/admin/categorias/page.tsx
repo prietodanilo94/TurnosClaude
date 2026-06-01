@@ -1,42 +1,31 @@
 import { prisma } from "@/lib/db/prisma";
-import { getAllPatterns } from "@/lib/patterns/catalog";
 import CategoriasClient from "./CategoriasClient";
 import type { WeekPattern } from "@/types";
 
 export const dynamic = "force-dynamic";
 
 export default async function CategoriasPage() {
-  const dbPatterns = await prisma.shiftPattern.findMany({ orderBy: { createdAt: "asc" } });
+  const [dbPatterns, usageCounts, usageDetail] = await Promise.all([
+    prisma.shiftPattern.findMany({ orderBy: { createdAt: "asc" } }),
+    prisma.branchTeam.groupBy({
+      by: ["categoria"],
+      _count: { categoria: true },
+      where: { categoria: { not: null } },
+    }),
+    prisma.branchTeam.findMany({
+      where: { categoria: { not: null } },
+      select: { categoria: true, branch: { select: { nombre: true } } },
+    }),
+  ]);
 
-  const usageCounts = await prisma.branchTeam.groupBy({
-    by: ["categoria"],
-    _count: { categoria: true },
-    where: { categoria: { not: null } },
-  });
   const countMap = new Map(usageCounts.map((r) => [r.categoria, r._count.categoria]));
-
-  const usageDetail = await prisma.branchTeam.findMany({
-    where: { categoria: { not: null } },
-    select: { categoria: true, branch: { select: { nombre: true } } },
-  });
   const detailMap: Record<string, string[]> = {};
   for (const t of usageDetail) {
     if (!t.categoria) continue;
     detailMap[t.categoria] = [...(detailMap[t.categoria] ?? []), t.branch.nombre];
   }
 
-  const builtInItems = getAllPatterns().map((p) => ({
-    id: p.id,
-    label: p.label,
-    areaNegocio: p.areaNegocio as "ventas" | "postventa",
-    rotationWeeks: p.rotationWeeks as WeekPattern[],
-    weeklyHours: p.weeklyHours,
-    usageCount: countMap.get(p.id) ?? 0,
-    usedBy: detailMap[p.id] ?? [],
-    isBuiltIn: true,
-  }));
-
-  const customItems = dbPatterns.map((p) => ({
+  const items = dbPatterns.map((p) => ({
     id: p.id,
     label: p.label,
     areaNegocio: p.areaNegocio as "ventas" | "postventa",
@@ -44,7 +33,6 @@ export default async function CategoriasPage() {
     weeklyHours: JSON.parse(p.weeklyHoursJson) as number[],
     usageCount: countMap.get(p.id) ?? 0,
     usedBy: detailMap[p.id] ?? [],
-    isBuiltIn: false,
   }));
 
   return (
@@ -53,7 +41,7 @@ export default async function CategoriasPage() {
       <p className="text-sm text-gray-500 mb-6">
         Las categorías definen el patrón de rotación semanal de turnos. Cada sucursal tiene una categoría asignada.
       </p>
-      <CategoriasClient items={[...customItems, ...builtInItems]} />
+      <CategoriasClient items={items} />
     </div>
   );
 }

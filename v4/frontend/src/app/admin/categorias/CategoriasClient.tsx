@@ -12,7 +12,6 @@ type PatternRow = {
   weeklyHours: number[];
   usageCount: number;
   usedBy: string[];
-  isBuiltIn: boolean;
 };
 
 interface Props {
@@ -372,23 +371,21 @@ export default function CategoriasClient({ items }: Props) {
                     )}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    {!item.isBuiltIn && (
-                      <div className="flex justify-end gap-3">
-                        <button
-                          onClick={() => setEditing((prev) => prev === item.id ? null : item.id)}
-                          className="text-xs text-blue-600 hover:text-blue-800 transition-colors"
-                        >
-                          {editing === item.id ? "Cancelar" : "Editar"}
-                        </button>
-                        <button
-                          onClick={() => void handleDelete(item)}
-                          disabled={deleting === item.id}
-                          className="text-xs text-red-500 hover:text-red-700 disabled:opacity-40 transition-colors"
-                        >
-                          {deleting === item.id ? "Eliminando…" : "Eliminar"}
-                        </button>
-                      </div>
-                    )}
+                    <div className="flex justify-end gap-3">
+                      <button
+                        onClick={() => setEditing((prev) => prev === item.id ? null : item.id)}
+                        className="text-xs text-blue-600 hover:text-blue-800 transition-colors"
+                      >
+                        {editing === item.id ? "Cancelar" : "Editar"}
+                      </button>
+                      <button
+                        onClick={() => void handleDelete(item)}
+                        disabled={deleting === item.id}
+                        className="text-xs text-red-500 hover:text-red-700 disabled:opacity-40 transition-colors"
+                      >
+                        {deleting === item.id ? "Eliminando…" : "Eliminar"}
+                      </button>
+                    </div>
                   </td>
                 </tr>
                 {editing === item.id && (

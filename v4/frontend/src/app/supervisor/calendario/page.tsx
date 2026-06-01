@@ -3,10 +3,10 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { getSession } from "@/lib/auth/session";
 import { generateCalendar } from "@/lib/calendar/generator";
-import { getAllPatterns } from "@/lib/patterns/catalog";
+import { patternFromRow } from "@/lib/patterns/catalog";
 import { supervisorLookupKey } from "@/lib/supervisors";
 import type { TeamSlice } from "@/lib/calendar/teamSplit";
-import type { CalendarSlot, WorkerBlockInfo } from "@/types";
+import type { CalendarSlot, ShiftPatternDef, WorkerBlockInfo } from "@/types";
 import SupervisorCalendarView from "./SupervisorCalendarView";
 
 interface Props {
@@ -100,7 +100,10 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
   });
   const supervisorKeys = new Set(branchSupervisors.map(sb => supervisorLookupKey(sb.supervisor.nombre)));
 
-  const allPatterns = getAllPatterns();
+  const allDbPatterns = await prisma.shiftPattern.findMany({ orderBy: { createdAt: "asc" } });
+  const patternMap: Record<string, ShiftPatternDef> = Object.fromEntries(
+    allDbPatterns.map((r) => [r.id, patternFromRow(r)]),
+  );
 
   interface DisplayBlock {
     key: string;
@@ -116,6 +119,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
     blocks: WorkerBlockInfo[];
     slices: TeamSlice[];
     hasCalendar: boolean;
+    patternOverride?: ShiftPatternDef;
   }
 
   const blocks: DisplayBlock[] = [];
@@ -191,13 +195,14 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
         areaNegocio: area as "ventas" | "postventa",
         categoria: definedCat,
         teamIds: areaTeams.map((t) => t.id),
-        categoryOptions: allPatterns.filter((p) => p.areaNegocio === area).map((p) => ({ id: p.id, label: p.label })),
+        categoryOptions: allDbPatterns.filter((p) => p.areaNegocio === area).map((p) => ({ id: p.id, label: p.label })),
         slots: allSlots,
         assignments: allAssignments,
         workers: allWorkers,
         blocks: allBlocks,
         slices,
         hasCalendar,
+        patternOverride: definedCat ? patternMap[definedCat] : undefined,
       });
     }
   } else {
@@ -234,13 +239,14 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
         areaNegocio: team.areaNegocio as "ventas" | "postventa",
         categoria: team.categoria,
         teamIds: [team.id],
-        categoryOptions: allPatterns.filter((p) => p.areaNegocio === team.areaNegocio).map((p) => ({ id: p.id, label: p.label })),
+        categoryOptions: allDbPatterns.filter((p) => p.areaNegocio === team.areaNegocio).map((p) => ({ id: p.id, label: p.label })),
         slots,
         assignments,
         workers,
         blocks: allBlocks,
         slices: [{ teamId: team.id, workerIds: workers.map((w) => w.id) }],
         hasCalendar: !!cal,
+        patternOverride: team.categoria ? patternMap[team.categoria] : undefined,
       });
     }
   }
@@ -261,6 +267,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
           areaLabel={block.areaLabel}
           areaNegocio={block.areaNegocio}
           categoria={block.categoria}
+          patternOverride={block.patternOverride}
           teamIds={block.teamIds}
           categoryOptions={block.categoryOptions}
           year={year}

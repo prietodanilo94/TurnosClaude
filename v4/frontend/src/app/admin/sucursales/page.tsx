@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db/prisma";
-import { getAllPatterns } from "@/lib/patterns/catalog";
 import { getSession } from "@/lib/auth/session";
 import SucursalesClient from "./SucursalesClient";
 
@@ -29,10 +28,7 @@ export default async function SucursalesPage() {
     }),
   ]);
 
-  const [allPatterns, dbPatterns] = await Promise.all([
-    Promise.resolve(getAllPatterns()),
-    prisma.shiftPattern.findMany({ orderBy: { createdAt: "asc" } }),
-  ]);
+  const dbPatterns = await prisma.shiftPattern.findMany({ orderBy: { createdAt: "asc" } });
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth() + 1;
@@ -55,10 +51,7 @@ export default async function SucursalesPage() {
     branches: g.branches,
   }));
 
-  const patternData = [
-    ...allPatterns.map((p) => ({ id: p.id, label: p.label, areaNegocio: p.areaNegocio })),
-    ...dbPatterns.map((p) => ({ id: p.id, label: p.label, areaNegocio: p.areaNegocio })),
-  ];
+  const patternData = dbPatterns.map((p) => ({ id: p.id, label: p.label, areaNegocio: p.areaNegocio }));
 
   return (
     <div className="p-6 space-y-6">
