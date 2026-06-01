@@ -15,9 +15,8 @@ export default async function CategoriasPage() {
   });
   const countMap = new Map(usageCounts.map((r) => [r.categoria, r._count.categoria]));
 
-  // Usage detail: which branches use each custom pattern
   const usageDetail = await prisma.branchTeam.findMany({
-    where: { categoria: { in: dbPatterns.map((p) => p.id) } },
+    where: { categoria: { not: null } },
     select: { categoria: true, branch: { select: { nombre: true } } },
   });
   const detailMap: Record<string, string[]> = {};
@@ -26,16 +25,18 @@ export default async function CategoriasPage() {
     detailMap[t.categoria] = [...(detailMap[t.categoria] ?? []), t.branch.nombre];
   }
 
-  const builtIns = getAllPatterns().map((p) => ({
+  const builtInItems = getAllPatterns().map((p) => ({
     id: p.id,
     label: p.label,
     areaNegocio: p.areaNegocio as "ventas" | "postventa",
     rotationWeeks: p.rotationWeeks as WeekPattern[],
     weeklyHours: p.weeklyHours,
     usageCount: countMap.get(p.id) ?? 0,
+    usedBy: detailMap[p.id] ?? [],
+    isBuiltIn: true,
   }));
 
-  const custom = dbPatterns.map((p) => ({
+  const customItems = dbPatterns.map((p) => ({
     id: p.id,
     label: p.label,
     areaNegocio: p.areaNegocio as "ventas" | "postventa",
@@ -43,6 +44,7 @@ export default async function CategoriasPage() {
     weeklyHours: JSON.parse(p.weeklyHoursJson) as number[],
     usageCount: countMap.get(p.id) ?? 0,
     usedBy: detailMap[p.id] ?? [],
+    isBuiltIn: false,
   }));
 
   return (
@@ -51,7 +53,7 @@ export default async function CategoriasPage() {
       <p className="text-sm text-gray-500 mb-6">
         Las categorías definen el patrón de rotación semanal de turnos. Cada sucursal tiene una categoría asignada.
       </p>
-      <CategoriasClient builtIns={builtIns} custom={custom} />
+      <CategoriasClient items={[...customItems, ...builtInItems]} />
     </div>
   );
 }

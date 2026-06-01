@@ -1,34 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { WeekPattern, DayShift } from "@/types";
+import type { WeekPattern } from "@/types";
 
-type PatternItem = {
+type PatternRow = {
   id: string;
   label: string;
   areaNegocio: "ventas" | "postventa";
   rotationWeeks: WeekPattern[];
   weeklyHours: number[];
   usageCount: number;
+  usedBy: string[];
+  isBuiltIn: boolean;
 };
 
-type CustomItem = PatternItem & { usedBy: string[] };
-
 interface Props {
-  builtIns: PatternItem[];
-  custom: CustomItem[];
+  items: PatternRow[];
 }
 
 const DOW = ["L", "M", "X", "J", "V", "S", "D"] as const;
 const DOW_FULL = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
-
-function shiftSummary(w: WeekPattern): string {
-  return DOW.map((d, i) => {
-    const s = w[i];
-    return s ? `${d}:${s.start}-${s.end}` : `${d}:libre`;
-  }).join("  ");
-}
 
 function WeekGrid({ weeks }: { weeks: WeekPattern[] }) {
   return (
@@ -52,7 +44,7 @@ function WeekGrid({ weeks }: { weeks: WeekPattern[] }) {
   );
 }
 
-// ─── Empty week state ──────────────────────────────────────────────────────
+// ─── Week state helpers ───────────────────────────────────────────────────────
 
 type DayState = { libre: boolean; start: string; end: string };
 type WeekState = DayState[];
@@ -63,6 +55,15 @@ function emptyWeek(): WeekState {
 
 function weekStateToPattern(week: WeekState): WeekPattern {
   return week.map((d) => d.libre ? null : { start: d.start, end: d.end });
+}
+
+function patternToWeekState(weeks: WeekPattern[]): WeekState[] {
+  return weeks.map((week) =>
+    week.map((shift) => shift
+      ? { libre: false, start: shift.start, end: shift.end }
+      : { libre: true, start: "09:00", end: "18:00" }
+    ),
+  );
 }
 
 function computeWeeklyHours(weeks: WeekState[]): number[] {
@@ -77,13 +78,95 @@ function computeWeeklyHours(weeks: WeekState[]): number[] {
   );
 }
 
-// ─── Create form ─────────────────────────────────────────────────────────────
+// ─── Shared week editor ───────────────────────────────────────────────────────
 
-function CreateForm({ onCreated }: { onCreated: () => void }) {
-  const [label, setLabel] = useState("");
-  const [areaNegocio, setAreaNegocio] = useState<"ventas" | "postventa">("ventas");
-  const [numWeeks, setNumWeeks] = useState(2);
-  const [weeks, setWeeks] = useState<WeekState[]>([emptyWeek(), emptyWeek()]);
+function WeekEditor({
+  weeks,
+  onSetDay,
+}: {
+  weeks: WeekState[];
+  onSetDay: (wi: number, di: number, field: keyof DayState, value: string | boolean) => void;
+}) {
+  const weeklyHours = computeWeeklyHours(weeks);
+  return (
+    <>
+      {weeks.map((week, wi) => (
+        <div key={wi} className="border border-gray-100 rounded p-3">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-medium text-gray-700">Semana {wi + 1}</span>
+            <span className="text-xs text-gray-400">{weeklyHours[wi]?.toFixed(1) ?? "0"}h netas estimadas</span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="text-xs w-full">
+              <thead>
+                <tr>
+                  {DOW_FULL.map((d) => (
+                    <th key={d} className="px-1 py-1 text-center font-medium text-gray-500">{d.slice(0, 3)}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  {week.map((day, di) => (
+                    <td key={di} className="px-1 py-1 text-center align-top">
+                      <div className="flex flex-col items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => onSetDay(wi, di, "libre", !day.libre)}
+                          className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors ${day.libre ? "bg-gray-100 text-gray-500 border-gray-300" : "bg-blue-50 text-blue-700 border-blue-200"}`}
+                        >
+                          {day.libre ? "Libre" : "Turno"}
+                        </button>
+                        {!day.libre && (
+                          <>
+                            <input
+                              type="time"
+                              value={day.start}
+                              onChange={(e) => onSetDay(wi, di, "start", e.target.value)}
+                              className="w-20 px-1 py-0.5 border border-gray-200 rounded text-[10px] focus:outline-none focus:ring-1 focus:ring-blue-400"
+                            />
+                            <input
+                              type="time"
+                              value={day.end}
+                              onChange={(e) => onSetDay(wi, di, "end", e.target.value)}
+                              className="w-20 px-1 py-0.5 border border-gray-200 rounded text-[10px] focus:outline-none focus:ring-1 focus:ring-blue-400"
+                            />
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  ))}
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ))}
+    </>
+  );
+}
+
+// ─── Pattern form (create + edit) ────────────────────────────────────────────
+
+function PatternForm({
+  initial,
+  title,
+  submitLabel,
+  onSubmit,
+  onCancel,
+}: {
+  initial?: PatternRow;
+  title: string;
+  submitLabel: string;
+  onSubmit: (data: { label: string; areaNegocio: "ventas" | "postventa"; rotationWeeks: WeekPattern[]; weeklyHours: number[] }) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const [label, setLabel] = useState(initial?.label ?? "");
+  const [areaNegocio, setAreaNegocio] = useState<"ventas" | "postventa">(initial?.areaNegocio ?? "ventas");
+  const [numWeeks, setNumWeeks] = useState(initial?.rotationWeeks.length ?? 2);
+  const [weeks, setWeeks] = useState<WeekState[]>(() =>
+    initial ? patternToWeekState(initial.rotationWeeks) : [emptyWeek(), emptyWeek()],
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -109,25 +192,22 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
     setSaving(true);
     setError(null);
     try {
-      const rotationWeeks = weeks.map(weekStateToPattern);
-      const weeklyHours = computeWeeklyHours(weeks);
-      const res = await fetch("/api/admin/patterns", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ label: label.trim(), areaNegocio, rotationWeeks, weeklyHours }),
+      await onSubmit({
+        label: label.trim(),
+        areaNegocio,
+        rotationWeeks: weeks.map(weekStateToPattern),
+        weeklyHours: computeWeeklyHours(weeks),
       });
-      if (!res.ok) { setError((await res.json()).error ?? "Error"); return; }
-      onCreated();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error");
     } finally {
       setSaving(false);
     }
   }
 
-  const weeklyHours = computeWeeklyHours(weeks);
-
   return (
-    <form onSubmit={(e) => void handleSubmit(e)} className="bg-white border border-gray-200 rounded-lg p-4 space-y-4">
-      <h3 className="text-sm font-semibold text-gray-900">Nueva categoría personalizada</h3>
+    <form onSubmit={(e) => void handleSubmit(e)} className="bg-white border border-blue-100 rounded-lg p-4 space-y-4">
+      <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
 
       <div className="grid grid-cols-2 gap-4">
         <div>
@@ -168,68 +248,20 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
         </div>
       </div>
 
-      {weeks.map((week, wi) => (
-        <div key={wi} className="border border-gray-100 rounded p-3">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-medium text-gray-700">Semana {wi + 1}</span>
-            <span className="text-xs text-gray-400">{weeklyHours[wi]?.toFixed(1) ?? "0"}h netas estimadas</span>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="text-xs w-full">
-              <thead>
-                <tr>
-                  {DOW_FULL.map((d) => (
-                    <th key={d} className="px-1 py-1 text-center font-medium text-gray-500">{d.slice(0, 3)}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  {week.map((day, di) => (
-                    <td key={di} className="px-1 py-1 text-center align-top">
-                      <div className="flex flex-col items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => setDay(wi, di, "libre", !day.libre)}
-                          className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors ${day.libre ? "bg-gray-100 text-gray-500 border-gray-300" : "bg-blue-50 text-blue-700 border-blue-200"}`}
-                        >
-                          {day.libre ? "Libre" : "Turno"}
-                        </button>
-                        {!day.libre && (
-                          <>
-                            <input
-                              type="time"
-                              value={day.start}
-                              onChange={(e) => setDay(wi, di, "start", e.target.value)}
-                              className="w-20 px-1 py-0.5 border border-gray-200 rounded text-[10px] focus:outline-none focus:ring-1 focus:ring-blue-400"
-                            />
-                            <input
-                              type="time"
-                              value={day.end}
-                              onChange={(e) => setDay(wi, di, "end", e.target.value)}
-                              className="w-20 px-1 py-0.5 border border-gray-200 rounded text-[10px] focus:outline-none focus:ring-1 focus:ring-blue-400"
-                            />
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  ))}
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      ))}
+      <WeekEditor weeks={weeks} onSetDay={setDay} />
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
       <div className="flex justify-end gap-2">
+        <button type="button" onClick={onCancel} className="px-4 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50 transition-colors">
+          Cancelar
+        </button>
         <button
           type="submit"
           disabled={saving}
           className="px-4 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50 transition-colors"
         >
-          {saving ? "Guardando…" : "Crear categoría"}
+          {saving ? "Guardando…" : submitLabel}
         </button>
       </div>
     </form>
@@ -238,13 +270,14 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function CategoriasClient({ builtIns, custom }: Props) {
+export default function CategoriasClient({ items }: Props) {
   const router = useRouter();
   const [showCreate, setShowCreate] = useState(false);
+  const [editing, setEditing] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  async function handleDelete(item: CustomItem) {
+  async function handleDelete(item: PatternRow) {
     const warning = item.usageCount > 0
       ? `Esta categoría está siendo usada por ${item.usageCount} equipo(s):\n${item.usedBy.join(", ")}\n\nSi eliminas, esos equipos quedarán sin categoría y no podrán generar calendarios hasta que se asigne una nueva.\n\n¿Continuar?`
       : `¿Eliminar la categoría "${item.label}"?`;
@@ -253,54 +286,72 @@ export default function CategoriasClient({ builtIns, custom }: Props) {
     setDeleteError(null);
     try {
       const res = await fetch(`/api/admin/patterns/${item.id}`, { method: "DELETE" });
-      if (!res.ok) { setDeleteError((await res.json()).error ?? "Error al eliminar"); return; }
+      if (!res.ok) { setDeleteError((await res.json() as { error?: string }).error ?? "Error al eliminar"); return; }
       router.refresh();
     } finally {
       setDeleting(null);
     }
   }
 
-  function handleCreated() {
+  async function handleCreate(data: Parameters<React.ComponentProps<typeof PatternForm>["onSubmit"]>[0]) {
+    const res = await fetch("/api/admin/patterns", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error(((await res.json()) as { error?: string }).error ?? "Error");
     setShowCreate(false);
     router.refresh();
   }
 
+  async function handleEdit(id: string, data: Parameters<React.ComponentProps<typeof PatternForm>["onSubmit"]>[0]) {
+    const res = await fetch(`/api/admin/patterns/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error(((await res.json()) as { error?: string }).error ?? "Error");
+    setEditing(null);
+    router.refresh();
+  }
+
   return (
-    <div className="space-y-6">
-      {/* Custom section header */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Categorías personalizadas</h2>
+    <div className="space-y-4">
+      <div className="flex justify-end">
         <button
-          onClick={() => setShowCreate((v) => !v)}
+          onClick={() => { setShowCreate((v) => !v); setEditing(null); }}
           className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
         >
           {showCreate ? "Cancelar" : "+ Nueva categoría"}
         </button>
       </div>
 
-      {showCreate && <CreateForm onCreated={handleCreated} />}
+      {showCreate && (
+        <PatternForm
+          title="Nueva categoría"
+          submitLabel="Crear categoría"
+          onSubmit={handleCreate}
+          onCancel={() => setShowCreate(false)}
+        />
+      )}
 
       {deleteError && <p className="text-sm text-red-600">{deleteError}</p>}
 
-      {custom.length === 0 && !showCreate && (
-        <p className="text-sm text-gray-400 italic">No hay categorías personalizadas todavía.</p>
-      )}
-
-      {custom.length > 0 && (
-        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-100">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Nombre</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Área</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Semanas / Horario</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Equipos</th>
-                <th className="px-4 py-2" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {custom.map((item) => (
-                <tr key={item.id} className="hover:bg-gray-50">
+      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+        <table className="min-w-full divide-y divide-gray-100">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Nombre</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Área</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Semanas / Horario</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Equipos</th>
+              <th className="px-4 py-2" />
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {items.map((item) => (
+              <React.Fragment key={item.id}>
+                <tr className="hover:bg-gray-50">
                   <td className="px-4 py-3 text-sm font-medium text-gray-900">{item.label}</td>
                   <td className="px-4 py-3 text-sm">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${item.areaNegocio === "ventas" ? "bg-blue-100 text-blue-800" : "bg-emerald-100 text-emerald-800"}`}>
@@ -321,64 +372,42 @@ export default function CategoriasClient({ builtIns, custom }: Props) {
                     )}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => void handleDelete(item)}
-                      disabled={deleting === item.id}
-                      className="text-xs text-red-500 hover:text-red-700 disabled:opacity-40 transition-colors"
-                    >
-                      {deleting === item.id ? "Eliminando…" : "Eliminar"}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* Built-in section */}
-      <div>
-        <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">Categorías incorporadas</h2>
-        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-100">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Nombre</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Área</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Semanas / Horario</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Equipos</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {builtIns.map((item) => (
-                <tr key={item.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                    {item.label}
-                    <span className="ml-2 text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">Incorporada</span>
-                  </td>
-                  <td className="px-4 py-3 text-sm">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${item.areaNegocio === "ventas" ? "bg-blue-100 text-blue-800" : "bg-emerald-100 text-emerald-800"}`}>
-                      {item.areaNegocio === "ventas" ? "Ventas" : "Postventa"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <WeekGrid weeks={item.rotationWeeks} />
-                    <div className="text-[10px] text-gray-400 mt-1">
-                      {item.weeklyHours.map((h, i) => `S${i + 1}: ${h}h`).join(" · ")}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-600">
-                    {item.usageCount > 0 ? (
-                      <span>{item.usageCount} equipo{item.usageCount !== 1 ? "s" : ""}</span>
-                    ) : (
-                      <span className="text-gray-300">Sin uso</span>
+                    {!item.isBuiltIn && (
+                      <div className="flex justify-end gap-3">
+                        <button
+                          onClick={() => setEditing((prev) => prev === item.id ? null : item.id)}
+                          className="text-xs text-blue-600 hover:text-blue-800 transition-colors"
+                        >
+                          {editing === item.id ? "Cancelar" : "Editar"}
+                        </button>
+                        <button
+                          onClick={() => void handleDelete(item)}
+                          disabled={deleting === item.id}
+                          className="text-xs text-red-500 hover:text-red-700 disabled:opacity-40 transition-colors"
+                        >
+                          {deleting === item.id ? "Eliminando…" : "Eliminar"}
+                        </button>
+                      </div>
                     )}
                   </td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                {editing === item.id && (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-4 bg-blue-50/40">
+                      <PatternForm
+                        initial={item}
+                        title={`Editar: ${item.label}`}
+                        submitLabel="Guardar cambios"
+                        onSubmit={(data) => handleEdit(item.id, data)}
+                        onCancel={() => setEditing(null)}
+                      />
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
