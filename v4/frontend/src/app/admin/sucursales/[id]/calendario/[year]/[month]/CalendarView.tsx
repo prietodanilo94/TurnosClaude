@@ -696,7 +696,7 @@ export default function CalendarView({
             className="px-3 py-1.5 text-sm border border-rose-300 text-rose-700 rounded hover:bg-rose-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             title="Regenerar plantilla limpia desde cero"
           >
-            {recalculating ? "Generando…" : recalculateLabel ?? "Generar"}
+            {recalculating ? "Generando…" : recalculateLabel ?? (calId ? "Regenerar" : "Generar")}
           </button>
           <button
             onClick={() => void handleSave()}
@@ -876,7 +876,7 @@ export default function CalendarView({
       )}
 
       {/* Modal editar turno */}
-      {shiftEditDialog && shiftForEdit && (
+      {shiftEditDialog && (
         <ShiftEditDialog
           slotNumber={shiftEditDialog.slotNum}
           dateStr={shiftEditDialog.dateStr}
@@ -889,7 +889,7 @@ export default function CalendarView({
             handleShiftSave(shiftEditDialog.slotNum, shiftEditDialog.dateStr, newShift, redistributeDate)
           }
           onClose={() => setShiftEditDialog(null)}
-          onSetLibre={() => handleSetShiftLibre(shiftEditDialog.slotNum, shiftEditDialog.dateStr)}
+          onSetLibre={shiftForEdit ? () => handleSetShiftLibre(shiftEditDialog.slotNum, shiftEditDialog.dateStr) : undefined}
         />
       )}
 
@@ -1954,7 +1954,7 @@ interface ShiftEditDialogProps {
   slotNumber: number;
   dateStr: string;
   workerName?: string;
-  currentShift: DayShift;
+  currentShift: DayShift | null;
   originalShift?: DayShift;
   redistributeDays: Array<{ dateStr: string; shift: DayShift; d: Date }>;
   operatingWindow: { start: string; end: string };
@@ -1967,8 +1967,8 @@ function ShiftEditDialog({
   slotNumber, dateStr, workerName, currentShift, originalShift, redistributeDays, operatingWindow, onSave, onClose, onSetLibre,
 }: ShiftEditDialogProps) {
   const color = workerColor(slotNumber);
-  const [start, setStart] = useState(currentShift.start);
-  const [end, setEnd] = useState(currentShift.end);
+  const [start, setStart] = useState(currentShift?.start ?? operatingWindow.start);
+  const [end, setEnd] = useState(currentShift?.end ?? operatingWindow.end);
   const [step, setStep] = useState<"edit" | "redistribute">("edit");
   const [selectedRedist, setSelectedRedist] = useState<string | null>(null);
 
@@ -1987,7 +1987,7 @@ function ShiftEditDialog({
   const netHours = rawHours >= 6 ? rawHours - 1 : rawHours;
   const validShift = curStartMin < curEndMin && withinWindow;
 
-  const baseHours = originalShift ? shiftDuration(originalShift) : shiftDuration(currentShift);
+  const baseHours = originalShift ? shiftDuration(originalShift) : (currentShift ? shiftDuration(currentShift) : 0);
   const newHours  = validShift ? shiftDuration({ start, end }) : 0;
   const diffHours = baseHours - newHours; // positivo = nuevo está por debajo del original
   const diffMins  = Math.round(diffHours * 60);
