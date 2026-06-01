@@ -487,17 +487,27 @@ export default function CalendarView({
     });
   }
 
-  function handleShiftSave(slotNum: number, dateStr: string, newShift: DayShift, redistributeDate?: string | null) {
+  function handleShiftSave(slotNum: number, dateStr: string, newShift: DayShift, redistributeDate?: string | null, scope: "week" | "month" = "week") {
     tryChangeGated(() => {
+      const clickedDate = new Date(dateStr + "T12:00:00");
+      const clickedDow = clickedDate.getDay();
+      const monthDates: string[] = scope === "month"
+        ? weeks.flat().filter(d => d.getMonth() + 1 === month && d.getDay() === clickedDow).map(d => fmt(d))
+        : [dateStr];
       setLocalSlots(prev => prev.map(s => {
         if (s.slotNumber !== slotNum) return s;
-        const origShift = s.days[dateStr];
-        const newDays: Record<string, DayShift | null> = { ...s.days, [dateStr]: newShift };
-        if (redistributeDate && origShift) {
-          const target = s.days[redistributeDate];
-          if (target) {
-            const diffMins = Math.round((shiftDuration(origShift) - shiftDuration(newShift)) * 60);
-            newDays[redistributeDate] = { ...target, end: addMinutesToTime(target.end, diffMins) };
+        const newDays: Record<string, DayShift | null> = { ...s.days };
+        for (const d of monthDates) {
+          if (s.days[d] !== undefined) newDays[d] = newShift;
+        }
+        if (scope === "week" && redistributeDate) {
+          const origShift = s.days[dateStr];
+          if (origShift) {
+            const target = s.days[redistributeDate];
+            if (target) {
+              const diffMins = Math.round((shiftDuration(origShift) - shiftDuration(newShift)) * 60);
+              newDays[redistributeDate] = { ...target, end: addMinutesToTime(target.end, diffMins) };
+            }
           }
         }
         return { ...s, days: newDays };
@@ -507,11 +517,21 @@ export default function CalendarView({
     });
   }
 
-  function handleSetShiftLibre(slotNum: number, dateStr: string) {
+  function handleSetShiftLibre(slotNum: number, dateStr: string, scope: "week" | "month" = "week") {
     tryChangeGated(() => {
-      setLocalSlots(prev => prev.map(s =>
-        s.slotNumber !== slotNum ? s : { ...s, days: { ...s.days, [dateStr]: null } }
-      ));
+      const clickedDate = new Date(dateStr + "T12:00:00");
+      const clickedDow = clickedDate.getDay();
+      const monthDates: string[] = scope === "month"
+        ? weeks.flat().filter(d => d.getMonth() + 1 === month && d.getDay() === clickedDow).map(d => fmt(d))
+        : [dateStr];
+      setLocalSlots(prev => prev.map(s => {
+        if (s.slotNumber !== slotNum) return s;
+        const newDays: Record<string, DayShift | null> = { ...s.days };
+        for (const d of monthDates) {
+          if (s.days[d] !== undefined) newDays[d] = null;
+        }
+        return { ...s, days: newDays };
+      }));
       setDirty(true);
       setShiftEditDialog(null);
     });
@@ -886,11 +906,11 @@ export default function CalendarView({
           originalShift={originalShiftForEdit ?? undefined}
           redistributeDays={redistributeDays}
           operatingWindow={operatingWindow}
-          onSave={(newShift, redistributeDate) =>
-            handleShiftSave(shiftEditDialog.slotNum, shiftEditDialog.dateStr, newShift, redistributeDate)
+          onSave={(newShift, redistributeDate, scope) =>
+            handleShiftSave(shiftEditDialog.slotNum, shiftEditDialog.dateStr, newShift, redistributeDate, scope)
           }
           onClose={() => setShiftEditDialog(null)}
-          onSetLibre={shiftForEdit ? () => handleSetShiftLibre(shiftEditDialog.slotNum, shiftEditDialog.dateStr) : undefined}
+          onSetLibre={shiftForEdit ? (scope) => handleSetShiftLibre(shiftEditDialog.slotNum, shiftEditDialog.dateStr, scope) : undefined}
         />
       )}
 
@@ -1959,9 +1979,9 @@ interface ShiftEditDialogProps {
   originalShift?: DayShift;
   redistributeDays: Array<{ dateStr: string; shift: DayShift; d: Date }>;
   operatingWindow: { start: string; end: string };
-  onSave: (newShift: DayShift, redistributeDate?: string | null) => void;
+  onSave: (newShift: DayShift, redistributeDate: string | null | undefined, scope: "week" | "month") => void;
   onClose: () => void;
-  onSetLibre?: () => void;
+  onSetLibre?: (scope: "week" | "month") => void;
 }
 
 function ShiftEditDialog({
@@ -1972,6 +1992,7 @@ function ShiftEditDialog({
   const [end, setEnd] = useState(currentShift?.end ?? operatingWindow.end);
   const [step, setStep] = useState<"edit" | "redistribute">("edit");
   const [selectedRedist, setSelectedRedist] = useState<string | null>(null);
+  const [scope, setScope] = useState<"week" | "month">("week");
 
   const winStartMin = minutesFromTime(operatingWindow.start);
   const winEndMin   = minutesFromTime(operatingWindow.end);
@@ -2006,10 +2027,10 @@ function ShiftEditDialog({
 
   function handleSaveClick() {
     if (!validShift) return;
-    if (diffHours > 0.01) {
+    if (diffHours > 0.01 && scope === "week") {
       setStep("redistribute");
     } else {
-      onSave({ start, end });
+      onSave({ start, end }, null, scope);
     }
   }
 
@@ -2073,7 +2094,7 @@ function ShiftEditDialog({
 
           <div className="border-t border-gray-200 px-4 py-3 flex items-center justify-between gap-2">
             <button
-              onClick={() => onSave({ start, end })}
+              onClick={() => onSave({ start, end }, null, scope)}
               className="text-xs text-gray-400 hover:text-gray-600 underline"
             >
               No agregar horas
@@ -2086,7 +2107,7 @@ function ShiftEditDialog({
                 Volver
               </button>
               <button
-                onClick={() => onSave({ start, end }, selectedRedist)}
+                onClick={() => onSave({ start, end }, selectedRedist, scope)}
                 disabled={!selectedRedist}
                 className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed"
               >
@@ -2199,11 +2220,28 @@ function ShiftEditDialog({
           </div>
         </div>
 
+        {/* Alcance del cambio */}
+        <div className="px-4 pb-3 flex items-center gap-4">
+          {(["week", "month"] as const).map((s) => (
+            <label key={s} className="flex items-center gap-1.5 cursor-pointer text-xs text-gray-600">
+              <input
+                type="radio"
+                name="shift-scope"
+                value={s}
+                checked={scope === s}
+                onChange={() => setScope(s)}
+                className="accent-blue-600"
+              />
+              {s === "week" ? "Solo este día" : "Todo el mes"}
+            </label>
+          ))}
+        </div>
+
         <div className="border-t border-gray-200 px-4 py-3 flex items-center justify-between gap-2">
           <div>
             {onSetLibre && (
               <button
-                onClick={onSetLibre}
+                onClick={() => onSetLibre(scope)}
                 className="px-3 py-1.5 text-xs border border-rose-300 text-rose-600 rounded hover:bg-rose-50 transition-colors"
               >
                 Eliminar turno
@@ -2222,7 +2260,7 @@ function ShiftEditDialog({
               disabled={!validShift}
               className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {diffHours > 0.01 ? "Continuar →" : "Guardar"}
+              {diffHours > 0.01 && scope === "week" ? "Continuar →" : "Guardar"}
             </button>
           </div>
         </div>
