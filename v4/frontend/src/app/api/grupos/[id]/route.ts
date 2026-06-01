@@ -27,11 +27,25 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
-  if (!(await requireAdmin())) {
-    return NextResponse.json({ error: "Solo el admin puede disolver grupos" }, { status: 403 });
+  const session = await getSession();
+  const isAdmin = session?.role === "admin";
+  const supervisorId = session?.supervisorId ?? null;
+
+  if (!isAdmin && !supervisorId) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
 
-  // Desvincular todas las sucursales del grupo antes de eliminar
+  if (!isAdmin && supervisorId) {
+    const [groupBranches, supervisorBranches] = await Promise.all([
+      prisma.branch.findMany({ where: { groupId: params.id }, select: { id: true } }),
+      prisma.supervisorBranch.findMany({ where: { supervisorId }, select: { branchId: true } }),
+    ]);
+    const allowed = new Set(supervisorBranches.map((r) => r.branchId));
+    if (groupBranches.some((b) => !allowed.has(b.id))) {
+      return NextResponse.json({ error: "No tienes acceso a todas las sucursales del grupo" }, { status: 403 });
+    }
+  }
+
   await prisma.branch.updateMany({
     where: { groupId: params.id },
     data: { groupId: null },
