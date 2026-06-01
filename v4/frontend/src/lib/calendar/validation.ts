@@ -34,6 +34,7 @@ export interface CalendarValidationResult {
   errors: CalendarValidationIssue[];
   warnings: CalendarValidationIssue[];
   canSave: boolean;
+  exceeds42hLimit: boolean;
 }
 
 function shiftDuration(shift: DayShift): number {
@@ -41,6 +42,14 @@ function shiftDuration(shift: DayShift): number {
   const [h2, m2] = shift.end.split(":").map(Number);
   const total = Math.max(0, (h2 * 60 + m2 - h1 * 60 - m1) / 60);
   return total >= 6 ? total - 1 : total;
+}
+
+const FERIADOS_IRRENUNCIABLES: [number, number][] = [
+  [1, 1], [5, 1], [9, 18], [9, 19], [12, 25],
+];
+function isFeriado(dateStr: string): boolean {
+  const d = new Date(dateStr + "T12:00:00");
+  return FERIADOS_IRRENUNCIABLES.some(([m, day]) => d.getMonth() + 1 === m && d.getDate() === day);
 }
 
 function fmt(date: Date): string {
@@ -161,32 +170,28 @@ export function validateCalendarForPublish({
     });
   }
 
-  const weeklyHours = new Map<string, { workerId: string; hours: number; label: string }>();
+  let exceeds42hLimit = false;
   for (const slot of slots) {
-    const workerId = assignments[String(slot.slotNumber)] ?? null;
-    if (!workerId) continue;
-
+    const weekHours: Record<string, number> = {};
     for (const [dateStr, shift] of Object.entries(slot.days)) {
       if (!shift) continue;
       const d = new Date(dateStr + "T12:00:00");
       if (d.getFullYear() !== year || d.getMonth() + 1 !== month) continue;
-
-      const key = `${workerId}:${isoWeekKey(dateStr)}`;
-      const current = weeklyHours.get(key) ?? { workerId, hours: 0, label: isoWeekKey(dateStr) };
-      current.hours += shiftDuration(shift);
-      weeklyHours.set(key, current);
+      if (isFeriado(dateStr)) continue;
+      const wk = isoWeekKey(dateStr);
+      weekHours[wk] = (weekHours[wk] ?? 0) + shiftDuration(shift);
     }
-  }
-
-  for (const item of weeklyHours.values()) {
-    if (item.hours > 44) {
-      issues.push({
-        severity: "warning",
-        code: "weekly_hours_high",
-        title: `${workerMap[item.workerId] ?? "Vendedor"} supera 44h en ${item.label}`,
-        detail: `Tiene ${Number.isInteger(item.hours) ? item.hours : item.hours.toFixed(1)} horas planificadas. Revisar antes de publicar.`,
-        workerId: item.workerId,
-      });
+    for (const [wk, hours] of Object.entries(weekHours)) {
+      if (hours > 42) {
+        exceeds42hLimit = true;
+        issues.push({
+          severity: "error",
+          code: "weekly_hours_high",
+          title: `Slot ${slot.slotNumber} supera 42h en semana ${wk}`,
+          detail: `Tiene ${Number.isInteger(hours) ? hours : hours.toFixed(1)}h planificadas. Máximo permitido: 42h semanales.`,
+          slotNumber: slot.slotNumber,
+        });
+      }
     }
   }
 
@@ -218,6 +223,7 @@ export function validateCalendarForPublish({
     errors,
     warnings,
     canSave: errors.length === 0,
+    exceeds42hLimit,
   };
 }
 

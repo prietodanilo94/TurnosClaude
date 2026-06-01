@@ -285,6 +285,11 @@ export default function CalendarView({
   }
 
   function requestSave(onComplete?: (id: string | null) => void) {
+    if (validation.exceeds42hLimit) {
+      setSaveFeedback({ tone: "error", text: "No se puede guardar: hay un slot con más de 42 horas en una semana. Ajusta los turnos antes de guardar." });
+      onComplete?.(null);
+      return;
+    }
     if (enforceValidationBeforeSave && validation.errors.length > 0) {
       const sample = validation.errors.slice(0, 4).map((issue) => `• ${issue.title}`).join("\n");
       const hiddenCount = validation.errors.length - 4;
@@ -1284,6 +1289,7 @@ function WeekBlock({
                         ) : (
                           <div
                             draggable={canDrag}
+                            onClick={inMonth && !isPast ? () => onShiftCellClick(slot.slotNumber, dateStr) : undefined}
                             onDragStart={canDrag ? () => handleDragStart(slot.slotNumber, dateStr) : undefined}
                             onDragEnd={handleDragEnd}
                             onDragOver={canDrag ? (e) => handleDragOver(e, slot.slotNumber, dateStr) : undefined}
@@ -1292,7 +1298,7 @@ function WeekBlock({
                               isBeingDragged ? "opacity-30" : ""
                             } ${
                               isDropTarget ? "text-blue-500 font-medium" : "text-gray-300"
-                            } ${canDrag ? "cursor-grab" : ""}`}
+                            } ${inMonth && !isPast ? "cursor-pointer hover:text-blue-400" : canDrag ? "cursor-grab" : ""}`}
                           >
                             libre
                           </div>
@@ -1300,7 +1306,7 @@ function WeekBlock({
                       </td>
                     );
                   })}
-                  <td className="px-2 py-2 text-center text-xs font-semibold text-gray-700 border-l border-gray-100">
+                  <td className={`px-2 py-2 text-center text-xs font-semibold border-l border-gray-100 ${totalHours > 42 ? "text-red-600" : "text-gray-700"}`}>
                     {totalHours > 0 ? fmtHours(totalHours) : "—"}
                   </td>
                 </tr>
@@ -1849,14 +1855,14 @@ function VendedorCalendar({ slot, year, month, weeks, assign, workerMap, blockMa
                       ) : (
                         <div
                           draggable={canDrag}
-                          onClick={undefined}
+                          onClick={canClick ? () => onShiftCellClick(slot.slotNumber, dateStr) : undefined}
                           onDragStart={canDrag ? () => handleDragStart(dateStr) : undefined}
                           onDragEnd={handleDragEnd}
                           onDragOver={canDrag ? (e) => handleDragOver(e, dateStr) : undefined}
                           onDrop={canDrag ? () => handleDrop(dateStr) : undefined}
                           className={`text-[10px] italic select-none transition-all ${
                             isBeingDragged ? "opacity-30" : ""
-                          } ${isDropTarget ? "text-blue-500 font-medium" : "text-gray-300"} ${canDrag ? "cursor-grab hover:text-gray-400" : ""}`}
+                          } ${isDropTarget ? "text-blue-500 font-medium" : "text-gray-300"} ${canClick ? "cursor-pointer hover:text-blue-400" : canDrag ? "cursor-grab hover:text-gray-400" : ""}`}
                         >
                           libre
                         </div>
@@ -1864,7 +1870,7 @@ function VendedorCalendar({ slot, year, month, weeks, assign, workerMap, blockMa
                     </td>
                   );
                 })}
-                <td className="px-2 py-1.5 text-center text-[10px] font-medium text-gray-500 border-l border-gray-100">
+                <td className={`px-2 py-1.5 text-center text-[10px] font-medium border-l border-gray-100 ${weekHours > 42 ? "text-red-600" : "text-gray-500"}`}>
                   {weekHours > 0 ? fmtHours(weekHours) : ""}
                 </td>
               </tr>

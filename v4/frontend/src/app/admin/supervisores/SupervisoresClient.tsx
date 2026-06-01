@@ -410,7 +410,7 @@ function buildCalendarUrl(supervisor: SupervisorWithBranches): string {
   const now = new Date();
   const params = new URLSearchParams();
   params.set("year", String(now.getFullYear()));
-  params.set("month", String(now.getMonth() === 4 ? 6 : now.getMonth() + 1));
+  params.set("month", String(now.getMonth() + 1));
   for (const sb of supervisor.branches) {
     params.append("branchId", sb.branch.id);
   }

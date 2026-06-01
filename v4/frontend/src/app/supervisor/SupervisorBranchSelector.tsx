@@ -28,9 +28,8 @@ interface Props {
 }
 
 const now = new Date();
-const _next = now.getMonth() + 2;
-const DEFAULT_YEAR  = _next > 12 ? now.getFullYear() + 1 : now.getFullYear();
-const DEFAULT_MONTH = _next > 12 ? 1 : _next;
+const DEFAULT_YEAR  = now.getFullYear();
+const DEFAULT_MONTH = now.getMonth() + 1;
 
 export default function SupervisorBranchSelector({ groups, ungrouped }: Props) {
   const router = useRouter();

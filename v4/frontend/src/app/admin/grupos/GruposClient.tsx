@@ -23,7 +23,7 @@ interface Props {
 
 const now = new Date();
 const DEFAULT_YEAR = now.getFullYear();
-const DEFAULT_MONTH = now.getMonth() === 4 ? 6 : now.getMonth() + 1;
+const DEFAULT_MONTH = now.getMonth() + 1;
 
 export default function GruposClient({ initialGroups, branches }: Props) {
   const [groups, setGroups] = useState(initialGroups);
