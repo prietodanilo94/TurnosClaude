@@ -21,7 +21,7 @@ export default async function ExportarPage({ searchParams }: Props) {
       branchTeam: {
         include: {
           branch: { select: { nombre: true, codigo: true } },
-          workers: { where: { activo: true }, select: { id: true } },
+          workers: { where: { activo: true }, select: { id: true, nombre: true, rut: true } },
         },
       },
     },
@@ -30,13 +30,19 @@ export default async function ExportarPage({ searchParams }: Props) {
 
   const rows = calendars.map((cal) => {
     const assignments: Record<string, string | null> = JSON.parse(cal.assignments);
-    const assignedCount = Object.values(assignments).filter(Boolean).length;
+    const assignedWorkerIds = new Set(Object.values(assignments).filter(Boolean) as string[]);
+    const assignedWorkers = cal.branchTeam.workers
+      .filter((w) => assignedWorkerIds.has(w.id))
+      .map((w) => ({ id: w.id, nombre: w.nombre, rut: w.rut }));
+
     return {
+      teamId: cal.branchTeamId,
       branchNombre: cal.branchTeam.branch.nombre,
       branchCodigo: cal.branchTeam.branch.codigo,
       areaNegocio: cal.branchTeam.areaNegocio,
       totalWorkers: cal.branchTeam.workers.length,
-      assignedCount,
+      assignedCount: assignedWorkerIds.size,
+      assignedWorkers,
     };
   });
 

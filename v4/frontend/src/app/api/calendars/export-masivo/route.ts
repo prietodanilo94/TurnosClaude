@@ -30,6 +30,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "year y month requeridos" }, { status: 400 });
   }
 
+  const excludeTeams   = new Set((searchParams.get("excludeTeams")  ?? "").split(",").filter(Boolean));
+  const excludeWorkers = new Set((searchParams.get("excludeWorkers") ?? "").split(",").filter(Boolean));
+
   const calendars = await prisma.calendar.findMany({
     where: { year, month },
     include: {
@@ -47,6 +50,8 @@ export async function GET(req: NextRequest) {
   const rows: (string | number)[][] = [header];
 
   for (const cal of calendars) {
+    if (excludeTeams.has(cal.branchTeamId)) continue;
+
     const slots: CalendarSlot[] = JSON.parse(cal.slotsData);
     const assignments: Record<string, string | null> = JSON.parse(cal.assignments);
     const workerRutMap = Object.fromEntries(cal.branchTeam.workers.map((w) => [w.id, w.rut]));
@@ -54,6 +59,7 @@ export async function GET(req: NextRequest) {
     for (const slot of slots) {
       const workerId = assignments[String(slot.slotNumber)] ?? null;
       if (!workerId) continue;
+      if (excludeWorkers.has(workerId)) continue;
       const rut = workerRutMap[workerId] ? rutSinDV(workerRutMap[workerId]) : "";
       if (!rut) continue;
 
