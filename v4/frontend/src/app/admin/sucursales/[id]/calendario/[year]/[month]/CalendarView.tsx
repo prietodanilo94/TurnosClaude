@@ -2128,7 +2128,7 @@ function ShiftEditDialog({
           <div className="flex items-center gap-2">
             <span className={`w-3 h-3 rounded-full ${color.bg} border ${color.border}`} />
             <h3 className="text-sm font-semibold text-gray-900">
-              Editar turno{workerName ? ` — ${workerName}` : ""} · {dayLabel}
+              {currentShift ? "Editar turno" : "Agregar turno"}{workerName ? ` — ${workerName}` : ""} · {dayLabel}
             </h3>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg leading-none">×</button>
@@ -2221,20 +2221,24 @@ function ShiftEditDialog({
         </div>
 
         {/* Alcance del cambio */}
-        <div className="px-4 pb-3 flex items-center gap-4">
-          {(["week", "month"] as const).map((s) => (
-            <label key={s} className="flex items-center gap-1.5 cursor-pointer text-xs text-gray-600">
-              <input
-                type="radio"
-                name="shift-scope"
-                value={s}
-                checked={scope === s}
-                onChange={() => setScope(s)}
-                className="accent-blue-600"
-              />
-              {s === "week" ? "Solo este día" : "Todo el mes"}
-            </label>
-          ))}
+        <div className="px-4 pb-3">
+          <p className="text-[11px] text-gray-400 mb-1.5 text-center">Aplicar cambio a</p>
+          <div className="flex rounded-lg border border-gray-200 overflow-hidden text-sm font-medium">
+            {(["week", "month"] as const).map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setScope(s)}
+                className={`flex-1 py-2 transition-colors ${
+                  scope === s
+                    ? "bg-blue-600 text-white"
+                    : "bg-white text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                {s === "week" ? "Solo este día" : "Todo el mes"}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="border-t border-gray-200 px-4 py-3 flex items-center justify-between gap-2">
