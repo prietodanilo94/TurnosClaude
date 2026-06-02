@@ -20,9 +20,13 @@ function log(step, msg) {
 }
 
 async function screenshot(page, name) {
-  const file = path.join(DIRS.screenshots, `${name}_${Date.now()}.png`);
-  await page.screenshot({ path: file, fullPage: true });
-  log('SCREENSHOT', file);
+  try {
+    const file = path.join(DIRS.screenshots, `${name}_${Date.now()}.png`);
+    await page.screenshot({ path: file, fullPage: true, timeout: 10000 });
+    log('SCREENSHOT', file);
+  } catch (err) {
+    log('SCREENSHOT', `Screenshot fallido (${name}): ${err.message}`);
+  }
 }
 
 // ─── PASO 1: LOGIN ───────────────────────────────────────────────────────────
@@ -115,6 +119,7 @@ async function stepRecalculate(page) {
 
   log('RECALC', `Año: ${year} | Mes: ${monthName}`);
   await page.goto(RECALC_URL, { waitUntil: 'networkidle', timeout: 60000 });
+  await page.waitForSelector('#cboAnio', { state: 'attached', timeout: 15000 });
 
   // SlimSelect helper: abre el dropdown ss-main y hace click en la opción exacta
   const ssPick = async (selectId, optionText) => {
@@ -131,7 +136,7 @@ async function stepRecalculate(page) {
     const opt = Array.from(document.querySelector('#cboAnio').options).find(o => o.text.trim() === y);
     if (opt) jQuery('#cboAnio').val(opt.value).trigger('change');
   }, year);
-  await page.waitForFunction(() => (document.querySelector('#cboMes')?.options.length ?? 0) > 1, { timeout: 15000 });
+  await page.waitForFunction(() => (document.querySelector('#cboMes')?.options.length ?? 0) > 1, null, { timeout: 30000 });
   await ssPick('cboAnio', year);
 
   // === Mes: SlimSelect visual (cboDesc se puebla via handler de cboAnio) ===
@@ -294,4 +299,25 @@ async function main() {
   }
 }
 
-main().catch(err => { console.error('ERROR:', err.message); process.exit(1); });
+async function run() {
+  const MAX_RETRIES = 3;
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    if (attempt > 1) {
+      log('RETRY', `Esperando 30s antes del intento ${attempt}/${MAX_RETRIES}...`);
+      await new Promise(r => setTimeout(r, 30000));
+    }
+    log('RETRY', `Intento ${attempt}/${MAX_RETRIES}`);
+    try {
+      await main();
+      return;
+    } catch (err) {
+      log('RETRY', `Intento ${attempt} fallo: ${err.message}`);
+      if (attempt === MAX_RETRIES) {
+        log('RETRY', 'Todos los intentos fallaron — abortando');
+        process.exit(1);
+      }
+    }
+  }
+}
+
+run();
