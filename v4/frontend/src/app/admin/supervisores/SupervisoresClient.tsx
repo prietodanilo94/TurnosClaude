@@ -407,14 +407,7 @@ export default function SupervisoresClient({ initialSupervisors, branches }: Pro
 }
 
 function buildCalendarUrl(supervisor: SupervisorWithBranches): string {
-  const now = new Date();
-  const params = new URLSearchParams();
-  params.set("year", String(now.getFullYear()));
-  params.set("month", String(now.getMonth() + 1));
-  for (const sb of supervisor.branches) {
-    params.append("branchId", sb.branch.id);
-  }
-  return `/supervisor/calendario?${params.toString()}`;
+  return `/admin/supervisores/${supervisor.id}/vista`;
 }
 
 function isReadyForProduction(supervisor: SupervisorWithBranches) {
