@@ -14,13 +14,18 @@ export default async function SucursalesPage() {
         teams: {
           include: { _count: { select: { workers: { where: { activo: true } } } } },
         },
+        supervisors: { select: { supervisor: { select: { id: true, nombre: true } } } },
       },
       orderBy: { nombre: "asc" },
     }),
     prisma.branchGroup.findMany({
       include: {
         branches: {
-          select: { id: true, nombre: true },
+          select: {
+            id: true,
+            nombre: true,
+            supervisors: { select: { supervisor: { select: { id: true, nombre: true } } } },
+          },
           orderBy: { nombre: "asc" },
         },
       },
@@ -37,6 +42,7 @@ export default async function SucursalesPage() {
     id: b.id,
     nombre: b.nombre,
     codigo: b.codigo,
+    supervisors: b.supervisors.map((s) => ({ id: s.supervisor.id, nombre: s.supervisor.nombre })),
     teams: b.teams.map((t) => ({
       id: t.id,
       areaNegocio: t.areaNegocio,
@@ -48,7 +54,11 @@ export default async function SucursalesPage() {
   const groupData = groups.map((g) => ({
     id: g.id,
     nombre: g.nombre,
-    branches: g.branches,
+    branches: g.branches.map((b) => ({
+      id: b.id,
+      nombre: b.nombre,
+      supervisors: b.supervisors.map((s) => ({ id: s.supervisor.id, nombre: s.supervisor.nombre })),
+    })),
   }));
 
   const patternData = dbPatterns.map((p) => ({ id: p.id, label: p.label, areaNegocio: p.areaNegocio }));

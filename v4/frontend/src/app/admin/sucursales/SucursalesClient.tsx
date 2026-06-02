@@ -15,13 +15,14 @@ export type BranchData = {
   id: string;
   nombre: string;
   codigo: string;
+  supervisors: { id: string; nombre: string }[];
   teams: TeamData[];
 };
 
 export type GroupData = {
   id: string;
   nombre: string;
-  branches: { id: string; nombre: string }[];
+  branches: { id: string; nombre: string; supervisors: { id: string; nombre: string }[] }[];
 };
 
 export type PatternOption = {
@@ -90,7 +91,13 @@ export default function SucursalesClient({ branches, groups, allPatterns, year, 
         <table className="min-w-full divide-y divide-gray-200">
           {tableHead}
           <tbody className="bg-white divide-y divide-gray-100">
-            {visibleGroups.map((group) => (
+            {visibleGroups.map((group) => {
+              const groupSupervisors = [
+                ...new Map(
+                  group.branches.flatMap((b) => b.supervisors).map((s) => [s.id, s])
+                ).values(),
+              ];
+              return (
               <tr key={group.id} className="hover:bg-blue-50/30 bg-blue-50/10">
                 <td className="px-4 py-3 text-sm text-gray-900" colSpan={4}>
                   <div className="flex items-center gap-2 flex-wrap">
@@ -100,6 +107,14 @@ export default function SucursalesClient({ branches, groups, allPatterns, year, 
                       ({group.branches.map((b) => b.nombre).join(" · ")})
                     </span>
                   </div>
+                  {groupSupervisors.length > 0 && (
+                    <div className="flex items-center gap-1 mt-1 flex-wrap">
+                      <span className="text-[11px] text-gray-400">Supervisor{groupSupervisors.length > 1 ? "es" : ""}:</span>
+                      {groupSupervisors.map((s) => (
+                        <span key={s.id} className="text-[11px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">{s.nombre}</span>
+                      ))}
+                    </div>
+                  )}
                 </td>
                 <td className="px-4 py-3 text-right">
                   <div className="flex items-center justify-end gap-3">
@@ -115,7 +130,8 @@ export default function SucursalesClient({ branches, groups, allPatterns, year, 
                   </div>
                 </td>
               </tr>
-            ))}
+              );
+            })}
 
             {ungrouped.flatMap((branch) =>
               branch.teams.map((team) => {
@@ -129,6 +145,14 @@ export default function SucursalesClient({ branches, groups, allPatterns, year, 
                     <td className="px-4 py-3 text-sm text-gray-900">
                       <span className="font-medium">{branch.nombre}</span>
                       <span className="ml-2 text-xs text-gray-400">{branch.codigo}</span>
+                      {branch.supervisors.length > 0 && (
+                        <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                          <span className="text-[11px] text-gray-400">Supervisor{branch.supervisors.length > 1 ? "es" : ""}:</span>
+                          {branch.supervisors.map((s) => (
+                            <span key={s.id} className="text-[11px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">{s.nombre}</span>
+                          ))}
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-sm">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${

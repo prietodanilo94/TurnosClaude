@@ -57,7 +57,7 @@ export default async function SupervisorHomePage() {
   }));
   const ungrouped = branchSummaries
     .filter((b) => !groupedBranchIds.has(b.id))
-    .map(({ id, nombre, codigo, status }) => ({ id, nombre, codigo, status }));
+    .map(({ id, nombre, codigo, supervisors, status }) => ({ id, nombre, codigo, supervisors, status }));
 
   return (
     <div className="p-6">
@@ -81,6 +81,7 @@ function branchSelectorSelect(year: number, month: number) {
     nombre: true,
     codigo: true,
     groupId: true,
+    supervisors: { select: { supervisor: { select: { id: true, nombre: true } } } },
     teams: {
       select: {
         categoria: true,
@@ -95,6 +96,7 @@ function summarizeBranch(branch: {
   id: string;
   nombre: string;
   codigo: string;
+  supervisors: Array<{ supervisor: { id: string; nombre: string } }>;
   teams: Array<{
     categoria: string | null;
     workers: Array<{ id: string }>;
@@ -113,6 +115,7 @@ function summarizeBranch(branch: {
     id: branch.id,
     nombre: branch.nombre,
     codigo: branch.codigo,
+    supervisors: branch.supervisors.map((s) => ({ id: s.supervisor.id, nombre: s.supervisor.nombre })),
     status: {
       teamCount,
       activeWorkerCount,

@@ -7,6 +7,7 @@ export interface BranchInfo {
   id: string;
   nombre: string;
   codigo: string;
+  supervisors: { id: string; nombre: string }[];
   status: {
     teamCount: number;
     activeWorkerCount: number;
@@ -84,7 +85,13 @@ export default function SupervisorBranchSelector({ groups, ungrouped }: Props) {
         <div>
           <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Grupos</h2>
           <div className="bg-white border border-gray-200 rounded-lg overflow-hidden divide-y divide-gray-100">
-            {groups.map((group) => (
+            {groups.map((group) => {
+              const groupSupervisors = [
+                ...new Map(
+                  group.branches.flatMap((b) => b.supervisors).map((s) => [s.id, s])
+                ).values(),
+              ];
+              return (
               <div key={group.id} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -98,6 +105,14 @@ export default function SupervisorBranchSelector({ groups, ungrouped }: Props) {
                       </span>
                     ))}
                   </div>
+                  {groupSupervisors.length > 0 && (
+                    <div className="flex items-center gap-1 mt-1 flex-wrap">
+                      <span className="text-[11px] text-gray-400">Supervisor{groupSupervisors.length > 1 ? "es" : ""}:</span>
+                      {groupSupervisors.map((s) => (
+                        <span key={s.id} className="text-[11px] text-gray-500">{s.nombre}</span>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
                   <button
@@ -114,7 +129,8 @@ export default function SupervisorBranchSelector({ groups, ungrouped }: Props) {
                   </button>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -159,6 +175,14 @@ export default function SupervisorBranchSelector({ groups, ungrouped }: Props) {
                     <p className="text-xs text-gray-400 mt-0.5">
                       {branch.codigo} - {branch.status.activeWorkerCount} vendedor{branch.status.activeWorkerCount !== 1 ? "es" : ""}
                     </p>
+                    {branch.supervisors.length > 0 && (
+                      <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                        <span className="text-[11px] text-gray-400">Supervisor{branch.supervisors.length > 1 ? "es" : ""}:</span>
+                        {branch.supervisors.map((s) => (
+                          <span key={s.id} className="text-[11px] text-gray-500">{s.nombre}</span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <button
                     onClick={() => router.push(`/supervisor/calendario?branchId=${branch.id}&year=${DEFAULT_YEAR}&month=${DEFAULT_MONTH}`)}
