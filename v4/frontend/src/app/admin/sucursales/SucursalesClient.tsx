@@ -22,7 +22,7 @@ export type BranchData = {
 export type GroupData = {
   id: string;
   nombre: string;
-  branches: { id: string; nombre: string; codigo: string; supervisors: { id: string; nombre: string }[] }[];
+  branches: { id: string; nombre: string; supervisors: { id: string; nombre: string }[] }[];
 };
 
 export type PatternOption = {
@@ -45,13 +45,16 @@ export default function SucursalesClient({ branches, groups, allPatterns, year, 
   const q = search.toLowerCase();
   const patternLabelMap = new Map(allPatterns.map((p) => [p.id, p.label.toLowerCase()]));
   const groupedBranchIds = new Set(groups.flatMap((g) => g.branches.map((b) => b.id)));
+  const branchById = new Map(branches.map((b) => [b.id, b]));
 
   const visibleGroups = groups.filter(
     (g) =>
       !q ||
       g.nombre.toLowerCase().includes(q) ||
       g.branches.some(
-        (b) => b.nombre.toLowerCase().includes(q) || b.codigo.toLowerCase().includes(q),
+        (b) =>
+          b.nombre.toLowerCase().includes(q) ||
+          (branchById.get(b.id)?.codigo ?? "").toLowerCase().includes(q),
       ),
   );
 
