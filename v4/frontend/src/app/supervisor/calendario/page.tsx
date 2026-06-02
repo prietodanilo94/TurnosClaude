@@ -100,6 +100,20 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
   });
   const supervisorKeys = new Set(branchSupervisors.map(sb => supervisorLookupKey(sb.supervisor.nombre)));
 
+  const prevYear  = month === 1 ? year - 1 : year;
+  const prevMonth = month === 1 ? 12 : month - 1;
+  const MONTHS_ES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+  const prevMonthLabel = `${MONTHS_ES[prevMonth - 1]} ${prevYear}`;
+
+  const teamIds = teams.map((t) => t.id);
+  const prevCalendars = teamIds.length > 0
+    ? await prisma.calendar.findMany({
+        where: { branchTeamId: { in: teamIds }, year: prevYear, month: prevMonth },
+        select: { branchTeamId: true, assignments: true },
+      })
+    : [];
+  const prevCalMap = new Map(prevCalendars.map((c) => [c.branchTeamId, c]));
+
   const allDbPatterns = await prisma.shiftPattern.findMany({ orderBy: { createdAt: "asc" } });
   const patternMap: Record<string, ShiftPatternDef> = Object.fromEntries(
     allDbPatterns.map((r) => [r.id, patternFromRow(r)]),
@@ -120,6 +134,8 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
     slices: TeamSlice[];
     hasCalendar: boolean;
     patternOverride?: ShiftPatternDef;
+    prevAssignments?: Record<string, string | null>;
+    prevMonthLabel?: string;
   }
 
   const blocks: DisplayBlock[] = [];
@@ -155,6 +171,11 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
         if (cal) {
           teamSlots  = JSON.parse(cal.slotsData) as CalendarSlot[];
           teamAssign = JSON.parse(cal.assignments) as Record<string, string | null>;
+          // Auto-agregar slots para trabajadores nuevos
+          if (N > teamSlots.length && definedCat) {
+            const full = generateCalendar(definedCat, year, month, N, patternMap[definedCat]);
+            teamSlots = [...teamSlots, ...full.slots.slice(teamSlots.length)];
+          }
         } else if (definedCat) {
           teamSlots  = generateCalendar(definedCat, year, month, N).slots;
           teamAssign = {};
@@ -190,11 +211,18 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
     const teamWorkers = team.workers.filter(w => !supervisorKeys.has(supervisorLookupKey(w.nombre)));
     const cal = team.calendars[0];
     const N   = teamWorkers.length;
+    const prevCal = prevCalMap.get(team.id);
+    const teamPrevAssignments: Record<string, string | null> = prevCal ? JSON.parse(prevCal.assignments) : {};
     let slots: CalendarSlot[];
     let assignments: Record<string, string | null> = {};
     if (cal) {
       slots       = JSON.parse(cal.slotsData) as CalendarSlot[];
       assignments = JSON.parse(cal.assignments) as Record<string, string | null>;
+      // Auto-agregar slots para trabajadores nuevos
+      if (N > slots.length && team.categoria) {
+        const full = generateCalendar(team.categoria, year, month, N, patternMap[team.categoria]);
+        slots = [...slots, ...full.slots.slice(slots.length)];
+      }
     } else if (team.categoria) {
       slots = generateCalendar(team.categoria, year, month, N).slots;
     } else {
@@ -219,6 +247,8 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
       slices: [{ teamId: team.id, workerIds: workers.map((w) => w.id) }],
       hasCalendar: !!cal,
       patternOverride: team.categoria ? patternMap[team.categoria] : undefined,
+      prevAssignments: !cal && Object.keys(teamPrevAssignments).length > 0 ? teamPrevAssignments : undefined,
+      prevMonthLabel: !cal && Object.keys(teamPrevAssignments).length > 0 ? prevMonthLabel : undefined,
     });
   }
 
@@ -275,6 +305,8 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
           slices={block.slices}
           hasCalendar={block.hasCalendar}
           queryBase={queryBase}
+          prevMonthLabel={block.prevMonthLabel}
+          prevAssignments={block.prevAssignments}
         />
       ))}
     </div>

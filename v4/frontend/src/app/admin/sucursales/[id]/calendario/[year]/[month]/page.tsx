@@ -101,17 +101,24 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
   let assignments: Record<string, string | null> = {};
   let calendarId: string | undefined;
   let alert: string | undefined;
+  let prevMonthLabel: string | undefined;
 
+  const MONTHS_ES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
   const catId = categoryResolution.categoria;
   const patternRow = catId ? await prisma.shiftPattern.findUnique({ where: { id: catId } }) : null;
   const patternOverride = patternRow ? patternFromRow(patternRow) : undefined;
 
   if (existing) {
-    slots = JSON.parse(existing.slotsData);
+    slots = JSON.parse(existing.slotsData) as CalendarSlot[];
     assignments = JSON.parse(existing.assignments);
     calendarId = existing.id;
     if (categoryResolution.source === "group") {
       alert = `Este equipo no tiene categoria propia. Se muestra usando la categoria del grupo${categoryResolution.sourceBranchName ? ` desde ${categoryResolution.sourceBranchName}` : ""}.`;
+    }
+    // Auto-agregar slots para trabajadores nuevos
+    if (filteredWorkers.length > slots.length) {
+      const full = generateCalendar(catId, year, month, filteredWorkers.length, patternOverride);
+      slots = [...slots, ...full.slots.slice(slots.length)];
     }
   } else {
     const result = generateCalendar(catId, year, month, workerCount, patternOverride);
@@ -119,6 +126,7 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
     alert = result.alert;
     if (Object.keys(prevAssignments).length > 0) {
       assignments = { ...prevAssignments };
+      prevMonthLabel = `${MONTHS_ES[prevMonth - 1]} ${prevYear}`;
     }
   }
 
@@ -157,6 +165,7 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
       workerBlocks={workerBlocks}
       calendarId={calendarId}
       generateAlert={alert}
+      prevMonthLabel={prevMonthLabel}
       prevAssignments={prevAssignments}
       nextAssignments={nextAssignments}
       currentYear={year}

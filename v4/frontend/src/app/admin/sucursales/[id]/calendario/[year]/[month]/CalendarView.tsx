@@ -124,6 +124,7 @@ interface Props {
   workerBlocks?: WorkerBlockInfo[];
   calendarId?: string;
   generateAlert?: string;
+  prevMonthLabel?: string;
   prevAssignments?: Record<string, string | null>;
   nextAssignments?: Record<string, string | null>;
   currentYear?: number;
@@ -172,7 +173,7 @@ interface Props {
 export default function CalendarView({
   branchId, branchName, branchCodigo, teamId, areaNegocio, categoria, patternOverride,
   year, month, slots, assignments, workers, workerMap, calendarId, generateAlert,
-  workerBlocks = [], prevAssignments = {}, nextAssignments = {}, currentYear, currentMonth,
+  workerBlocks = [], prevMonthLabel, prevAssignments = {}, nextAssignments = {}, currentYear, currentMonth,
   backHref = "/admin/sucursales",
   backLabel = "Sucursales",
   onNavigate,
@@ -408,8 +409,10 @@ export default function CalendarView({
 
   function handleRecalcular() {
     const msg = recalculateConfirmMessage ?? (calId
-      ? "Esto borrará el calendario guardado y regenerará la plantilla limpia. ¿Continuar?"
-      : "Esto regenerará la plantilla limpia descartando los cambios actuales. ¿Continuar?");
+      ? "Esto borrará todas las asignaciones de trabajadores de este mes y dejará los turnos vacíos. ¿Continuar?"
+      : prevMonthLabel
+        ? `Esto generará el calendario continuando desde ${prevMonthLabel}. Las asignaciones de trabajadores se mantendrán. ¿Continuar?`
+        : "Esto generará el calendario y asignará vendedores en orden. ¿Continuar?");
     openConfirm(msg, "Continuar", async () => {
       setConfirmModal(null);
     const wasNoCalendar = !calId;
@@ -717,7 +720,7 @@ export default function CalendarView({
             className="px-3 py-1.5 text-sm border border-rose-300 text-rose-700 rounded hover:bg-rose-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             title="Regenerar plantilla limpia desde cero"
           >
-            {recalculating ? "Generando…" : recalculateLabel ?? (calId ? "Regenerar" : "Generar")}
+            {recalculating ? "Generando…" : recalculateLabel ?? (calId ? "Limpiar" : prevMonthLabel ? `Continuar desde ${prevMonthLabel}` : "Generar")}
           </button>
           <button
             onClick={() => void handleSave()}

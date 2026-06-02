@@ -28,6 +28,8 @@ interface Props {
   slices: TeamSlice[];
   hasCalendar: boolean;
   queryBase: string;
+  prevMonthLabel?: string;
+  prevAssignments?: Record<string, string | null>;
 }
 
 async function saveTeamCalendars({
@@ -106,6 +108,8 @@ export default function SupervisorCalendarView({
   slices,
   hasCalendar,
   queryBase,
+  prevMonthLabel,
+  prevAssignments,
 }: Props) {
   if (!categoria) {
     return (
@@ -154,12 +158,7 @@ export default function SupervisorCalendarView({
       calendarScopeLabel={title}
       calendarScopeType={slices.length > 1 ? "group" : "branch"}
       changeRemindMessage="Cuidado: estás haciendo cambios en un calendario ya constituido. Los cambios serán informados a RRHH. Para que queden aplicados debes presionar Guardar al terminar. ¿Continuar?"
-      recalculateLabel="Generar"
-      recalculateConfirmMessage={
-        hasCalendar
-          ? "Esto borrará todas las asignaciones de trabajadores de este mes y dejará los turnos vacíos. ¿Continuar?"
-          : "Esto generará el calendario y asignará vendedores en orden. ¿Continuar?"
-      }
+      prevMonthLabel={!hasCalendar ? prevMonthLabel : undefined}
       onNavigate={(newYear, newMonth) => `/supervisor/calendario?${navigationQueryPrefix}year=${newYear}&month=${newMonth}`}
       onSaveCalendar={async ({ slotsData, assignments: nextAssignments, validationSummary, scopeLabel, scopeType }) => {
         await saveTeamCalendars({
@@ -201,12 +200,19 @@ export default function SupervisorCalendarView({
         const generated = generateCalendar(categoria, year, month, totalWorkers, patternOverride ?? undefined);
         const nextAssignments: Record<string, string | null> = {};
 
-        let offset = 0;
-        for (const slice of slices) {
-          slice.workerIds.forEach((workerId, index) => {
-            nextAssignments[String(offset + index + 1)] = workerId;
+        if (prevAssignments && Object.keys(prevAssignments).length > 0) {
+          // Continuar desde mes anterior: copiar asignaciones, null para slots nuevos
+          generated.slots.forEach((s) => {
+            nextAssignments[String(s.slotNumber)] = prevAssignments[String(s.slotNumber)] ?? null;
           });
-          offset += slice.workerIds.length;
+        } else {
+          let offset = 0;
+          for (const slice of slices) {
+            slice.workerIds.forEach((workerId, index) => {
+              nextAssignments[String(offset + index + 1)] = workerId;
+            });
+            offset += slice.workerIds.length;
+          }
         }
 
         return {
