@@ -58,6 +58,7 @@ export default async function SucursalesPage() {
     branches: g.branches.map((b) => ({
       id: b.id,
       nombre: b.nombre,
+      codigo: b.codigo,
       supervisors: b.supervisors.map((s) => ({ id: s.supervisor.id, nombre: s.supervisor.nombre })),
     })),
   }));
