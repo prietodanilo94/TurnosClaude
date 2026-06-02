@@ -30,6 +30,7 @@ interface Props {
   queryBase: string;
   prevMonthLabel?: string;
   prevAssignments?: Record<string, string | null>;
+  supervisorNames?: string[];
 }
 
 async function saveTeamCalendars({
@@ -110,6 +111,7 @@ export default function SupervisorCalendarView({
   queryBase,
   prevMonthLabel,
   prevAssignments,
+  supervisorNames,
 }: Props) {
   if (!categoria) {
     return (
@@ -157,6 +159,7 @@ export default function SupervisorCalendarView({
       enforceValidationBeforeSave
       calendarScopeLabel={title}
       calendarScopeType={slices.length > 1 ? "group" : "branch"}
+      supervisorNames={supervisorNames}
       changeRemindMessage="Cuidado: estás haciendo cambios en un calendario ya constituido. Los cambios serán informados a RRHH. Para que queden aplicados debes presionar Guardar al terminar. ¿Continuar?"
       prevMonthLabel={!hasCalendar ? prevMonthLabel : undefined}
       onNavigate={(newYear, newMonth) => `/supervisor/calendario?${navigationQueryPrefix}year=${newYear}&month=${newMonth}`}

@@ -99,6 +99,11 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
     include: { supervisor: { select: { nombre: true } } },
   });
   const supervisorKeys = new Set(branchSupervisors.map(sb => supervisorLookupKey(sb.supervisor.nombre)));
+  const supervisorsByBranch = new Map<string, string[]>();
+  for (const sb of branchSupervisors) {
+    if (!supervisorsByBranch.has(sb.branchId)) supervisorsByBranch.set(sb.branchId, []);
+    supervisorsByBranch.get(sb.branchId)!.push(sb.supervisor.nombre);
+  }
 
   const prevYear  = month === 1 ? year - 1 : year;
   const prevMonth = month === 1 ? 12 : month - 1;
@@ -136,6 +141,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
     patternOverride?: ShiftPatternDef;
     prevAssignments?: Record<string, string | null>;
     prevMonthLabel?: string;
+    supervisorNames?: string[];
   }
 
   const blocks: DisplayBlock[] = [];
@@ -203,6 +209,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
         slices,
         hasCalendar,
         patternOverride: definedCat ? patternMap[definedCat] : undefined,
+        supervisorNames: [...new Set(areaTeams.flatMap((t) => supervisorsByBranch.get(t.branchId) ?? []))],
       });
     }
   }
@@ -249,6 +256,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
       patternOverride: team.categoria ? patternMap[team.categoria] : undefined,
       prevAssignments: !cal && Object.keys(teamPrevAssignments).length > 0 ? teamPrevAssignments : undefined,
       prevMonthLabel: !cal && Object.keys(teamPrevAssignments).length > 0 ? prevMonthLabel : undefined,
+      supervisorNames: supervisorsByBranch.get(team.branchId) ?? [],
     });
   }
 
@@ -307,6 +315,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
           queryBase={queryBase}
           prevMonthLabel={block.prevMonthLabel}
           prevAssignments={block.prevAssignments}
+          supervisorNames={block.supervisorNames}
         />
       ))}
     </div>

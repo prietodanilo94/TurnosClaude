@@ -168,6 +168,7 @@ interface Props {
   enforceValidationBeforeSave?: boolean;
   calendarScopeLabel?: string;
   calendarScopeType?: "branch" | "group";
+  supervisorNames?: string[];
 }
 
 export default function CalendarView({
@@ -190,6 +191,7 @@ export default function CalendarView({
   enforceValidationBeforeSave = false,
   calendarScopeLabel,
   calendarScopeType = "branch",
+  supervisorNames,
 }: Props) {
   const router = useRouter();
   const [localSlots, setLocalSlots] = useState<CalendarSlot[]>(() =>
@@ -703,13 +705,21 @@ export default function CalendarView({
       <div className="mb-4 flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">{branchName}</h1>
-          <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+          <div className="flex items-center gap-3 mt-1 text-xs text-gray-500 flex-wrap">
             {getScheduleBreakdown(categoria, patternOverride).map(({ days, range }, i) => (
               <Fragment key={days}>
                 {i > 0 && <span className="text-gray-300">·</span>}
                 <span className="text-gray-600">{days}: <span className="font-medium text-gray-700">{range}</span></span>
               </Fragment>
             ))}
+            {supervisorNames && supervisorNames.length > 0 && (
+              <>
+                <span className="text-gray-300">·</span>
+                <span className="text-gray-500">
+                  Supervisor{supervisorNames.length > 1 ? "es" : ""}: <span className="font-medium text-gray-700">{supervisorNames.join(", ")}</span>
+                </span>
+              </>
+            )}
           </div>
         </div>
 

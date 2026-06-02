@@ -170,6 +170,7 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
       nextAssignments={nextAssignments}
       currentYear={year}
       currentMonth={month}
+      supervisorNames={branchSupervisors.map((sb) => sb.supervisor.nombre)}
     />
   );
 }
