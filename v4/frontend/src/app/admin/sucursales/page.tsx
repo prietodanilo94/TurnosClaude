@@ -24,6 +24,7 @@ export default async function SucursalesPage() {
           select: {
             id: true,
             nombre: true,
+            codigo: true,
             supervisors: { select: { supervisor: { select: { id: true, nombre: true } } } },
           },
           orderBy: { nombre: "asc" },

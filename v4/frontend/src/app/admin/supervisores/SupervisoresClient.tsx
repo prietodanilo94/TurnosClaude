@@ -27,7 +27,14 @@ export default function SupervisoresClient({ initialSupervisors, branches }: Pro
   const q = search.toLowerCase();
   const visible = q
     ? supervisors.filter(
-        (s) => s.nombre.toLowerCase().includes(q) || (s.email ?? "").toLowerCase().includes(q),
+        (s) =>
+          s.nombre.toLowerCase().includes(q) ||
+          (s.email ?? "").toLowerCase().includes(q) ||
+          s.branches.some(
+            (sb) =>
+              sb.branch.nombre.toLowerCase().includes(q) ||
+              sb.branch.codigo.toLowerCase().includes(q),
+          ),
       )
     : supervisors;
   const readyCount = supervisors.filter((supervisor) => isReadyForProduction(supervisor)).length;
