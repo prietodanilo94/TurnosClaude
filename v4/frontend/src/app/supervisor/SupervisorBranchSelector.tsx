@@ -31,6 +31,7 @@ interface Props {
 const now = new Date();
 const DEFAULT_YEAR  = now.getFullYear();
 const DEFAULT_MONTH = now.getMonth() + 1;
+const MONTHS_ES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
 
 export default function SupervisorBranchSelector({ groups, ungrouped }: Props) {
   const router = useRouter();
@@ -272,7 +273,7 @@ function BranchStatusBadge({ branch }: { branch: BranchInfo }) {
     return <StatusPill tone="blue" label="No generado" />;
   }
 
-  return <StatusPill tone="green" label="Calendario guardado" />;
+  return <StatusPill tone="green" label={`Guardado · ${MONTHS_ES[DEFAULT_MONTH - 1]}`} />;
 }
 
 function GroupStatusBadge({ branches }: { branches: BranchInfo[] }) {
@@ -287,7 +288,7 @@ function GroupStatusBadge({ branches }: { branches: BranchInfo[] }) {
     return <StatusPill tone="blue" label={`${withoutCalendar} calendario${withoutCalendar !== 1 ? "s" : ""} pendiente${withoutCalendar !== 1 ? "s" : ""}`} />;
   }
 
-  return <StatusPill tone="green" label="Listo" />;
+  return <StatusPill tone="green" label={`Listo · ${MONTHS_ES[DEFAULT_MONTH - 1]}`} />;
 }
 
 function getBranchActionLabel(branch: BranchInfo): string {
