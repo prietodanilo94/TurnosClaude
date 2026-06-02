@@ -2,6 +2,11 @@
 
 > Leído automáticamente al iniciar sesión. Reglas y convenciones del repo.
 
+## Idioma de conversación
+
+- **Conversaciones en inglés**: todas las respuestas al usuario deben ser en inglés.
+- **English coaching**: al inicio de CADA respuesta, añadir una sección `---` con evaluación breve del inglés del último mensaje del usuario: errores gramaticales, vocabulario, síntesis y formación de ideas. Dar un consejo concreto. Luego `---` y continuar con la respuesta normal. Si el usuario escribió en español, saltar esta sección.
+
 ## Contexto
 
 **TeamPlanner** (antes Shift Optimizer / Shift Planner) — Webapp para generar turnos mensuales de vendedores respetando legislación laboral chilena, cobertura mínima y reglas de negocio. Edición manual + exportación Excel.
@@ -25,9 +30,10 @@
 ## Reglas operativas
 
 - **Después de commit**: push a origin main automáticamente.
-- **Después de push**: sincronizar **ambos** servidores:
-  - `ssh pompeyo` → `cd /opt/shift-optimizer && git pull && cd v4 && docker compose up -d --build`
-  - `ssh antigravity` → `cd /opt/shift-optimizer && git pull && cd v4 && docker compose up -d --build`
+- **Después de push**: deploy **solo a `ssh pompeyo`** por defecto:
+  - `ssh pompeyo` → `cd /opt/shift-optimizer && git pull && cd v4 && docker compose up -d --build && docker image prune -f`
+  - `ssh antigravity` → solo cuando el usuario lo pida explícitamente (ej. "testea en antigravity primero")
+  - **Al inicio de cada sesión sin contexto**: preguntar al usuario "¿deploy a pompeyo como siempre, o primero a antigravity?" antes de hacer el primer deploy.
 - **Specs**: leer spec antes de implementar; proponer plan; esperar aprobación; una tarea a la vez.
 - **No tocar sin permiso**: `.env*`, `CLAUDE.md`.
 - **Estilo respuestas**: cortas, densas, sin intro ni resumen final. Tablas/bullets solo si aportan.
@@ -39,7 +45,7 @@
 - Servidores producción:
   - `ssh pompeyo` (`2.24.83.13`) — servidor empresa, repo en `/opt/shift-optimizer`
   - `ssh antigravity` (`173.212.220.77`) — servidor personal, repo en `/opt/shift-optimizer`
-- Deploy (ambos servidores tras cada push): `cd /opt/shift-optimizer && git pull && cd v4 && docker compose up -d --build`.
+- Deploy por defecto (solo pompeyo): `cd /opt/shift-optimizer && git pull && cd v4 && docker compose up -d --build && docker image prune -f`.
 - Schema DB: `docker exec v4-frontend-1 node ./node_modules/prisma/build/index.js db push` (después de schema changes).
 - Admin v4: `prieto.danilo94@gmail.com` / `1234`.
 - N8N: `ssh pompeyo`, stack en `/opt/n8n`. Webhook vía `N8N_WEBHOOK_URL` en `.env`.
@@ -109,6 +115,26 @@ Las specs viven en `v4/specs/`. Cada una tiene `spec.md` y `tasks.md`.
 | F4 | Historial de movimientos + webhook N8N | **Completo** |
 | F5 | Grupos de sucursales | **Completo** (core) — pendiente: exportar grupo como Excel multi-hoja |
 | F6 | Preparacion produccion jefes de sucursal | **Planificado** |
+
+## Mantenimiento de servidores
+
+**Cron semanal (ambos servidores)** — cada domingo 03:00 UTC:
+```
+0 3 * * 0 docker builder prune -f && docker image prune -f >> /var/log/docker-prune.log 2>&1
+```
+- `pompeyo`: cron activo (actualizado para incluir `image prune`)
+- `antigravity`: cron activo (agregado en sesión 2026-05-20)
+
+**Por qué se acumula basura Docker**:
+- Cada `--build` crea una nueva imagen y deja la anterior como `<none>` (dangling image)
+- El build cache guarda cada capa intermedia de compilación (`npm install`, `npm run build`, etc.)
+- Sin limpieza, 100 deploys pueden acumular 50–100 GB silenciosamente
+
+**Limpieza ya incluida en el deploy**: `docker image prune -f` elimina dangling images después de cada build.
+**Limpieza semanal**: el cron del domingo limpia build cache acumulado.
+**Limpieza total manual**: `docker system prune -af` (borra TODO lo no activo — usar con cuidado).
+
+---
 
 ## Pendiente conocido
 
