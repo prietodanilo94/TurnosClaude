@@ -3,6 +3,7 @@ services:
     build: .
     env_file: .env
     volumes:
+      - ./src:/app/src
       - ./screenshots:/app/screenshots
       - ./downloads:/app/downloads
       - ./session:/app/session
