@@ -1319,7 +1319,15 @@ function WeekBlock({
             {slots.map((slot, idx) => {
               const workerId = assign[String(slot.slotNumber)] ?? null;
               const workerName = workerId ? (workerMap[workerId] ?? "?") : `Vendedor ${slotDisplayNum[slot.slotNumber] ?? slot.slotNumber}`;
-              const color = workerColor(slot.slotNumber);
+              const activeSlot = localSlots?.find(s => s.slotNumber === slot.slotNumber) ?? slot;
+              const semanaOff = patternRotation && patternRotation.length > 1
+                ? (activeSlot.semanaOffset !== undefined
+                    ? activeSlot.semanaOffset
+                    : detectSemanaOffset(activeSlot, patternRotation, year ?? new Date().getFullYear(), month))
+                : null;
+              const color = semanaOff !== null
+                ? SEMANA_COLORS[semanaOff % SEMANA_COLORS.length]
+                : workerColor(slot.slotNumber);
               const altRow = idx % 2 === 1 ? "bg-gray-50/30" : "";
 
               let totalHours = 0;
