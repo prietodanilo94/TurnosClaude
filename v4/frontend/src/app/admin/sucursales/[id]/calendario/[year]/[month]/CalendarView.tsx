@@ -887,6 +887,9 @@ export default function CalendarView({
               lockedBefore={calId ? todayStr : undefined}
               workerRutMap={workerRutMap}
               attendanceByRut={attendanceByRut}
+              patternRotation={patternRotation}
+              localSlots={localSlots}
+              onSemanaPicker={(n) => setSemanaPickerSlot(n)}
             />
           ))}
         </div>
@@ -1160,12 +1163,16 @@ interface WeekBlockProps {
   lockedBefore?: string;
   workerRutMap?: Record<string, string>;
   attendanceByRut?: AttendanceByRut;
+  patternRotation?: WeekPattern[];
+  localSlots?: CalendarSlot[];
+  onSemanaPicker?: (slotNum: number) => void;
 }
 
 function WeekBlock({
   week, month, slots, assign, prevAssignments, nextAssignments, workerMap, blockMap, slotDisplayNum,
   onSlotClick, selectedDay, onDayClick, onShiftCellClick, onLibreSwap, onWorkerSwap, lockedBefore,
   workerRutMap = {}, attendanceByRut = {},
+  patternRotation, localSlots, onSemanaPicker,
 }: WeekBlockProps) {
   const [dragSource, setDragSource] = useState<{ slotNum: number; dateStr: string } | null>(null);
   const [dragOver, setDragOver] = useState<{ slotNum: number; dateStr: string } | null>(null);
@@ -1312,19 +1319,15 @@ function WeekBlock({
                       <span className={`text-sm font-medium truncate ${workerId ? "text-gray-900" : "text-gray-500 italic"}`}>
                         {workerName}
                       </span>
-                      {patternRotation && patternRotation.length > 1 && (() => {
-                        const N = patternRotation.length;
-                        const offset = localSlots.find(s => s.slotNumber === slot.slotNumber)?.semanaOffset ?? (slot.slotNumber - 1) % N;
-                        return (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setSemanaPickerSlot(slot.slotNumber); }}
-                            className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded border font-semibold ${color.bg} ${color.text} ${color.border} hover:opacity-80 transition-opacity`}
-                            title="Cambiar semana del turno rotativo"
-                          >
-                            S{offset + 1}
-                          </button>
-                        );
-                      })()}
+                      {patternRotation && patternRotation.length > 1 && onSemanaPicker && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onSemanaPicker(slot.slotNumber); }}
+                          className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded border font-semibold ${color.bg} ${color.text} ${color.border} hover:opacity-80 transition-opacity`}
+                          title="Cambiar semana del turno rotativo"
+                        >
+                          S{((localSlots?.find(s => s.slotNumber === slot.slotNumber)?.semanaOffset) ?? (slot.slotNumber - 1) % patternRotation.length) + 1}
+                        </button>
+                      )}
                     </div>
                   </td>
                   {cells.map(({ dateStr, shift, inMonth, ci, feriado, dayWorkerId, dayWorkerName, blockReason }) => {
