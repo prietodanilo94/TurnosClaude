@@ -2,20 +2,27 @@
 
 import { useState } from "react";
 import type { WeekPattern } from "@/types";
-import type { SlotColor } from "./worker-colors";
 
 const DOW_SHORT = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+
+const SEMANA_COLORS = [
+  { bg: "bg-blue-100",    text: "text-blue-700",    border: "border-blue-300"    },
+  { bg: "bg-emerald-100", text: "text-emerald-700", border: "border-emerald-300" },
+  { bg: "bg-orange-100",  text: "text-orange-700",  border: "border-orange-300"  },
+  { bg: "bg-violet-100",  text: "text-violet-700",  border: "border-violet-300"  },
+  { bg: "bg-rose-100",    text: "text-rose-700",    border: "border-rose-300"    },
+  { bg: "bg-amber-100",   text: "text-amber-700",   border: "border-amber-300"   },
+] as const;
 
 interface Props {
   workerName: string | null;
   currentOffset: number;
   patternRotation: WeekPattern[];
-  color: SlotColor;
   onConfirm: (newOffset: number) => void;
   onClose: () => void;
 }
 
-export default function SemanaPicker({ workerName, currentOffset, patternRotation, color, onConfirm, onClose }: Props) {
+export default function SemanaPicker({ workerName, currentOffset, patternRotation, onConfirm, onClose }: Props) {
   const [selected, setSelected] = useState(currentOffset);
 
   return (
@@ -48,6 +55,7 @@ export default function SemanaPicker({ workerName, currentOffset, patternRotatio
             <tbody>
               {patternRotation.map((week, wi) => {
                 const isSelected = selected === wi;
+                const sc = SEMANA_COLORS[wi % SEMANA_COLORS.length];
                 return (
                   <tr
                     key={wi}
@@ -55,10 +63,12 @@ export default function SemanaPicker({ workerName, currentOffset, patternRotatio
                     className={`cursor-pointer transition-colors ${isSelected ? "" : "hover:bg-gray-50"}`}
                   >
                     <td className={`py-2.5 pl-3 pr-4 rounded-l text-xs font-medium border-y border-l ${
-                      isSelected ? `${color.bg} ${color.text} ${color.border}` : "text-gray-500 border-gray-100"
+                      isSelected ? `${sc.bg} ${sc.text} ${sc.border}` : "text-gray-500 border-gray-100"
                     }`}>
                       <div className="flex items-center gap-2">
-                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${isSelected ? `border-2 ${color.border}` : "border border-gray-300 bg-white"}`} />
+                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                          isSelected ? `${sc.bg} border-2 ${sc.border}` : "border border-gray-300 bg-white"
+                        }`} />
                         Semana {wi + 1}
                         {wi === currentOffset && (
                           <span className="text-[9px] opacity-60 font-normal">(actual)</span>
@@ -69,16 +79,16 @@ export default function SemanaPicker({ workerName, currentOffset, patternRotatio
                       <td
                         key={di}
                         className={`py-2.5 px-1 text-center border-y ${di === week.length - 1 ? "rounded-r border-r" : ""} ${
-                          isSelected ? `${color.bg} ${color.border}` : "border-gray-100"
+                          isSelected ? `${sc.bg} ${sc.border}` : "border-gray-100"
                         }`}
                       >
                         {shift ? (
-                          <div className={isSelected ? color.text : "text-gray-700"}>
+                          <div className={isSelected ? sc.text : "text-gray-700"}>
                             <div className="font-medium">{shift.start}</div>
                             <div className="opacity-60 text-[10px]">{shift.end}</div>
                           </div>
                         ) : (
-                          <span className={`italic text-[10px] ${isSelected ? color.text + " opacity-40" : "text-gray-300"}`}>
+                          <span className={`italic text-[10px] ${isSelected ? sc.text + " opacity-40" : "text-gray-300"}`}>
                             libre
                           </span>
                         )}

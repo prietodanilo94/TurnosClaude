@@ -947,13 +947,11 @@ export default function CalendarView({
           : 0;
         const workerId = assign[String(semanaPickerSlot)] ?? null;
         const name = workerId ? (workerMap[workerId] ?? null) : null;
-        const c = workerColor(semanaPickerSlot);
         return (
           <SemanaPicker
             workerName={name}
             currentOffset={offset}
             patternRotation={patternRotation}
-            color={c}
             onConfirm={(newOffset) => handleSemanaChange(semanaPickerSlot, newOffset)}
             onClose={() => setSemanaPickerSlot(null)}
           />
@@ -1146,6 +1144,15 @@ function buildSaveSuccessFeedback(
   return { tone: "success", text: `${scopeLabel}: calendario guardado correctamente.` };
 }
 
+const SEMANA_COLORS = [
+  { bg: "bg-blue-100",    text: "text-blue-700",    border: "border-blue-300"    },
+  { bg: "bg-emerald-100", text: "text-emerald-700", border: "border-emerald-300" },
+  { bg: "bg-orange-100",  text: "text-orange-700",  border: "border-orange-300"  },
+  { bg: "bg-violet-100",  text: "text-violet-700",  border: "border-violet-300"  },
+  { bg: "bg-rose-100",    text: "text-rose-700",    border: "border-rose-300"    },
+  { bg: "bg-amber-100",   text: "text-amber-700",   border: "border-amber-300"   },
+] as const;
+
 function detectSemanaOffset(slot: CalendarSlot, patternRotation: WeekPattern[], year: number, month: number): number {
   const N = patternRotation.length;
   if (N <= 1) return 0;
@@ -1251,6 +1258,9 @@ function WeekBlock({
           <thead>
             <tr className="bg-blue-50 border-b border-gray-200">
               <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 w-44">Vendedor</th>
+              {patternRotation && patternRotation.length > 1 && (
+                <th className="px-1 py-2 text-center text-xs font-semibold text-gray-500 w-10">Sem</th>
+              )}
               {week.map((d, i) => {
                 const inMonth = d.getMonth() + 1 === month;
                 const isWeekend = i >= 5;
@@ -1289,7 +1299,7 @@ function WeekBlock({
           {ganttDay && (
             <tbody>
               <tr>
-                <td colSpan={9} className="p-0 border-b border-blue-100">
+                <td colSpan={patternRotation && patternRotation.length > 1 ? 10 : 9} className="p-0 border-b border-blue-100">
                   <GanttInline
                     dateStr={ganttDay}
                     slots={slots}
@@ -1345,23 +1355,26 @@ function WeekBlock({
                       <span className={`text-sm font-medium truncate ${workerId ? "text-gray-900" : "text-gray-500 italic"}`}>
                         {workerName}
                       </span>
-                      {patternRotation && patternRotation.length > 1 && onSemanaPicker && (() => {
-                        const activeSlot = localSlots?.find(s => s.slotNumber === slot.slotNumber) ?? slot;
-                        const offset = activeSlot.semanaOffset !== undefined
-                          ? activeSlot.semanaOffset
-                          : detectSemanaOffset(activeSlot, patternRotation, year ?? new Date().getFullYear(), month);
-                        return (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); onSemanaPicker(slot.slotNumber); }}
-                            className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded border font-semibold ${color.bg} ${color.text} ${color.border} hover:opacity-80 transition-opacity`}
-                            title="Cambiar semana del turno rotativo"
-                          >
-                            S{offset + 1}
-                          </button>
-                        );
-                      })()}
                     </div>
                   </td>
+                  {patternRotation && patternRotation.length > 1 && onSemanaPicker && (() => {
+                    const activeSlot = localSlots?.find(s => s.slotNumber === slot.slotNumber) ?? slot;
+                    const offset = activeSlot.semanaOffset !== undefined
+                      ? activeSlot.semanaOffset
+                      : detectSemanaOffset(activeSlot, patternRotation, year ?? new Date().getFullYear(), month);
+                    const sc = SEMANA_COLORS[offset % SEMANA_COLORS.length];
+                    return (
+                      <td className="px-1 py-2 text-center border-l border-gray-100">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onSemanaPicker(slot.slotNumber); }}
+                          className={`text-[10px] px-1.5 py-0.5 rounded border font-semibold ${sc.bg} ${sc.text} ${sc.border} hover:opacity-80 transition-opacity`}
+                          title="Cambiar semana del turno rotativo"
+                        >
+                          S{offset + 1}
+                        </button>
+                      </td>
+                    );
+                  })()}
                   {cells.map(({ dateStr, shift, inMonth, ci, feriado, dayWorkerId, dayWorkerName, blockReason }) => {
                     const isPast = lockedBefore ? dateStr < lockedBefore : false;
                     const canDrag = inMonth && !feriado && !isPast;

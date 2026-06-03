@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Link from "next/link";
 import type { BranchTeamInfo, WorkerWithTeam } from "./page";
 
 interface Props {
@@ -33,6 +34,9 @@ export default function TrabajadoresClient({ initialWorkers, branchTeams, superv
   }, [workers, search]);
 
   const activeCount = workers.filter((w) => w.activo && !w.esVirtual).length;
+  const now = new Date();
+  const calYear = now.getFullYear();
+  const calMonth = now.getMonth() + 1;
 
   function openCreate() {
     setEditing(null);
@@ -163,8 +167,13 @@ export default function TrabajadoresClient({ initialWorkers, branchTeams, superv
                     {worker.nombre}
                     {worker.esVirtual && <span className="ml-1.5 text-[10px] bg-gray-100 text-gray-500 px-1 rounded">virtual</span>}
                   </td>
-                  <td className="px-4 py-3 text-gray-600">
-                    {worker.branchTeam.branch.nombre}
+                  <td className="px-4 py-3">
+                    <Link
+                      href={`/admin/sucursales/${worker.branchTeam.branch.id}/calendario/${calYear}/${calMonth}?team=${worker.branchTeam.id}`}
+                      className="text-gray-700 hover:text-blue-600 hover:underline transition-colors"
+                    >
+                      {worker.branchTeam.branch.nombre}
+                    </Link>
                     <span className="ml-1.5 text-xs text-gray-400">{worker.branchTeam.branch.codigo}</span>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600">
