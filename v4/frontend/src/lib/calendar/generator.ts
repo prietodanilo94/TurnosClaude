@@ -60,6 +60,11 @@ export function generateCalendar(
 
   const slots: CalendarSlot[] = [];
 
+  // Compute semanaOffset for each slot: the rotation index active in week 1 of the month
+  const firstDayMonday = new Date(firstDay);
+  firstDayMonday.setDate(firstDay.getDate() - dowIndex(firstDay));
+  const firstIsoWeek = Math.floor(firstDayMonday.getTime() / (7 * 24 * 3600 * 1000));
+
   for (let slotNum = 1; slotNum <= workerCount; slotNum++) {
     const days: Record<string, DayShift | null> = {};
 
@@ -81,7 +86,11 @@ export function generateCalendar(
       cur.setDate(cur.getDate() + 1);
     }
 
-    slots.push({ slotNumber: slotNum, days });
+    const semanaOffset = pattern.fixedSlots
+      ? (slotNum - 1) % rotLen
+      : rotLen === 1 ? 0 : (firstIsoWeek + slotNum - 1) % rotLen;
+
+    slots.push({ slotNumber: slotNum, days, semanaOffset });
   }
 
   return { slots, totalWorkers: workerCount, alert };
