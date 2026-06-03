@@ -3,7 +3,8 @@
 import { useState, useMemo, useEffect, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import { workerColor } from "@/components/calendar/worker-colors";
-import type { CalendarSlot, DayShift, ShiftPatternDef, WorkerInfo, WorkerBlockInfo } from "@/types";
+import SemanaPicker from "@/components/calendar/SemanaPicker";
+import type { CalendarSlot, DayShift, ShiftPatternDef, WeekPattern, WorkerInfo, WorkerBlockInfo } from "@/types";
 import { getOperatingWindow, getScheduleBreakdown } from "@/lib/patterns/catalog";
 import {
   buildWorkerBlockDateMap,
@@ -169,6 +170,7 @@ interface Props {
   calendarScopeLabel?: string;
   calendarScopeType?: "branch" | "group";
   supervisorNames?: string[];
+  patternRotation?: WeekPattern[];
 }
 
 export default function CalendarView({
@@ -192,6 +194,7 @@ export default function CalendarView({
   calendarScopeLabel,
   calendarScopeType = "branch",
   supervisorNames,
+  patternRotation,
 }: Props) {
   const router = useRouter();
   const [localSlots, setLocalSlots] = useState<CalendarSlot[]>(() =>
@@ -203,6 +206,7 @@ export default function CalendarView({
   const [calId, setCalId] = useState(calendarId);
   const [dialogSlot, setDialogSlot] = useState<number | null>(null);
   const [shiftEditDialog, setShiftEditDialog] = useState<{ slotNum: number; dateStr: string } | null>(null);
+  const [semanaPickerSlot, setSemanaPickerSlot] = useState<number | null>(null);
   const [workerSwapModal, setWorkerSwapModal] = useState<{
     slotA: number;
     slotB: number;
@@ -490,6 +494,28 @@ export default function CalendarView({
       setDirty(true);
       setDialogSlot(null);
     });
+  }
+
+  function handleSemanaChange(slotNum: number, newOffset: number) {
+    if (!patternRotation || patternRotation.length <= 1) return;
+    const N = patternRotation.length;
+    setSemanaPickerSlot(null);
+    setLocalSlots((prev) =>
+      prev.map((s) => {
+        if (s.slotNumber !== slotNum) return s;
+        const newDays: Record<string, DayShift | null> = {};
+        for (const dateStr of Object.keys(s.days)) {
+          const d = new Date(dateStr + "T12:00:00");
+          const dayOfMonth = d.getDate();
+          const weekIndex = Math.floor((dayOfMonth - 1) / 7);
+          const dow = (d.getDay() + 6) % 7; // 0=Lun…6=Dom
+          const semanaIndex = (newOffset + weekIndex) % N;
+          newDays[dateStr] = patternRotation[semanaIndex][dow];
+        }
+        return { ...s, days: newDays, semanaOffset: newOffset };
+      }),
+    );
+    setDirty(true);
   }
 
   function handleShiftSave(slotNum: number, dateStr: string, newShift: DayShift, redistributeDate?: string | null, scope: "week" | "month" = "week") {
@@ -909,6 +935,26 @@ export default function CalendarView({
         />
       )}
 
+      {/* Modal semana rotativa */}
+      {semanaPickerSlot !== null && patternRotation && patternRotation.length > 1 && (() => {
+        const slot = localSlots.find(s => s.slotNumber === semanaPickerSlot);
+        const N = patternRotation.length;
+        const offset = slot?.semanaOffset ?? (semanaPickerSlot - 1) % N;
+        const workerId = assign[String(semanaPickerSlot)] ?? null;
+        const name = workerId ? (workerMap[workerId] ?? null) : null;
+        const c = workerColor(semanaPickerSlot);
+        return (
+          <SemanaPicker
+            workerName={name}
+            currentOffset={offset}
+            patternRotation={patternRotation}
+            color={c}
+            onConfirm={(newOffset) => handleSemanaChange(semanaPickerSlot, newOffset)}
+            onClose={() => setSemanaPickerSlot(null)}
+          />
+        );
+      })()}
+
       {/* Modal editar turno */}
       {shiftEditDialog && (
         <ShiftEditDialog
@@ -1262,10 +1308,23 @@ function WeekBlock({
                     } ${workerDragOver === slot.slotNumber ? "bg-blue-50 ring-1 ring-inset ring-blue-300" : ""}`}
                   >
                     <div className="flex items-center gap-2">
-                      <span className={`w-2.5 h-2.5 rounded-full ${color.bg} border ${color.border}`} />
+                      <span className={`w-2.5 h-2.5 rounded-full ${color.bg} border ${color.border} shrink-0`} />
                       <span className={`text-sm font-medium truncate ${workerId ? "text-gray-900" : "text-gray-500 italic"}`}>
                         {workerName}
                       </span>
+                      {patternRotation && patternRotation.length > 1 && (() => {
+                        const N = patternRotation.length;
+                        const offset = localSlots.find(s => s.slotNumber === slot.slotNumber)?.semanaOffset ?? (slot.slotNumber - 1) % N;
+                        return (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setSemanaPickerSlot(slot.slotNumber); }}
+                            className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded border font-semibold ${color.bg} ${color.text} ${color.border} hover:opacity-80 transition-opacity`}
+                            title="Cambiar semana del turno rotativo"
+                          >
+                            S{offset + 1}
+                          </button>
+                        );
+                      })()}
                     </div>
                   </td>
                   {cells.map(({ dateStr, shift, inMonth, ci, feriado, dayWorkerId, dayWorkerName, blockReason }) => {

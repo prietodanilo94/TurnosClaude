@@ -171,6 +171,7 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
       currentYear={year}
       currentMonth={month}
       supervisorNames={branchSupervisors.map((sb) => sb.supervisor.nombre)}
+      patternRotation={patternOverride?.rotationWeeks}
     />
   );
 }

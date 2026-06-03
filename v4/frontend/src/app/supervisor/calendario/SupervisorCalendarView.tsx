@@ -159,6 +159,7 @@ export default function SupervisorCalendarView({
       calendarScopeLabel={title}
       calendarScopeType={slices.length > 1 ? "group" : "branch"}
       supervisorNames={supervisorNames}
+      patternRotation={patternOverride?.rotationWeeks}
       changeRemindMessage="Cuidado: estás haciendo cambios en un calendario ya constituido. Los cambios serán informados a RRHH. Para que queden aplicados debes presionar Guardar al terminar. ¿Continuar?"
       prevMonthLabel={!hasCalendar ? prevMonthLabel : undefined}
       onNavigate={(newYear, newMonth) => `/supervisor/calendario?${navigationQueryPrefix}year=${newYear}&month=${newMonth}`}

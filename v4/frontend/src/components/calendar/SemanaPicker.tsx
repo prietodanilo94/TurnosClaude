@@ -1,0 +1,112 @@
+"use client";
+
+import { useState } from "react";
+import type { WeekPattern } from "@/types";
+import type { SlotColor } from "./worker-colors";
+
+const DOW_SHORT = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+
+interface Props {
+  workerName: string | null;
+  currentOffset: number;
+  patternRotation: WeekPattern[];
+  color: SlotColor;
+  onConfirm: (newOffset: number) => void;
+  onClose: () => void;
+}
+
+export default function SemanaPicker({ workerName, currentOffset, patternRotation, color, onConfirm, onClose }: Props) {
+  const [selected, setSelected] = useState(currentOffset);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={onClose}>
+      <div
+        className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-gray-100">
+          <p className="text-sm font-semibold text-gray-900">
+            ¿En qué semana del turno rotativo debe comenzar este vendedor?
+          </p>
+          {workerName && (
+            <p className="text-xs text-gray-500 mt-0.5">{workerName}</p>
+          )}
+        </div>
+
+        {/* Pattern table */}
+        <div className="px-6 py-4 overflow-x-auto">
+          <table className="w-full text-xs border-collapse">
+            <thead>
+              <tr>
+                <th className="w-28 py-2 text-left" />
+                {DOW_SHORT.map((d) => (
+                  <th key={d} className="py-2 text-center text-gray-500 font-medium px-1 min-w-[60px]">{d}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {patternRotation.map((week, wi) => {
+                const isSelected = selected === wi;
+                return (
+                  <tr
+                    key={wi}
+                    onClick={() => setSelected(wi)}
+                    className={`cursor-pointer transition-colors ${isSelected ? "" : "hover:bg-gray-50"}`}
+                  >
+                    <td className={`py-2.5 pl-3 pr-4 rounded-l text-xs font-medium border-y border-l ${
+                      isSelected ? `${color.bg} ${color.text} ${color.border}` : "text-gray-500 border-gray-100"
+                    }`}>
+                      <div className="flex items-center gap-2">
+                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${isSelected ? `border-2 ${color.border}` : "border border-gray-300 bg-white"}`} />
+                        Semana {wi + 1}
+                        {wi === currentOffset && (
+                          <span className="text-[9px] opacity-60 font-normal">(actual)</span>
+                        )}
+                      </div>
+                    </td>
+                    {week.map((shift, di) => (
+                      <td
+                        key={di}
+                        className={`py-2.5 px-1 text-center border-y ${di === week.length - 1 ? "rounded-r border-r" : ""} ${
+                          isSelected ? `${color.bg} ${color.border}` : "border-gray-100"
+                        }`}
+                      >
+                        {shift ? (
+                          <div className={isSelected ? color.text : "text-gray-700"}>
+                            <div className="font-medium">{shift.start}</div>
+                            <div className="opacity-60 text-[10px]">{shift.end}</div>
+                          </div>
+                        ) : (
+                          <span className={`italic text-[10px] ${isSelected ? color.text + " opacity-40" : "text-gray-300"}`}>
+                            libre
+                          </span>
+                        )}
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-3 border-t border-gray-100 flex justify-end gap-2">
+          <button
+            onClick={onClose}
+            className="px-4 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50 transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={() => onConfirm(selected)}
+            className="px-4 py-1.5 text-sm font-medium rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+          >
+            Confirmar Semana {selected + 1}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

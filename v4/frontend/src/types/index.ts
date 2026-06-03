@@ -75,6 +75,8 @@ export interface CalendarSlot {
   slotNumber: number;
   // date -> turno del día (null = libre)
   days: Record<string, DayShift | null>;
+  // índice 0-based de la semana del patrón rotativo en que empieza este slot
+  semanaOffset?: number;
 }
 
 export interface CalendarData {
