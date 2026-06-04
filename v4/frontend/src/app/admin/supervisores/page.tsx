@@ -7,8 +7,8 @@ export interface BranchInfo {
   id: string;
   nombre: string;
   codigo: string;
-  groupId: string | null;
-  teamId: string | null;
+  groupId?: string | null;
+  teamId?: string | null;
 }
 
 export interface SupervisorWithBranches {
