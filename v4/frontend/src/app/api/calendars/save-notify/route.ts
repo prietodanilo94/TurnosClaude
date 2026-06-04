@@ -37,10 +37,6 @@ export async function POST(req: NextRequest) {
         scopeType: scopeType ?? "branch",
       },
       req,
-      webhookExtras: {
-        fileBase64: buffer.toString("base64"),
-        fileName,
-      },
     });
   } catch (err) {
     console.error("Error generando Excel para webhook:", err);
