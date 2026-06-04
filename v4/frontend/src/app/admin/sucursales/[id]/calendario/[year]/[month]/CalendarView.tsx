@@ -1386,24 +1386,17 @@ function WeekBlock({
                       </span>
                     </div>
                   </td>
-                  {patternRotation && patternRotation.length > 1 && onSemanaPicker && (() => {
-                    const activeSlot = localSlots?.find(s => s.slotNumber === slot.slotNumber) ?? slot;
-                    const offset = activeSlot.semanaOffset !== undefined
-                      ? activeSlot.semanaOffset
-                      : detectSemanaOffset(activeSlot, patternRotation, year ?? new Date().getFullYear(), month);
-                    const sc = SEMANA_COLORS[offset % SEMANA_COLORS.length];
-                    return (
-                      <td className="px-1 py-2 text-center border-l border-gray-100">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); onSemanaPicker(slot.slotNumber); }}
-                          className={`text-[10px] px-1.5 py-0.5 rounded border font-semibold ${sc.bg} ${sc.text} ${sc.border} hover:opacity-80 transition-opacity`}
-                          title="Cambiar semana del turno rotativo"
-                        >
-                          S{offset + 1}
-                        </button>
-                      </td>
-                    );
-                  })()}
+                  {patternRotation && patternRotation.length > 1 && onSemanaPicker && semanaOff !== null && (
+                    <td className="px-1 py-2 text-center border-l border-gray-100">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onSemanaPicker(slot.slotNumber); }}
+                        className={`text-[10px] px-1.5 py-0.5 rounded border font-semibold ${color.bg} ${color.text} ${color.border} hover:opacity-80 transition-opacity`}
+                        title="Cambiar semana del turno rotativo"
+                      >
+                        S{semanaOff + 1}
+                      </button>
+                    </td>
+                  )}
                   {cells.map(({ dateStr, shift, inMonth, ci, feriado, dayWorkerId, dayWorkerName, blockReason }) => {
                     const isPast = lockedBefore ? dateStr < lockedBefore : false;
                     const canDrag = inMonth && !feriado && !isPast;
