@@ -7,6 +7,8 @@ export interface BranchInfo {
   id: string;
   nombre: string;
   codigo: string;
+  groupId: string | null;
+  teamId: string | null;
 }
 
 export interface SupervisorWithBranches {
@@ -25,7 +27,12 @@ export default async function SupervisoresPage() {
       include: {
         branches: {
           include: {
-            branch: { select: { id: true, nombre: true, codigo: true } },
+            branch: {
+              select: {
+                id: true, nombre: true, codigo: true, groupId: true,
+                teams: { select: { id: true }, take: 1 },
+              }
+            },
           },
         },
       },
@@ -37,10 +44,16 @@ export default async function SupervisoresPage() {
     }),
   ]);
 
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+
   return (
     <SupervisoresClient
       initialSupervisors={supervisors as SupervisorWithBranches[]}
       branches={branches}
+      year={year}
+      month={month}
     />
   );
 }

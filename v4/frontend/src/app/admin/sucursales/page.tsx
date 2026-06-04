@@ -39,6 +39,17 @@ export default async function SucursalesPage() {
   const year = now.getFullYear();
   const month = now.getMonth() + 1;
 
+  const savedCalendars = await prisma.calendar.findMany({
+    where: { year, month },
+    select: { branchTeamId: true, assignments: true },
+  });
+  const calendarStatus = Object.fromEntries(
+    savedCalendars.map((c) => {
+      const assigned = Object.values(JSON.parse(c.assignments) as Record<string, string | null>).filter(Boolean).length;
+      return [c.branchTeamId, assigned > 0 ? "listo" : "vacio"];
+    })
+  );
+
   const branchData = branches.map((b) => ({
     id: b.id,
     nombre: b.nombre,
@@ -89,6 +100,7 @@ export default async function SucursalesPage() {
           allPatterns={patternData}
           year={year}
           month={month}
+          calendarStatus={calendarStatus}
         />
       )}
     </div>

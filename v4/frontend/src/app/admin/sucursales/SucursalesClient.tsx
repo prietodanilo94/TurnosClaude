@@ -31,15 +31,18 @@ export type PatternOption = {
   areaNegocio: string;
 };
 
+const MONTHS_ES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+
 interface Props {
   branches: BranchData[];
   groups: GroupData[];
   allPatterns: PatternOption[];
   year: number;
   month: number;
+  calendarStatus?: Record<string, "listo" | "vacio">;
 }
 
-export default function SucursalesClient({ branches, groups, allPatterns, year, month }: Props) {
+export default function SucursalesClient({ branches, groups, allPatterns, year, month, calendarStatus = {} }: Props) {
   const [search, setSearch] = useState("");
 
   const q = search.toLowerCase();
@@ -77,6 +80,7 @@ export default function SucursalesClient({ branches, groups, allPatterns, year, 
         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Área</th>
         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Horario</th>
         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vendedores</th>
+        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
         <th className="px-4 py-3" />
       </tr>
     </thead>
@@ -104,7 +108,7 @@ export default function SucursalesClient({ branches, groups, allPatterns, year, 
               ];
               return (
               <tr key={group.id} className="hover:bg-blue-50/30 bg-blue-50/10">
-                <td className="px-4 py-3 text-sm text-gray-900" colSpan={4}>
+                <td className="px-4 py-3 text-sm text-gray-900" colSpan={5}>
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-medium">{group.nombre}</span>
                     <span className="text-[11px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">Grupo</span>
@@ -161,7 +165,7 @@ export default function SucursalesClient({ branches, groups, allPatterns, year, 
                     </td>
                     <td className="px-4 py-3 text-sm">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                        team.areaNegocio === "ventas" ? "bg-blue-100 text-blue-800" : "bg-emerald-100 text-emerald-800"
+                        team.areaNegocio === "ventas" ? "bg-blue-100 text-blue-800" : "bg-violet-100 text-violet-800"
                       }`}>
                         {team.areaNegocio === "ventas" ? "Ventas" : "Postventa"}
                       </span>
@@ -175,6 +179,21 @@ export default function SucursalesClient({ branches, groups, allPatterns, year, 
                       />
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600">{team.workerCount}</td>
+                    <td className="px-4 py-3">
+                      {calendarStatus[team.id] === "listo" ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                          Listo · {MONTHS_ES[month - 1]}
+                        </span>
+                      ) : calendarStatus[team.id] === "vacio" ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+                          Sin asignar
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-400">
+                          Sin calendario
+                        </span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-3">
                         <Link href={`/admin/sucursales/${branch.id}`} className="text-xs text-gray-400 hover:text-gray-600">
@@ -204,7 +223,7 @@ export default function SucursalesClient({ branches, groups, allPatterns, year, 
 
             {visibleGroups.length === 0 && ungrouped.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-400">
+                <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-400">
                   Sin resultados para &ldquo;{search}&rdquo;
                 </td>
               </tr>

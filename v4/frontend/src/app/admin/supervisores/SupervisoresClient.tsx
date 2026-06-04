@@ -1,11 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import type { BranchInfo, SupervisorWithBranches } from "./page";
 
 interface Props {
   initialSupervisors: SupervisorWithBranches[];
   branches: BranchInfo[];
+  year?: number;
+  month?: number;
 }
 
 const EMPTY_FORM = {
@@ -16,7 +19,10 @@ const EMPTY_FORM = {
   branchSearch: "",
 };
 
-export default function SupervisoresClient({ initialSupervisors, branches }: Props) {
+export default function SupervisoresClient({ initialSupervisors, branches, year, month }: Props) {
+  const now = new Date();
+  const calYear = year ?? now.getFullYear();
+  const calMonth = month ?? (now.getMonth() + 1);
   const [supervisors, setSupervisors] = useState(initialSupervisors);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -221,14 +227,22 @@ export default function SupervisoresClient({ initialSupervisors, branches }: Pro
                         <span className="text-gray-400 italic">Sin sucursales</span>
                       ) : (
                         <div className="flex flex-wrap gap-1">
-                          {supervisor.branches.map((branch) => (
-                            <span
-                              key={branch.branch.id}
-                              className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-blue-50 text-blue-700 border border-blue-100"
-                            >
-                              {branch.branch.nombre}
-                            </span>
-                          ))}
+                          {supervisor.branches.map((b) => {
+                            const href = b.branch.groupId
+                              ? `/supervisor/calendario?groupId=${b.branch.groupId}&year=${calYear}&month=${calMonth}`
+                              : b.branch.teamId
+                              ? `/admin/sucursales/${b.branch.id}/calendario/${calYear}/${calMonth}?team=${b.branch.teamId}`
+                              : `/admin/sucursales/${b.branch.id}`;
+                            return (
+                              <Link
+                                key={b.branch.id}
+                                href={href}
+                                className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-blue-50 text-blue-700 border border-blue-100 hover:bg-blue-100 transition-colors"
+                              >
+                                {b.branch.nombre}
+                              </Link>
+                            );
+                          })}
                         </div>
                       )}
                     </td>
