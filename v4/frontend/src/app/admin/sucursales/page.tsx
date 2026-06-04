@@ -43,10 +43,10 @@ export default async function SucursalesPage() {
     where: { year, month },
     select: { branchTeamId: true, assignments: true },
   });
-  const calendarStatus = Object.fromEntries(
+  const calendarStatus: Record<string, "listo" | "vacio"> = Object.fromEntries(
     savedCalendars.map((c) => {
       const assigned = Object.values(JSON.parse(c.assignments) as Record<string, string | null>).filter(Boolean).length;
-      return [c.branchTeamId, assigned > 0 ? "listo" : "vacio"];
+      return [c.branchTeamId, assigned > 0 ? ("listo" as const) : ("vacio" as const)];
     })
   );
 
