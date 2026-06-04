@@ -1222,6 +1222,9 @@ function WeekBlock({
 
   const isoWeek = isoWeekNumber(week[0]);
   const rangeLabel = fmtDateRange(week[0], week[6]);
+  // Index of this week within the month (0=first week, 1=second, …)
+  const firstInMonth = week.find(d => d.getMonth() + 1 === month);
+  const weekIndex = firstInMonth ? Math.floor((firstInMonth.getDate() - 1) / 7) : 0;
   const weekDateStrs = week.map(fmt);
   const ganttDay = selectedDay && weekDateStrs.includes(selectedDay) ? selectedDay : null;
 
@@ -1331,11 +1334,14 @@ function WeekBlock({
               const workerId = assign[String(slot.slotNumber)] ?? null;
               const workerName = workerId ? (workerMap[workerId] ?? "?") : `Vendedor ${slotDisplayNum[slot.slotNumber] ?? slot.slotNumber}`;
               const activeSlot = localSlots?.find(s => s.slotNumber === slot.slotNumber) ?? slot;
-              const semanaOff = patternRotation && patternRotation.length > 1
+              const startOffset = patternRotation && patternRotation.length > 1
                 ? (activeSlot.semanaOffset !== undefined
                     ? activeSlot.semanaOffset
                     : detectSemanaOffset(activeSlot, patternRotation, year ?? new Date().getFullYear(), month))
                 : null;
+              const semanaOff = startOffset !== null && patternRotation
+                ? (startOffset + weekIndex) % patternRotation.length
+                : startOffset;
               const color = semanaOff !== null
                 ? SEMANA_COLORS[semanaOff % SEMANA_COLORS.length]
                 : workerColor(slot.slotNumber);
