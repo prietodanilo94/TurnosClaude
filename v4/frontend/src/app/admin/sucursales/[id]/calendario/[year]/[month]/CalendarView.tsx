@@ -891,6 +891,7 @@ export default function CalendarView({
               localSlots={localSlots}
               onSemanaPicker={(n) => setSemanaPickerSlot(n)}
               year={year}
+              weekIndex={wi}
             />
           ))}
         </div>
@@ -1199,13 +1200,14 @@ interface WeekBlockProps {
   localSlots?: CalendarSlot[];
   onSemanaPicker?: (slotNum: number) => void;
   year?: number;
+  weekIndex?: number;
 }
 
 function WeekBlock({
   week, month, slots, assign, prevAssignments, nextAssignments, workerMap, blockMap, slotDisplayNum,
   onSlotClick, selectedDay, onDayClick, onShiftCellClick, onLibreSwap, onWorkerSwap, lockedBefore,
   workerRutMap = {}, attendanceByRut = {},
-  patternRotation, localSlots, onSemanaPicker, year,
+  patternRotation, localSlots, onSemanaPicker, year, weekIndex: weekIndexProp,
 }: WeekBlockProps) {
   const [dragSource, setDragSource] = useState<{ slotNum: number; dateStr: string } | null>(null);
   const [dragOver, setDragOver] = useState<{ slotNum: number; dateStr: string } | null>(null);
@@ -1223,8 +1225,10 @@ function WeekBlock({
   const isoWeek = isoWeekNumber(week[0]);
   const rangeLabel = fmtDateRange(week[0], week[6]);
   // Index of this week within the month (0=first week, 1=second, …)
-  const firstInMonth = week.find(d => d.getMonth() + 1 === month);
-  const weekIndex = firstInMonth ? Math.floor((firstInMonth.getDate() - 1) / 7) : 0;
+  // Prefer the explicit prop passed from the parent; fallback to date-based calculation
+  const weekIndex = weekIndexProp !== undefined
+    ? weekIndexProp
+    : (() => { const d = week.find(w => w.getMonth() + 1 === month); return d ? Math.floor((d.getDate() - 1) / 7) : 0; })();
   const weekDateStrs = week.map(fmt);
   const ganttDay = selectedDay && weekDateStrs.includes(selectedDay) ? selectedDay : null;
 
