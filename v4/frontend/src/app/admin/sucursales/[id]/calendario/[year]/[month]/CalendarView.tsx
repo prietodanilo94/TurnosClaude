@@ -1316,7 +1316,18 @@ function WeekBlock({
           )}
 
           <tbody>
-            {slots.map((slot, idx) => {
+            {(patternRotation && patternRotation.length > 1
+              ? [...slots].sort((a, b) => {
+                  const getOff = (s: typeof a) => {
+                    const active = localSlots?.find(ls => ls.slotNumber === s.slotNumber) ?? s;
+                    return active.semanaOffset !== undefined
+                      ? active.semanaOffset
+                      : detectSemanaOffset(active, patternRotation, year ?? new Date().getFullYear(), month);
+                  };
+                  return getOff(a) - getOff(b);
+                })
+              : slots
+            ).map((slot, idx) => {
               const workerId = assign[String(slot.slotNumber)] ?? null;
               const workerName = workerId ? (workerMap[workerId] ?? "?") : `Vendedor ${slotDisplayNum[slot.slotNumber] ?? slot.slotNumber}`;
               const activeSlot = localSlots?.find(s => s.slotNumber === slot.slotNumber) ?? slot;
