@@ -48,9 +48,24 @@ export default async function SupervisoresPage() {
   const year = now.getFullYear();
   const month = now.getMonth() + 1;
 
+  // Map Prisma result to SupervisorWithBranches, flattening teams[] → teamId
+  const mappedSupervisors: SupervisorWithBranches[] = supervisors.map((s) => ({
+    ...s,
+    branches: s.branches.map((sb) => ({
+      ...sb,
+      branch: {
+        id: sb.branch.id,
+        nombre: sb.branch.nombre,
+        codigo: sb.branch.codigo,
+        groupId: sb.branch.groupId,
+        teamId: sb.branch.teams[0]?.id ?? null,
+      },
+    })),
+  }));
+
   return (
     <SupervisoresClient
-      initialSupervisors={supervisors as SupervisorWithBranches[]}
+      initialSupervisors={mappedSupervisors}
       branches={branches}
       year={year}
       month={month}
