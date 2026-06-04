@@ -18,11 +18,13 @@ interface Props {
   workerName: string | null;
   currentOffset: number;
   patternRotation: WeekPattern[];
-  onConfirm: (newOffset: number) => void;
+  /** Semana del mes (0-based) desde donde se abrió el picker */
+  weekIndex: number;
+  onConfirm: (newOffset: number, scope: "month" | "fromWeek") => void;
   onClose: () => void;
 }
 
-export default function SemanaPicker({ workerName, currentOffset, patternRotation, onConfirm, onClose }: Props) {
+export default function SemanaPicker({ workerName, currentOffset, patternRotation, weekIndex, onConfirm, onClose }: Props) {
   const [selected, setSelected] = useState(currentOffset);
 
   return (
@@ -36,9 +38,9 @@ export default function SemanaPicker({ workerName, currentOffset, patternRotatio
           <p className="text-sm font-semibold text-gray-900">
             ¿En qué semana del turno rotativo debe comenzar este vendedor?
           </p>
-          {workerName && (
-            <p className="text-xs text-gray-500 mt-0.5">{workerName}</p>
-          )}
+          <p className="text-xs text-gray-500 mt-0.5">
+            {workerName ? `${workerName} · ` : ""}Semana {weekIndex + 1} del mes
+          </p>
         </div>
 
         {/* Pattern table */}
@@ -102,18 +104,28 @@ export default function SemanaPicker({ workerName, currentOffset, patternRotatio
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3 border-t border-gray-100 flex justify-end gap-2">
+        <div className="px-6 py-3 border-t border-gray-100 flex items-center justify-end gap-2 flex-wrap">
           <button
             onClick={onClose}
             className="px-4 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50 transition-colors"
           >
             Cancelar
           </button>
+          {weekIndex > 0 && (
+            <button
+              onClick={() => onConfirm(selected, "fromWeek")}
+              title={`Mantiene las semanas anteriores y aplica S${selected + 1} desde la semana ${weekIndex + 1} hacia adelante`}
+              className="px-4 py-1.5 text-sm font-medium rounded bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
+            >
+              S{selected + 1} desde esta semana
+            </button>
+          )}
           <button
-            onClick={() => onConfirm(selected)}
+            onClick={() => onConfirm(selected, "month")}
+            title={`Recalcula todo el mes comenzando la semana 1 en S${selected + 1}`}
             className="px-4 py-1.5 text-sm font-medium rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors"
           >
-            Confirmar Semana {selected + 1}
+            S{selected + 1} todo el mes
           </button>
         </div>
       </div>

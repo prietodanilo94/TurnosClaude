@@ -206,7 +206,7 @@ export default function CalendarView({
   const [calId, setCalId] = useState(calendarId);
   const [dialogSlot, setDialogSlot] = useState<number | null>(null);
   const [shiftEditDialog, setShiftEditDialog] = useState<{ slotNum: number; dateStr: string } | null>(null);
-  const [semanaPickerSlot, setSemanaPickerSlot] = useState<number | null>(null);
+  const [semanaPicker, setSemanaPicker] = useState<{ slotNum: number; weekIndex: number } | null>(null);
   const [workerSwapModal, setWorkerSwapModal] = useState<{
     slotA: number;
     slotB: number;
@@ -496,23 +496,41 @@ export default function CalendarView({
     });
   }
 
-  function handleSemanaChange(slotNum: number, newOffset: number) {
+  function handleSemanaChange(
+    slotNum: number,
+    newOffset: number,
+    scope: "month" | "fromWeek" = "month",
+    fromWeekIndex = 0,
+  ) {
     if (!patternRotation || patternRotation.length <= 1) return;
     const N = patternRotation.length;
-    setSemanaPickerSlot(null);
+    setSemanaPicker(null);
+    // Lunes de la primera semana del grid (la semana que contiene el día 1 del mes)
+    const firstOfMonth = new Date(year, month - 1, 1);
+    const gridStart = new Date(firstOfMonth);
+    gridStart.setDate(firstOfMonth.getDate() - ((firstOfMonth.getDay() + 6) % 7));
+    gridStart.setHours(12, 0, 0, 0);
+    const msWeek = 7 * 24 * 3600 * 1000;
     setLocalSlots((prev) =>
       prev.map((s) => {
         if (s.slotNumber !== slotNum) return s;
         const newDays: Record<string, DayShift | null> = {};
         for (const dateStr of Object.keys(s.days)) {
           const d = new Date(dateStr + "T12:00:00");
-          const dayOfMonth = d.getDate();
-          const weekIndex = Math.floor((dayOfMonth - 1) / 7);
+          const wi = Math.floor((d.getTime() - gridStart.getTime()) / msWeek);
+          if (scope === "fromWeek" && wi < fromWeekIndex) {
+            // Semanas anteriores quedan intactas
+            newDays[dateStr] = s.days[dateStr];
+            continue;
+          }
           const dow = (d.getDay() + 6) % 7; // 0=Lun…6=Dom
-          const semanaIndex = (newOffset + weekIndex) % N;
+          const base = scope === "fromWeek" ? newOffset + (wi - fromWeekIndex) : newOffset + wi;
+          const semanaIndex = ((base % N) + N) % N;
           newDays[dateStr] = patternRotation[semanaIndex][dow];
         }
-        return { ...s, days: newDays, semanaOffset: newOffset };
+        // semanaOffset describe la semana 1 del mes; en cambios parciales se conserva
+        const semanaOffset = scope === "fromWeek" && fromWeekIndex > 0 ? s.semanaOffset : newOffset;
+        return { ...s, days: newDays, semanaOffset };
       }),
     );
     setDirty(true);
@@ -889,7 +907,7 @@ export default function CalendarView({
               attendanceByRut={attendanceByRut}
               patternRotation={patternRotation}
               localSlots={localSlots}
-              onSemanaPicker={(n) => setSemanaPickerSlot(n)}
+              onSemanaPicker={(n, wi) => setSemanaPicker({ slotNum: n, weekIndex: wi })}
               year={year}
               weekIndex={wi}
             />
@@ -941,20 +959,21 @@ export default function CalendarView({
       )}
 
       {/* Modal semana rotativa */}
-      {semanaPickerSlot !== null && patternRotation && patternRotation.length > 1 && (() => {
-        const slot = localSlots.find(s => s.slotNumber === semanaPickerSlot);
-        const offset = slot
-          ? (slot.semanaOffset !== undefined ? slot.semanaOffset : detectSemanaOffset(slot, patternRotation, year, month))
-          : 0;
-        const workerId = assign[String(semanaPickerSlot)] ?? null;
+      {semanaPicker !== null && patternRotation && patternRotation.length > 1 && (() => {
+        const { slotNum, weekIndex: pickerWeek } = semanaPicker;
+        const slot = localSlots.find(s => s.slotNumber === slotNum);
+        const weekDates = (weeks[pickerWeek] ?? []).map(fmt);
+        const offset = slot ? detectSemanaForWeek(slot, patternRotation, weekDates) : 0;
+        const workerId = assign[String(slotNum)] ?? null;
         const name = workerId ? (workerMap[workerId] ?? null) : null;
         return (
           <SemanaPicker
             workerName={name}
             currentOffset={offset}
             patternRotation={patternRotation}
-            onConfirm={(newOffset) => handleSemanaChange(semanaPickerSlot, newOffset)}
-            onClose={() => setSemanaPickerSlot(null)}
+            weekIndex={pickerWeek}
+            onConfirm={(newOffset, scope) => handleSemanaChange(slotNum, newOffset, scope, pickerWeek)}
+            onClose={() => setSemanaPicker(null)}
           />
         );
       })()}
@@ -1177,6 +1196,30 @@ function detectSemanaOffset(slot: CalendarSlot, patternRotation: WeekPattern[], 
   return bestSem;
 }
 
+// Detecta la semana del patrón que mejor calza con los turnos reales de UNA semana del calendario.
+// Soporta cambios parciales ("desde esta semana"): cada semana se evalúa por sus propios días.
+function detectSemanaForWeek(slot: CalendarSlot, patternRotation: WeekPattern[], weekDateStrs: string[]): number {
+  const N = patternRotation.length;
+  if (N <= 1) return 0;
+  let bestSem = 0;
+  let bestScore = -1;
+  for (let sem = 0; sem < N; sem++) {
+    let score = 0; let total = 0;
+    for (let dow = 0; dow < 7; dow++) {
+      const dateStr = weekDateStrs[dow];
+      if (!dateStr || !(dateStr in slot.days)) continue;
+      const actual = slot.days[dateStr];
+      const expected = patternRotation[sem][dow];
+      total++;
+      if (actual === null && expected === null) score += 1;
+      else if (actual && expected && actual.start === expected.start && actual.end === expected.end) score += 1;
+      else if (actual !== null && expected !== null) score += 0.25; // trabaja en ambos pero con horario distinto
+    }
+    if (total > 0 && score / total > bestScore) { bestScore = score / total; bestSem = sem; }
+  }
+  return bestSem;
+}
+
 interface WeekBlockProps {
   week: Date[];
   month: number;
@@ -1198,7 +1241,7 @@ interface WeekBlockProps {
   attendanceByRut?: AttendanceByRut;
   patternRotation?: WeekPattern[];
   localSlots?: CalendarSlot[];
-  onSemanaPicker?: (slotNum: number) => void;
+  onSemanaPicker?: (slotNum: number, weekIndex: number) => void;
   year?: number;
   weekIndex?: number;
 }
@@ -1338,14 +1381,11 @@ function WeekBlock({
               const workerId = assign[String(slot.slotNumber)] ?? null;
               const workerName = workerId ? (workerMap[workerId] ?? "?") : `Vendedor ${slotDisplayNum[slot.slotNumber] ?? slot.slotNumber}`;
               const activeSlot = localSlots?.find(s => s.slotNumber === slot.slotNumber) ?? slot;
-              const startOffset = patternRotation && patternRotation.length > 1
-                ? (activeSlot.semanaOffset !== undefined
-                    ? activeSlot.semanaOffset
-                    : detectSemanaOffset(activeSlot, patternRotation, year ?? new Date().getFullYear(), month))
+              // Semana activa de ESTE bloque: se detecta contra los turnos reales de la semana,
+              // así soporta cambios parciales ("desde esta semana") y ediciones manuales.
+              const semanaOff = patternRotation && patternRotation.length > 1
+                ? detectSemanaForWeek(activeSlot, patternRotation, weekDateStrs)
                 : null;
-              const semanaOff = startOffset !== null && patternRotation
-                ? (startOffset + weekIndex) % patternRotation.length
-                : startOffset;
               const color = semanaOff !== null
                 ? SEMANA_COLORS[semanaOff % SEMANA_COLORS.length]
                 : workerColor(slot.slotNumber);
@@ -1389,7 +1429,7 @@ function WeekBlock({
                   {patternRotation && patternRotation.length > 1 && onSemanaPicker && semanaOff !== null && (
                     <td className="px-1 py-2 text-center border-l border-gray-100">
                       <button
-                        onClick={(e) => { e.stopPropagation(); onSemanaPicker(slot.slotNumber); }}
+                        onClick={(e) => { e.stopPropagation(); onSemanaPicker(slot.slotNumber, weekIndex); }}
                         className={`text-[10px] px-1.5 py-0.5 rounded border font-semibold ${color.bg} ${color.text} ${color.border} hover:opacity-80 transition-opacity`}
                         title="Cambiar semana del turno rotativo"
                       >
