@@ -16,12 +16,7 @@
 }
 
 const DEFAULT_NOTIFIABLE = new Set([
-  "calendar.generate",
   "calendar.save",
-  "calendar.delete",
-  "dotacion.sync",
-  "worker.block",
-  "worker.unblock",
 ]);
 
 export function isNotifiableAction(action: string): boolean {
