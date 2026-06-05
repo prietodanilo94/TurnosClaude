@@ -403,7 +403,7 @@ export default function SucursalesClient({ branches, groups, allPatterns, year, 
 
               const branch = row.branch!;
               const team = row.team!;
-              const canView = !!team.categoria && team.workerCount >= 3;
+              const canView = !!team.categoria && team.workerCount >= 1;
               const categoryOptions = allPatterns
                 .filter((p) => p.areaNegocio === team.areaNegocio)
                 .map((p) => ({ id: p.id, label: p.label }));
@@ -456,7 +456,7 @@ export default function SucursalesClient({ branches, groups, allPatterns, year, 
                       ) : (
                         <span
                           className="text-sm text-gray-300 cursor-not-allowed"
-                          title={!team.categoria ? "Selecciona una categoría primero" : "Se requieren al menos 3 vendedores"}
+                          title={!team.categoria ? "Selecciona una categoría primero" : "El equipo no tiene vendedores activos"}
                         >
                           Asignación de Turnos
                         </span>
