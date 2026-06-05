@@ -70,7 +70,6 @@ export default async function BranchDetailPage({ params, searchParams }: Props) 
       <div className="space-y-6">
         {teams.map((team) => {
           const workerCount = team._count.workers;
-          const needsVirtual = workerCount === 2;
           const alert3 =
             workerCount === 3 &&
             allPatterns.find((pattern) => pattern.id === team.categoria)?.rotationWeeks.length === 4;
@@ -116,13 +115,6 @@ export default async function BranchDetailPage({ params, searchParams }: Props) 
                   </div>
                 )}
 
-                {needsVirtual && (
-                  <div className="bg-orange-50 border border-orange-200 rounded p-3 text-xs text-orange-800">
-                    Solo hay 2 vendedores. Para generar el calendario se necesita al menos 1 mas.
-                    <span className="ml-1 font-medium">(Funcion disponible proximamente)</span>
-                  </div>
-                )}
-
                 {alert3 && (
                   <div className="bg-yellow-50 border border-yellow-200 rounded p-3 text-xs text-yellow-800">
                     Con 3 vendedores en rotacion de 4 semanas, queda un puesto descubierto.
@@ -132,7 +124,7 @@ export default async function BranchDetailPage({ params, searchParams }: Props) 
 
                 {team.workers.length > 0 && <WorkerAccessManager workers={workersForAccess} />}
 
-                {team.categoria && workerCount >= 3 && (
+                {team.categoria && workerCount >= 1 && (
                   <div className="pt-1">
                     <Link
                       href={`/admin/sucursales/${branch.id}/calendario/${year}/${month}?team=${team.id}`}
