@@ -58,14 +58,24 @@ jobs:
           mkdir -p ~/.ssh
           echo "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new "$DEPLOY_USER@$DEPLOY_HOST" "
-            set -e
-            cd /opt/shift-optimizer && git pull
-            echo '$GH_TOKEN' | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
-            cd v4
-            docker compose pull frontend
-            docker compose up -d
-            docker logout ghcr.io
-            docker image prune -f
-            docker ps --filter name=v4-frontend --format 'DEPLOYED: {{.Names}} {{.Status}}'
-          "
+          # La conexión runner→VPS puede fallar transitoriamente: reintentar hasta 5 veces
+          for attempt in 1 2 3 4 5; do
+            if ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 "$DEPLOY_USER@$DEPLOY_HOST" "
+              set -e
+              cd /opt/shift-optimizer && git pull
+              echo '$GH_TOKEN' | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
+              cd v4
+              docker compose pull frontend
+              docker compose up -d
+              docker logout ghcr.io
+              docker image prune -f
+              docker ps --filter name=v4-frontend --format 'DEPLOYED: {{.Names}} {{.Status}}'
+            "; then
+              echo "Deploy OK en intento $attempt"
+              exit 0
+            fi
+            echo "Intento $attempt falló; reintentando en 30s..."
+            sleep 30
+          done
+          echo "Deploy falló tras 5 intentos"
+          exit 1
