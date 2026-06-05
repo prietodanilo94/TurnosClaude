@@ -61,6 +61,29 @@ jobs:
           mkdir -p ~/.ssh
           echo "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
+          # Config por host: con ProxyJump las opciones -o del comando NO aplican
+          # al salto intermedio, por eso cada host se configura aquí.
+          cat > ~/.ssh/config <<EOF
+          Host jump
+            HostName $JUMP_HOST
+            User $DEPLOY_USER
+            IdentityFile ~/.ssh/deploy_key
+            StrictHostKeyChecking accept-new
+            ConnectTimeout 20
+          Host target-direct
+            HostName $DEPLOY_HOST
+            User $DEPLOY_USER
+            IdentityFile ~/.ssh/deploy_key
+            StrictHostKeyChecking accept-new
+            ConnectTimeout 20
+          Host target-jump
+            HostName $DEPLOY_HOST
+            User $DEPLOY_USER
+            IdentityFile ~/.ssh/deploy_key
+            StrictHostKeyChecking accept-new
+            ConnectTimeout 20
+            ProxyJump jump
+          EOF
           DEPLOY_SCRIPT="
             set -e
             cd /opt/shift-optimizer && git pull
@@ -72,21 +95,14 @@ jobs:
             docker image prune -f
             docker ps --filter name=v4-frontend --format 'DEPLOYED: {{.Names}} {{.Status}}'
           "
-          SSH_BASE="ssh -i $HOME/.ssh/deploy_key -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20"
           # Directo primero; si el firewall bloquea al runner, saltar vía antigravity
-          for mode in direct jump direct jump jump; do
-            if [ "$mode" = "direct" ]; then
-              echo "Intentando conexión directa..."
-              CMD="$SSH_BASE $DEPLOY_USER@$DEPLOY_HOST"
-            else
-              echo "Intentando vía jump host ($JUMP_HOST)..."
-              CMD="$SSH_BASE -J $DEPLOY_USER@$JUMP_HOST $DEPLOY_USER@$DEPLOY_HOST"
-            fi
-            if $CMD "$DEPLOY_SCRIPT"; then
+          for mode in target-direct target-jump target-direct target-jump target-jump; do
+            echo "Intentando $mode..."
+            if ssh "$mode" "$DEPLOY_SCRIPT"; then
               echo "Deploy OK (modo: $mode)"
               exit 0
             fi
-            echo "Modo $mode falló; reintentando en 15s..."
+            echo "$mode falló; reintentando en 15s..."
             sleep 15
           done
           echo "Deploy falló en todos los modos"
