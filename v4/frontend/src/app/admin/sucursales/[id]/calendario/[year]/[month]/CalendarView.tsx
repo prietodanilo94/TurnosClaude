@@ -345,8 +345,16 @@ export default function CalendarView({
     [year, month, localSlots, assign, workerMap, blockMap],
   );
 
-  // Slots ordenados por horario de inicio dominante en el mes (agrupa turnos iguales)
+  // Rotativos: orden por semana de inicio (S1 arriba). Fijos: por horario de inicio dominante.
+  // Este orden alimenta slotDisplayNum, así "Vendedor N" queda secuencial en pantalla.
   const sortedSlots = useMemo(() => {
+    if (patternRotation && patternRotation.length > 1) {
+      const off = (s: CalendarSlot) =>
+        s.semanaOffset !== undefined
+          ? s.semanaOffset
+          : detectSemanaOffset(s, patternRotation, year, month);
+      return [...localSlots].sort((a, b) => off(a) - off(b) || a.slotNumber - b.slotNumber);
+    }
     function dominantStart(slot: CalendarSlot): string {
       const counts: Record<string, number> = {};
       for (const shift of Object.values(slot.days)) {
@@ -359,7 +367,7 @@ export default function CalendarView({
       const diff = dominantStart(a).localeCompare(dominantStart(b));
       return diff !== 0 ? diff : a.slotNumber - b.slotNumber;
     });
-  }, [localSlots]);
+  }, [localSlots, patternRotation, year, month]);
 
   // Mapa slotNumber → número de display según orden de sortedSlots
   const slotDisplayNum = useMemo<Record<number, number>>(() => {
@@ -1366,18 +1374,8 @@ function WeekBlock({
           )}
 
           <tbody>
-            {(patternRotation && patternRotation.length > 1
-              ? [...slots].sort((a, b) => {
-                  const getOff = (s: typeof a) => {
-                    const active = localSlots?.find(ls => ls.slotNumber === s.slotNumber) ?? s;
-                    return active.semanaOffset !== undefined
-                      ? active.semanaOffset
-                      : detectSemanaOffset(active, patternRotation, year ?? new Date().getFullYear(), month);
-                  };
-                  return getOff(a) - getOff(b);
-                })
-              : slots
-            ).map((slot, idx) => {
+            {/* El orden por semana ya viene resuelto en sortedSlots (padre) */}
+            {slots.map((slot, idx) => {
               const workerId = assign[String(slot.slotNumber)] ?? null;
               const workerName = workerId ? (workerMap[workerId] ?? "?") : `Vendedor ${slotDisplayNum[slot.slotNumber] ?? slot.slotNumber}`;
               const activeSlot = localSlots?.find(s => s.slotNumber === slot.slotNumber) ?? slot;

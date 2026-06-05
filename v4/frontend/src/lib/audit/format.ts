@@ -12,6 +12,7 @@ export const ACTION_LABELS: Record<string, string> = {
   "worker.unblock":     "Desbloqueó vendedor",
   "supervisor.create":  "Creó supervisor",
   "supervisor.link":    "Vinculó sucursal",
+  "branch.create":      "Creó sucursal",
 };
 
 export function parseMetadata(value: string | null) {

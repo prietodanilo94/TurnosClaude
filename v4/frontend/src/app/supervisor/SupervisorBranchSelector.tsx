@@ -293,13 +293,13 @@ function GroupStatusBadge({ branches }: { branches: BranchInfo[] }) {
 
 function getBranchActionLabel(branch: BranchInfo): string {
   if (branch.status.issueCount > 0) return "Revisar datos";
-  return branch.status.hasCalendar ? "Ver calendario" : "Generar calendario";
+  return "Asignación de Turnos";
 }
 
 function getGroupActionLabel(branches: BranchInfo[]): string {
   const issueCount = branches.reduce((sum, branch) => sum + branch.status.issueCount, 0);
   if (issueCount > 0) return "Revisar datos";
-  return branches.some((branch) => !branch.status.hasCalendar) ? "Generar calendarios" : "Ver calendarios";
+  return "Asignación de Turnos";
 }
 
 function StatusPill({ tone, label }: { tone: "green" | "amber" | "rose" | "blue"; label: string }) {
