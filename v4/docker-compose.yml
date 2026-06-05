@@ -1,5 +1,8 @@
 services:
   frontend:
+    # CI (GitHub Actions) buildea y publica esta imagen; `docker compose pull` la trae.
+    # Fallback manual: `docker compose up -d --build` sigue funcionando (buildea local con este mismo tag).
+    image: ghcr.io/prietodanilo94/turnosclaude-v4:latest
     build: ./frontend
     restart: unless-stopped
     ports:
