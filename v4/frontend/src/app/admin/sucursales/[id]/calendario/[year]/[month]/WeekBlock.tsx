@@ -254,9 +254,7 @@ export function WeekBlock({
                             } ${
                               inMonth && !isPast ? "cursor-pointer hover:brightness-95 active:scale-95" : isPast ? "opacity-60 cursor-default" : ""
                             } ${
-                              dayWorkerId
-                                ? `${color.bg} ${color.text} ${color.border}`
-                                : "bg-blue-50 text-blue-600 border-blue-200"
+                              `${color.bg} ${color.text} ${color.border}`
                             }`}
                           >
                             {shift.start}–{shift.end}
