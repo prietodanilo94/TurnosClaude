@@ -2,6 +2,8 @@ services:
   bot:
     build: .
     env_file: .env
+    environment:
+      - TZ=America/Santiago
     volumes:
       - ./src:/app/src
       - ./screenshots:/app/screenshots
