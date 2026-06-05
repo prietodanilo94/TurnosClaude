@@ -29,6 +29,7 @@ export default async function ExportarPage({ searchParams }: Props) {
   });
 
   const rows = calendars.map((cal) => {
+    // assignments JSON solo se parsea aquí para listar nombres; el conteo viene denormalizado
     const assignments: Record<string, string | null> = JSON.parse(cal.assignments);
     const assignedWorkerIds = new Set(Object.values(assignments).filter(Boolean) as string[]);
     const assignedWorkers = cal.branchTeam.workers
@@ -41,7 +42,7 @@ export default async function ExportarPage({ searchParams }: Props) {
       branchCodigo: cal.branchTeam.branch.codigo,
       areaNegocio: cal.branchTeam.areaNegocio,
       totalWorkers: cal.branchTeam.workers.length,
-      assignedCount: assignedWorkerIds.size,
+      assignedCount: cal.assignedCount,
       assignedWorkers,
     };
   });

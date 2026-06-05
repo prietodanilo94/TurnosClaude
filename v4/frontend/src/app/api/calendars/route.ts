@@ -17,6 +17,8 @@ export async function POST(req: NextRequest) {
     where: { branchTeamId_year_month: { branchTeamId: teamId, year, month } },
   });
 
+  const assignedCount = Object.values(assignments ?? {}).filter(Boolean).length;
+
   const calendar = await prisma.calendar.upsert({
     where: { branchTeamId_year_month: { branchTeamId: teamId, year, month } },
     create: {
@@ -25,10 +27,12 @@ export async function POST(req: NextRequest) {
       month,
       slotsData: JSON.stringify(slotsData),
       assignments: JSON.stringify(assignments),
+      assignedCount,
     },
     update: {
       slotsData: JSON.stringify(slotsData),
       assignments: JSON.stringify(assignments),
+      assignedCount,
     },
   });
 
@@ -70,6 +74,7 @@ export async function PUT(req: NextRequest) {
     data: {
       slotsData: JSON.stringify(slotsData),
       assignments: JSON.stringify(assignments),
+      assignedCount: Object.values(assignments ?? {}).filter(Boolean).length,
     },
   });
 

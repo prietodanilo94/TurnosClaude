@@ -28,7 +28,15 @@ describe("POST /api/calendars", () => {
   });
 
   it("creates or updates a calendar and logs validation summary", async () => {
-    vi.mocked(prisma.branchTeam.findUnique).mockResolvedValue({ branchId: "branch-1" });
+    vi.mocked(prisma.branchTeam.findUnique).mockResolvedValue({
+      id: "team-1",
+      branchId: "branch-1",
+      areaNegocio: "ventas",
+      categoria: null,
+      categoriaSetAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
     vi.mocked(prisma.calendar.findUnique).mockResolvedValue(null);
     vi.mocked(prisma.calendar.upsert).mockResolvedValue({
       id: "calendar-1",
@@ -37,6 +45,7 @@ describe("POST /api/calendars", () => {
       month: 5,
       slotsData: "[]",
       assignments: "{}",
+      assignedCount: 0,
       createdAt: new Date(),
       updatedAt: new Date(),
     });

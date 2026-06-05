@@ -41,13 +41,10 @@ export default async function SucursalesPage() {
 
   const savedCalendars = await prisma.calendar.findMany({
     where: { year, month },
-    select: { branchTeamId: true, assignments: true },
+    select: { branchTeamId: true, assignedCount: true },
   });
   const calendarStatus: Record<string, "listo" | "vacio"> = Object.fromEntries(
-    savedCalendars.map((c) => {
-      const assigned = Object.values(JSON.parse(c.assignments) as Record<string, string | null>).filter(Boolean).length;
-      return [c.branchTeamId, assigned > 0 ? ("listo" as const) : ("vacio" as const)];
-    })
+    savedCalendars.map((c) => [c.branchTeamId, c.assignedCount > 0 ? ("listo" as const) : ("vacio" as const)])
   );
 
   const branchData = branches.map((b) => ({
