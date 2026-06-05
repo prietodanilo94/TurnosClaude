@@ -21,6 +21,9 @@ env:
   IMAGE: ghcr.io/prietodanilo94/turnosclaude-v4
   DEPLOY_HOST: 2.24.83.13
   DEPLOY_USER: root
+  # El firewall de pompeyo bloquea rangos de Azure (runners de GitHub):
+  # si la conexión directa falla, se salta vía antigravity como ProxyJump.
+  JUMP_HOST: 173.212.220.77
 
 jobs:
   build-and-deploy:
@@ -58,24 +61,33 @@ jobs:
           mkdir -p ~/.ssh
           echo "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          # La conexión runner→VPS puede fallar transitoriamente: reintentar hasta 5 veces
-          for attempt in 1 2 3 4 5; do
-            if ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 "$DEPLOY_USER@$DEPLOY_HOST" "
-              set -e
-              cd /opt/shift-optimizer && git pull
-              echo '$GH_TOKEN' | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
-              cd v4
-              docker compose pull frontend
-              docker compose up -d
-              docker logout ghcr.io
-              docker image prune -f
-              docker ps --filter name=v4-frontend --format 'DEPLOYED: {{.Names}} {{.Status}}'
-            "; then
-              echo "Deploy OK en intento $attempt"
+          DEPLOY_SCRIPT="
+            set -e
+            cd /opt/shift-optimizer && git pull
+            echo '$GH_TOKEN' | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
+            cd v4
+            docker compose pull frontend
+            docker compose up -d
+            docker logout ghcr.io
+            docker image prune -f
+            docker ps --filter name=v4-frontend --format 'DEPLOYED: {{.Names}} {{.Status}}'
+          "
+          SSH_BASE="ssh -i $HOME/.ssh/deploy_key -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20"
+          # Directo primero; si el firewall bloquea al runner, saltar vía antigravity
+          for mode in direct jump direct jump jump; do
+            if [ "$mode" = "direct" ]; then
+              echo "Intentando conexión directa..."
+              CMD="$SSH_BASE $DEPLOY_USER@$DEPLOY_HOST"
+            else
+              echo "Intentando vía jump host ($JUMP_HOST)..."
+              CMD="$SSH_BASE -J $DEPLOY_USER@$JUMP_HOST $DEPLOY_USER@$DEPLOY_HOST"
+            fi
+            if $CMD "$DEPLOY_SCRIPT"; then
+              echo "Deploy OK (modo: $mode)"
               exit 0
             fi
-            echo "Intento $attempt falló; reintentando en 30s..."
-            sleep 30
+            echo "Modo $mode falló; reintentando en 15s..."
+            sleep 15
           done
-          echo "Deploy falló tras 5 intentos"
+          echo "Deploy falló en todos los modos"
           exit 1
