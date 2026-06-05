@@ -297,6 +297,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
       {blocks.map((block) => (
         <SupervisorCalendarView
           key={block.key}
+          hideExcelExport={session?.role !== "admin"}
           title={block.title}
           areaLabel={block.areaLabel}
           areaNegocio={block.areaNegocio}

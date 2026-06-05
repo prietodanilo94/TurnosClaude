@@ -31,6 +31,8 @@ interface Props {
   prevMonthLabel?: string;
   prevAssignments?: Record<string, string | null>;
   supervisorNames?: string[];
+  /** Export RRHH (Excel) visible solo para admins */
+  hideExcelExport?: boolean;
 }
 
 async function saveTeamCalendars({
@@ -112,6 +114,7 @@ export default function SupervisorCalendarView({
   prevMonthLabel,
   prevAssignments,
   supervisorNames,
+  hideExcelExport = true,
 }: Props) {
   if (!categoria) {
     return (
@@ -155,6 +158,7 @@ export default function SupervisorCalendarView({
       backHref="/supervisor"
       backLabel="Volver"
       showExportButtons
+      hideExcelExport={hideExcelExport}
       enforceValidationBeforeSave
       calendarScopeLabel={title}
       calendarScopeType={slices.length > 1 ? "group" : "branch"}
