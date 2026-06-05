@@ -30,10 +30,13 @@
 ## Reglas operativas
 
 - **Después de commit**: push a origin main automáticamente.
-- **Después de push**: deploy **solo a `ssh pompeyo`** por defecto:
-  - `ssh pompeyo` → `cd /opt/shift-optimizer && git pull && cd v4 && docker compose up -d --build && docker image prune -f`
-  - `ssh antigravity` → solo cuando el usuario lo pida explícitamente (ej. "testea en antigravity primero")
-  - **Al inicio de cada sesión sin contexto**: preguntar al usuario "¿deploy a pompeyo como siempre, o primero a antigravity?" antes de hacer el primer deploy.
+- **Después de push**: el deploy a pompeyo es **automático vía GitHub Actions** (`.github/workflows/deploy-v4.yml`) cuando el commit toca `v4/**`:
+  - Pipeline: build en runners de GitHub (~4 min) → imagen a `ghcr.io/prietodanilo94/turnosclaude-v4` (tags `latest` + SHA) → SSH a pompeyo → `compose pull` + `up -d` + `image prune`.
+  - Después del push: monitorear el run de Actions hasta `conclusion=success` y verificar el contenedor (`docker ps` + logs `✓ Ready`).
+  - Secret `DEPLOY_SSH_KEY` en el repo (llave ed25519 dedicada, en `authorized_keys` de pompeyo).
+  - Rollback: `docker pull ghcr.io/...:<SHA-anterior>` + retag/`up -d`.
+  - **Fallback manual** (si Actions falla): `ssh pompeyo` → `cd /opt/shift-optimizer && git pull && cd v4 && docker compose up -d --build && docker image prune -f`
+  - `ssh antigravity` → solo cuando el usuario lo pida explícitamente (deploy manual, sin CI).
 - **Specs**: leer spec antes de implementar; proponer plan; esperar aprobación; una tarea a la vez.
 - **No tocar sin permiso**: `.env*`, `CLAUDE.md`.
 - **Estilo respuestas**: cortas, densas, sin intro ni resumen final. Tablas/bullets solo si aportan.
@@ -45,7 +48,7 @@
 - Servidores producción:
   - `ssh pompeyo` (`2.24.83.13`) — servidor empresa, repo en `/opt/shift-optimizer`
   - `ssh antigravity` (`173.212.220.77`) — servidor personal, repo en `/opt/shift-optimizer`
-- Deploy por defecto (solo pompeyo): `cd /opt/shift-optimizer && git pull && cd v4 && docker compose up -d --build && docker image prune -f`.
+- Deploy por defecto: automático vía GitHub Actions al pushear a main (ver Reglas operativas). Fallback manual en pompeyo: `cd /opt/shift-optimizer && git pull && cd v4 && docker compose up -d --build && docker image prune -f`.
 - Schema DB: `docker exec v4-frontend-1 node ./node_modules/prisma/build/index.js db push` (después de schema changes).
 - Admin v4: `prieto.danilo94@gmail.com` / `1234`.
 - N8N: `ssh pompeyo`, stack en `/opt/n8n`. Webhook vía `N8N_WEBHOOK_URL` en `.env`.
