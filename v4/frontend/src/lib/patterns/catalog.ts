@@ -78,6 +78,40 @@ const PATTERNS: ShiftPatternDef[] = [
     weeklyHours: [42, 42, 36, 42],
   },
 
+  // ── Kia Mall Plaza Tobalaba (4 semanas) — horarios redondos 10-20 ──────────
+  {
+    id: "optimo_kia_tobalaba",
+    label: "Kia Mall Plaza Tobalaba",
+    areaNegocio: "ventas",
+    rotationWeeks: [
+      // S1: 42h — libres Mié+Jue (semana con fin de semana completo)
+      semana(
+        turno("12:00","20:00"), turno("10:00","20:00"),
+        L, L,
+        turno("10:00","20:00"), turno("10:00","20:00"), turno("11:00","20:00"),
+      ),
+      // S2: 36h — libres Mar+Sáb+Dom (fin de semana libre)
+      semana(
+        turno("10:00","17:00"), L,
+        turno("10:00","20:00"), turno("10:00","20:00"),
+        turno("10:00","20:00"), L, L,
+      ),
+      // S3: 42h — libres Mar+Dom
+      semana(
+        turno("10:00","17:00"), L,
+        turno("10:00","20:00"), turno("10:00","20:00"),
+        turno("10:00","20:00"), turno("10:00","20:00"), L,
+      ),
+      // S4: 42h — libres Vie+Dom
+      semana(
+        turno("10:00","17:00"), turno("10:00","20:00"),
+        turno("10:00","20:00"), turno("10:00","20:00"),
+        L, turno("10:00","20:00"), L,
+      ),
+    ],
+    weeklyHours: [42, 36, 42, 42],
+  },
+
   // ── Óptimo Arauco Maipú (4 semanas) — L-J 10:00-20:30 · V-S 10:00-21:00 · D 10:30-20:30 ──
   {
     id: "optimo_arauco_maipu",
