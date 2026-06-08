@@ -1,9 +1,7 @@
 <svg width="512" height="512" viewBox="130 60 371 380" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
   <title id="title">TeamPlaner TP isotipo</title>
-  <desc id="desc">Clear blue TP initials with an orange corporate accent.</desc>
+  <desc id="desc">Blue TP initials with an orange diagonal accent.</desc>
   <path d="M220 112H140L151 70H372L361 112H281L211 430H150L220 112Z" fill="#061DEA"/>
   <path d="M310 70H415C469 70 491 105 480 154L469 204C458 256 420 286 364 286H294L262 430H201L281 70H310ZM305 234H362C389 234 404 221 410 194L418 158C424 132 413 121 387 121H329L305 234Z" fill="#061DEA"/>
   <path d="M236 126H306L238 430H168L236 126Z" fill="#FF4B14"/>
-  <path d="M220 112H140L151 70H372L361 112H281L211 430H150L220 112Z" fill="#061DEA"/>
-  <path d="M310 70H415C469 70 491 105 480 154L469 204C458 256 420 286 364 286H294L262 430H201L281 70H310ZM305 234H362C389 234 404 221 410 194L418 158C424 132 413 121 387 121H329L305 234Z" fill="#061DEA"/>
 </svg>

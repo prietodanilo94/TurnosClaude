@@ -36,7 +36,7 @@ export default function AdminShell({ userEmail, children }: Props) {
       <aside className="w-48 bg-gray-900 text-white flex flex-col shrink-0 sticky top-0 h-screen">
         <div className="px-4 py-5 border-b border-gray-700 text-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/tp-icon.svg" alt="TeamPlanner" className="h-14 w-auto mx-auto mb-2" />
+          <img src="/tp-isotipo.png" alt="TeamPlanner" className="h-14 w-auto mx-auto mb-2" />
           <p className="text-xs font-semibold text-white">TeamPlanner</p>
           <p className="text-xs text-gray-400">Administrador</p>
         </div>
