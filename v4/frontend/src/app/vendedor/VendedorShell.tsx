@@ -20,7 +20,7 @@ export default function VendedorShell({ nombre, children }: Props) {
       <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/tp-isotipo.png" alt="TeamPlanner" className="h-9 w-auto" />
+          <img src="/tp-icon.png" alt="TeamPlanner" className="h-9 w-auto" />
           <span className="text-sm font-semibold text-gray-900">TeamPlanner</span>
           <span className="text-xs text-gray-400">Mis turnos</span>
         </div>

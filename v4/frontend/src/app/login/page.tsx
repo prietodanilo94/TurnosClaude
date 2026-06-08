@@ -37,8 +37,13 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="bg-white rounded-xl shadow-md w-full max-w-md px-10 py-10">
-        <div className="flex justify-center mb-6">
-          <img src="/logo-pompeyo.png" alt="Pompeyo Carrasco" className="h-28 w-auto object-contain" />
+        <div className="flex flex-col items-center mb-6 gap-3">
+          <img src="/logo-pompeyo.png" alt="Pompeyo Carrasco" className="h-20 w-auto object-contain" />
+          <div className="flex items-center gap-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/tp-icon.png" alt="TeamPlanner" className="h-9 w-auto" />
+            <span className="text-base font-bold text-gray-800">TeamPlanner</span>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
