@@ -302,6 +302,74 @@ const PATTERNS: ShiftPatternDef[] = [
     weeklyHours: [36, 42],
   },
 
+  // ── DFSK Mall Plaza Sur (4 semanas) ──────────────────────────────────────
+  {
+    id: "ventas_dfsk_plaza_sur",
+    label: "DFSK Mall Plaza Sur",
+    areaNegocio: "ventas",
+    rotationWeeks: [
+      // S1 (42h) — apertura · Martes + Domingo libres
+      semana(
+        turno("10:00","19:00"), L,
+        turno("10:00","20:00"), turno("10:00","20:00"),
+        turno("10:00","20:00"), turno("10:00","19:00"), L,
+      ),
+      // S2 (42h) — tarde · Jueves + Viernes libres
+      semana(
+        turno("11:00","20:00"), turno("11:00","20:00"),
+        turno("11:00","20:00"), L, L,
+        turno("11:00","21:00"), turno("11:00","21:00"),
+      ),
+      // S3 (36h) — fin de semana libre
+      semana(
+        turno("10:00","20:00"), turno("10:00","20:00"),
+        L, turno("10:00","20:00"),
+        turno("10:00","20:00"), L, L,
+      ),
+      // S4 (42h) — cierre · Lunes + Sábado libres
+      semana(
+        L, turno("12:00","21:00"),
+        turno("12:00","21:00"), turno("12:00","21:00"),
+        turno("11:00","21:00"), L, turno("11:00","20:00"),
+      ),
+    ],
+    weeklyHours: [42, 42, 36, 42],
+  },
+
+  // ── Subaru Mall Plaza Sur (4 semanas) ────────────────────────────────────
+  {
+    id: "ventas_subaru_plaza_sur",
+    label: "Subaru Mall Plaza Sur",
+    areaNegocio: "ventas",
+    rotationWeeks: [
+      // S1 (42h) — tarde-apertura · Martes + Domingo libres
+      semana(
+        turno("11:00","20:00"), L,
+        turno("11:00","20:00"), turno("11:00","20:00"),
+        turno("11:00","21:00"), turno("11:00","21:00"), L,
+      ),
+      // S2 (42h) — tarde · Jueves + Viernes libres
+      semana(
+        turno("11:00","21:00"), turno("11:00","21:00"),
+        turno("11:00","20:00"), L, L,
+        turno("11:00","21:00"), turno("11:00","20:00"),
+      ),
+      // S3 (36h) — fin de semana libre
+      semana(
+        turno("10:00","20:00"), turno("10:00","20:00"),
+        L, turno("10:00","20:00"),
+        turno("10:00","20:00"), L, L,
+      ),
+      // S4 (42h) — cierre · Lunes + Sábado libres
+      semana(
+        L, turno("12:00","21:00"),
+        turno("12:00","21:00"), turno("12:00","21:00"),
+        turno("11:00","21:00"), L, turno("11:00","21:00"),
+      ),
+    ],
+    weeklyHours: [42, 42, 36, 42],
+  },
+
   // ── Postventa Vista Hermosa (fijo, sin rotación) ─────────────────────────
   {
     id: "postventa_vista_hermosa",

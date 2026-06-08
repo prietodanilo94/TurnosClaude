@@ -11,6 +11,8 @@ export type ShiftCategory =
   | "ventas_kia_oeste"
   | "ventas_dfsk_oeste"
   | "ventas_dfsk_oeste2"
+  | "ventas_dfsk_plaza_sur"
+  | "ventas_subaru_plaza_sur"
   | "postventa_vista_hermosa"
   | "postventa_standalone"
   | "postventa_cap"
