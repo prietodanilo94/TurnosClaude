@@ -34,12 +34,10 @@ export default function AdminShell({ userEmail, children }: Props) {
   return (
     <div className="min-h-screen flex">
       <aside className="w-48 bg-gray-900 text-white flex flex-col shrink-0 sticky top-0 h-screen">
-        <div className="px-4 py-5 border-b border-gray-700">
-          <div className="flex items-center gap-2 mb-1">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/tp-icon.svg" alt="TP" className="h-7 w-7" />
-            <p className="text-sm font-semibold text-white">TeamPlanner</p>
-          </div>
+        <div className="px-4 py-5 border-b border-gray-700 text-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/tp-icon.svg" alt="TeamPlanner" className="h-14 w-auto mx-auto mb-2" />
+          <p className="text-xs font-semibold text-white">TeamPlanner</p>
           <p className="text-xs text-gray-400">Administrador</p>
         </div>
 
