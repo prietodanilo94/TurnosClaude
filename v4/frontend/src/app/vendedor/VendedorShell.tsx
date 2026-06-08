@@ -18,9 +18,11 @@ export default function VendedorShell({ nombre, children }: Props) {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
-        <div>
+        <div className="flex items-center gap-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/tp-icon.svg" alt="TP" className="h-7 w-7" />
           <span className="text-sm font-semibold text-gray-900">TeamPlanner</span>
-          <span className="ml-3 text-xs text-gray-400">Mis turnos</span>
+          <span className="text-xs text-gray-400">Mis turnos</span>
         </div>
         <div className="flex items-center gap-4">
           <span className="text-xs text-gray-600 font-medium">{nombre}</span>

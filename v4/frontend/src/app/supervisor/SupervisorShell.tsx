@@ -36,8 +36,12 @@ export default function SupervisorShell({
     <div className="min-h-screen flex">
       <aside className="w-52 bg-gray-900 text-white flex flex-col shrink-0 sticky top-0 h-screen overflow-y-auto">
         <div className="px-4 py-5 border-b border-gray-700">
-          <p className="text-sm font-semibold text-white">TeamPlanner</p>
-          <p className="text-xs text-gray-400 mt-0.5">Supervisor</p>
+          <div className="flex items-center gap-2 mb-1">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/tp-icon.svg" alt="TP" className="h-7 w-7" />
+            <p className="text-sm font-semibold text-white">TeamPlanner</p>
+          </div>
+          <p className="text-xs text-gray-400">Supervisor</p>
         </div>
 
         <nav className="flex-1 px-2 py-4 space-y-1">
