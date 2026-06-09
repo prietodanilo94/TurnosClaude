@@ -48,9 +48,11 @@ export async function GET(req: NextRequest) {
   for (let d = 1; d <= 31; d++) header.push(`DIA${d}`);
 
   const rows: (string | number)[][] = [header];
+  const includedCalendarIds: string[] = [];
 
   for (const cal of calendars) {
     if (excludeTeams.has(cal.branchTeamId)) continue;
+    includedCalendarIds.push(cal.id);
 
     const slots: CalendarSlot[] = JSON.parse(cal.slotsData);
     const assignments: Record<string, string | null> = JSON.parse(cal.assignments);
@@ -78,6 +80,13 @@ export async function GET(req: NextRequest) {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Turnos RRHH");
   const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer;
+
+  if (includedCalendarIds.length > 0) {
+    void prisma.calendar.updateMany({
+      where: { id: { in: includedCalendarIds } },
+      data: { lastExportedAt: new Date() },
+    });
+  }
 
   const fileName = safeFileName(`turnos_rrhh_masivo_${MONTH_NAMES[month]}_${year}`) + ".xlsx";
 

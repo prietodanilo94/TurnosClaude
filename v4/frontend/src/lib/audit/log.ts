@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession, getSessionFromRequest } from "@/lib/auth/session";
-import { isNotifiableAction, sendAuditWebhook } from "./webhook";
+import { isNotifiableAction, sendAuditWebhook, type WebhookPayload } from "./webhook";
 
 const APP_URL = process.env.APP_URL ?? "https://teamplanner.pompeyo.cl";
 
@@ -33,10 +33,23 @@ function buildDescription(
       return `${nombre} ${verb} el calendario ${period} de ${scope}`.trim();
     }
     case "calendar.save": {
-      const { month, year, scopeLabel } = metadata ?? {};
+      const { month, year, scopeLabel, changes } = metadata ?? {};
       const period = month && year ? `${month}/${year}` : "";
       const scope = String(scopeLabel ?? branch);
-      return `${nombre} guardó y notificó el calendario ${period} de ${scope}`.trim();
+      let desc = `${nombre} guardó y notificó el calendario ${period} de ${scope}`.trim();
+      if (Array.isArray(changes) && changes.length > 0) {
+        const byWorker: Record<string, Array<{ dayLabel: string; from: string | null; to: string | null }>> = {};
+        for (const c of changes as Array<{ workerName: string; dayLabel: string; from: string | null; to: string | null }>) {
+          if (!byWorker[c.workerName]) byWorker[c.workerName] = [];
+          byWorker[c.workerName].push({ dayLabel: c.dayLabel, from: c.from, to: c.to });
+        }
+        desc += "\n\nCambios:";
+        for (const [workerName, items] of Object.entries(byWorker)) {
+          const details = items.map((c) => `${c.dayLabel}: ${c.from ?? "libre"} → ${c.to ?? "libre"}`).join(" | ");
+          desc += `\n• ${workerName} — ${details}`;
+        }
+      }
+      return desc;
     }
     case "calendar.delete": {
       const { month, year } = metadata ?? {};
@@ -163,6 +176,7 @@ export async function logAction({
       calendarUrl: buildCalendarUrl(branchId, metadata),
       timestamp: log.createdAt.toISOString(),
       metadata,
+      changes: Array.isArray(metadata?.changes) ? (metadata.changes as WebhookPayload["changes"]) : undefined,
       ...webhookExtras,
     });
   }

@@ -13,6 +13,13 @@
   metadata?: Record<string, unknown> | null;
   fileBase64?: string;
   fileName?: string;
+  changes?: Array<{
+    workerName: string;
+    date: string;
+    dayLabel: string;
+    from: string | null;
+    to: string | null;
+  }>;
 }
 
 const DEFAULT_NOTIFIABLE = new Set([

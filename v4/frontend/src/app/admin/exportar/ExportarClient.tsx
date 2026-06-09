@@ -14,6 +14,22 @@ interface AssignedWorker {
   rut: string;
 }
 
+type ExportStatus = "new" | "modified" | "exported";
+
+function getExportStatus(lastExportedAt: string | null, updatedAt: string): ExportStatus {
+  if (!lastExportedAt) return "new";
+  if (new Date(updatedAt) > new Date(lastExportedAt)) return "modified";
+  return "exported";
+}
+
+function StatusBadge({ status }: { status: ExportStatus }) {
+  if (status === "new")
+    return <span className="inline-flex px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">Nuevo</span>;
+  if (status === "modified")
+    return <span className="inline-flex px-1.5 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">Modificado</span>;
+  return <span className="inline-flex px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">Exportado</span>;
+}
+
 interface Row {
   teamId: string;
   branchNombre: string;
@@ -22,6 +38,8 @@ interface Row {
   totalWorkers: number;
   assignedCount: number;
   assignedWorkers: AssignedWorker[];
+  lastExportedAt: string | null;
+  updatedAt: string;
 }
 
 interface Props {
@@ -36,6 +54,7 @@ export default function ExportarClient({ year, month, rows }: Props) {
   const [excludedTeams, setExcludedTeams] = useState<Set<string>>(new Set());
   const [excludedWorkers, setExcludedWorkers] = useState<Set<string>>(new Set());
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [onlyNew, setOnlyNew] = useState(false);
 
   function handleMonthChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const [y, m] = e.target.value.split("-");
@@ -66,7 +85,11 @@ export default function ExportarClient({ year, month, rows }: Props) {
     window.open(`/api/calendars/export-masivo?${params}`, "_blank");
   }
 
-  const visibleRows = rows.filter((r) => !excludedTeams.has(r.teamId));
+  const visibleRows = rows.filter((r) => {
+    if (excludedTeams.has(r.teamId)) return false;
+    if (onlyNew && getExportStatus(r.lastExportedAt, r.updatedAt) === "exported") return false;
+    return true;
+  });
   const totalRows = visibleRows.reduce((sum, r) => {
     const skipped = r.assignedWorkers.filter((w) => excludedWorkers.has(w.id)).length;
     return sum + r.assignedCount - skipped;
@@ -90,17 +113,29 @@ export default function ExportarClient({ year, month, rows }: Props) {
         </p>
       </div>
 
-      <div className="flex items-center gap-3">
-        <label className="text-sm font-medium text-gray-700">Mes:</label>
-        <select
-          value={`${year}-${month}`}
-          onChange={handleMonthChange}
-          className="text-sm border border-gray-300 rounded-md px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+      <div className="flex items-center gap-4 flex-wrap">
+        <div className="flex items-center gap-3">
+          <label className="text-sm font-medium text-gray-700">Mes:</label>
+          <select
+            value={`${year}-${month}`}
+            onChange={handleMonthChange}
+            className="text-sm border border-gray-300 rounded-md px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            {options.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        </div>
+        <button
+          onClick={() => setOnlyNew((v) => !v)}
+          className={`text-xs px-2.5 py-1.5 rounded-md border transition-colors ${
+            onlyNew
+              ? "bg-blue-600 text-white border-blue-600"
+              : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
+          }`}
         >
-          {options.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
+          {onlyNew ? "Solo nuevos / modificados ✓" : "Solo nuevos / modificados"}
+        </button>
       </div>
 
       {rows.length === 0 ? (
@@ -116,6 +151,7 @@ export default function ExportarClient({ year, month, rows }: Props) {
                 <th className="text-left px-4 py-2.5 font-medium text-gray-600 text-xs">Sucursal</th>
                 <th className="text-left px-4 py-2.5 font-medium text-gray-600 text-xs">Código</th>
                 <th className="text-left px-4 py-2.5 font-medium text-gray-600 text-xs">Área</th>
+                <th className="text-left px-4 py-2.5 font-medium text-gray-600 text-xs">Estado</th>
                 <th className="text-right px-4 py-2.5 font-medium text-gray-600 text-xs">Asignados</th>
                 <th className="w-8 px-2 py-2.5" />
               </tr>
@@ -147,6 +183,9 @@ export default function ExportarClient({ year, month, rows }: Props) {
                       <td className="px-4 py-2 text-gray-900">{row.branchNombre}</td>
                       <td className="px-4 py-2 text-gray-500 text-xs">{row.branchCodigo}</td>
                       <td className="px-4 py-2 text-gray-500 capitalize">{row.areaNegocio}</td>
+                      <td className="px-4 py-2">
+                        <StatusBadge status={getExportStatus(row.lastExportedAt, row.updatedAt)} />
+                      </td>
                       <td className="px-4 py-2 text-right">
                         <span className={effectiveCount < row.totalWorkers ? "text-amber-600 font-medium" : "text-gray-900"}>
                           {effectiveCount}
@@ -167,7 +206,7 @@ export default function ExportarClient({ year, month, rows }: Props) {
                     {isExpanded && visibleWorkers.map((worker) => (
                       <tr key={worker.id} className="bg-blue-50/30">
                         <td className="px-2 py-1" />
-                        <td colSpan={3} className="px-4 py-1.5 pl-10 text-xs text-gray-700">
+                        <td colSpan={4} className="px-4 py-1.5 pl-10 text-xs text-gray-700">
                           {worker.nombre}
                           <span className="ml-2 text-gray-400 font-mono">{worker.rut.split("-")[0]}</span>
                         </td>
@@ -189,7 +228,7 @@ export default function ExportarClient({ year, month, rows }: Props) {
             </tbody>
             <tfoot>
               <tr className="border-t border-gray-200 bg-gray-50">
-                <td colSpan={4} className="px-4 py-2.5 text-xs font-medium text-gray-600">
+                <td colSpan={5} className="px-4 py-2.5 text-xs font-medium text-gray-600">
                   {visibleRows.length} equipo{visibleRows.length !== 1 ? "s" : ""} con calendario
                   {excludedTeams.size > 0 && (
                     <span className="text-gray-400 ml-1">({excludedTeams.size} excluido{excludedTeams.size !== 1 ? "s" : ""})</span>

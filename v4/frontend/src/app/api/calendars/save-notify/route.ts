@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
   const session = await getSessionFromRequest(req);
   if (!session) return NextResponse.json({ error: "Sin acceso" }, { status: 401 });
 
-  const { teamIds, year, month, scopeLabel, scopeType } = await req.json();
+  const { teamIds, year, month, scopeLabel, scopeType, changes } = await req.json();
 
   if (!Array.isArray(teamIds) || teamIds.length === 0 || !year || !month) {
     return NextResponse.json({ error: "Faltan datos" }, { status: 400 });
@@ -35,6 +35,7 @@ export async function POST(req: NextRequest) {
         month,
         scopeLabel: scopeLabel ?? null,
         scopeType: scopeType ?? "branch",
+        changes: changes ?? null,
       },
       req,
     });

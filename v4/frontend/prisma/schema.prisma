@@ -92,9 +92,10 @@ model Calendar {
   // JSON: { [slotNumber]: workerId | null }
   assignments  String     @default("{}")
   // Denormalizado: cantidad de slots con worker asignado (evita parsear assignments en listados)
-  assignedCount Int       @default(0)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  assignedCount  Int       @default(0)
+  lastExportedAt DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   @@unique([branchTeamId, year, month])
 }

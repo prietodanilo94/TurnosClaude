@@ -44,6 +44,8 @@ export default async function ExportarPage({ searchParams }: Props) {
       totalWorkers: cal.branchTeam.workers.length,
       assignedCount: cal.assignedCount,
       assignedWorkers,
+      lastExportedAt: cal.lastExportedAt?.toISOString() ?? null,
+      updatedAt: cal.updatedAt.toISOString(),
     };
   });
 
