@@ -38,15 +38,17 @@ function buildDescription(
       const scope = String(scopeLabel ?? branch);
       let desc = `${nombre} guardó y notificó el calendario ${period} de ${scope}`.trim();
       if (Array.isArray(changes) && changes.length > 0) {
-        const byWorker: Record<string, Array<{ dayLabel: string; from: string | null; to: string | null }>> = {};
+        desc += "\n\nCambios en el calendario:";
         for (const c of changes as Array<{ workerName: string; dayLabel: string; from: string | null; to: string | null }>) {
-          if (!byWorker[c.workerName]) byWorker[c.workerName] = [];
-          byWorker[c.workerName].push({ dayLabel: c.dayLabel, from: c.from, to: c.to });
-        }
-        desc += "\n\nCambios:";
-        for (const [workerName, items] of Object.entries(byWorker)) {
-          const details = items.map((c) => `${c.dayLabel}: ${c.from ?? "libre"} → ${c.to ?? "libre"}`).join(" | ");
-          desc += `\n• ${workerName} — ${details}`;
+          let line: string;
+          if (!c.from && c.to) {
+            line = `• ${nombre} le asignó turno el ${c.dayLabel} a ${c.workerName}: estaba libre, quedó trabajando de ${c.to}`;
+          } else if (c.from && !c.to) {
+            line = `• ${nombre} le quitó el turno del ${c.dayLabel} a ${c.workerName}: trabajaba de ${c.from}, quedó libre`;
+          } else {
+            line = `• ${nombre} le cambió el turno del ${c.dayLabel} a ${c.workerName}: de ${c.from} a ${c.to}`;
+          }
+          desc += `\n${line}`;
         }
       }
       return desc;
