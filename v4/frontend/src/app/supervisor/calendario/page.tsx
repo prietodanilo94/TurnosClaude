@@ -183,7 +183,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
             teamSlots = [...teamSlots, ...full.slots.slice(teamSlots.length)];
           }
         } else if (definedCat) {
-          teamSlots  = generateCalendar(definedCat, year, month, N).slots;
+          teamSlots  = generateCalendar(definedCat, year, month, N, patternMap[definedCat]).slots;
           teamAssign = {};
         } else {
           teamSlots  = [];
@@ -231,7 +231,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
         slots = [...slots, ...full.slots.slice(slots.length)];
       }
     } else if (team.categoria) {
-      slots = generateCalendar(team.categoria, year, month, N).slots;
+      slots = generateCalendar(team.categoria, year, month, N, patternMap[team.categoria]).slots;
     } else {
       slots = [];
     }
