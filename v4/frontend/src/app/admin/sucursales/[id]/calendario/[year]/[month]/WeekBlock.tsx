@@ -27,6 +27,7 @@ export interface WeekBlockProps {
   onLibreSwap: (slotNum: number, d1: string, d2: string) => void;
   onWorkerSwap: (slotA: number, slotB: number, weekDates: string[]) => void;
   lockedBefore?: string;
+  isAdmin?: boolean;
   workerRutMap?: Record<string, string>;
   attendanceByRut?: AttendanceByRut;
   patternRotation?: WeekPattern[];
@@ -38,7 +39,7 @@ export interface WeekBlockProps {
 
 export function WeekBlock({
   week, month, slots, assign, prevAssignments, nextAssignments, workerMap, blockMap, slotDisplayNum,
-  onSlotClick, selectedDay, onDayClick, onShiftCellClick, onLibreSwap, onWorkerSwap, lockedBefore,
+  onSlotClick, selectedDay, onDayClick, onShiftCellClick, onLibreSwap, onWorkerSwap, lockedBefore, isAdmin = false,
   workerRutMap = {}, attendanceByRut = {},
   patternRotation, localSlots, onSemanaPicker, year, weekIndex: weekIndexProp,
 }: WeekBlockProps) {
@@ -244,7 +245,7 @@ export function WeekBlock({
                     </td>
                   )}
                   {cells.map(({ dateStr, shift, inMonth, ci, feriado, dayWorkerId, dayWorkerName, blockReason }) => {
-                    const isPast = lockedBefore ? dateStr < lockedBefore : false;
+                    const isPast = !isAdmin && (lockedBefore ? dateStr < lockedBefore : false);
                     const canDrag = inMonth && !feriado && !isPast;
                     const isBeingDragged = dragSource?.slotNum === slot.slotNumber && dragSource?.dateStr === dateStr;
                     const isDropTarget = dragOver?.slotNum === slot.slotNumber && dragOver?.dateStr === dateStr;

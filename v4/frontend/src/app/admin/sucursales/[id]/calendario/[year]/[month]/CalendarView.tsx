@@ -822,6 +822,7 @@ export default function CalendarView({
               onLibreSwap={handleLibreSwap}
               onWorkerSwap={(slotA, slotB, weekDates) => setWorkerSwapModal({ slotA, slotB, weekDates })}
               lockedBefore={calId && !isAdmin ? todayStr : undefined}
+              isAdmin={isAdmin}
               workerRutMap={workerRutMap}
               attendanceByRut={attendanceByRut}
               patternRotation={patternRotation}
