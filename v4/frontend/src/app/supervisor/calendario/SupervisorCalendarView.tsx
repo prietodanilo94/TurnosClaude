@@ -12,6 +12,7 @@ interface SimpleWorker {
 }
 
 interface ChangeItem {
+  workerId: string;
   workerName: string;
   date: string;
   dayLabel: string;
@@ -59,6 +60,7 @@ function computeCalendarDiff(
 
       const dt = new Date(`${dateStr}T12:00:00`);
       changes.push({
+        workerId: oldWorker,
         workerName,
         date: dateStr,
         dayLabel: `${DAY_NAMES[dt.getDay()]} ${dt.getDate()} ${MONTH_SHORT[month]}`,

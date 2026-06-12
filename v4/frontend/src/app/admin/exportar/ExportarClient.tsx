@@ -57,6 +57,7 @@ export default function ExportarClient({ year, month, rows }: Props) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [onlyNew, setOnlyNew] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [downloadingDelta, setDownloadingDelta] = useState(false);
   const [, startTransition] = useTransition();
 
   function handleMonthChange(e: React.ChangeEvent<HTMLSelectElement>) {
@@ -79,6 +80,32 @@ export default function ExportarClient({ year, month, rows }: Props) {
 
   function excludeWorker(workerId: string) {
     setExcludedWorkers((prev) => new Set([...prev, workerId]));
+  }
+
+  async function handleDeltaExport() {
+    if (downloadingDelta) return;
+    setDownloadingDelta(true);
+    const params = new URLSearchParams({ year: String(year), month: String(month) });
+    try {
+      const res = await fetch(`/api/calendars/export-delta?${params}`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error ?? "No hay cambios desde el último export");
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const disposition = res.headers.get("Content-Disposition") ?? "";
+      const match = disposition.match(/filename="([^"]+)"/);
+      a.download = match ? decodeURIComponent(match[1]) : "delta.xlsx";
+      a.click();
+      URL.revokeObjectURL(url);
+      startTransition(() => router.refresh());
+    } finally {
+      setDownloadingDelta(false);
+    }
   }
 
   async function handleExport() {
@@ -264,13 +291,25 @@ export default function ExportarClient({ year, month, rows }: Props) {
       )}
 
       {rows.length > 0 && (
-        <button
-          onClick={handleExport}
-          disabled={downloading}
-          className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-        >
-          {downloading ? "Descargando…" : `Descargar Excel — ${MONTHS_ES[month]} ${year} (${totalRows} filas)`}
-        </button>
+        <div className="flex flex-wrap gap-3">
+          <button
+            onClick={handleExport}
+            disabled={downloading}
+            className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {downloading ? "Descargando…" : `Descargar completo — ${MONTHS_ES[month]} ${year} (${totalRows} filas)`}
+          </button>
+          {rows.some((r) => getExportStatus(r.lastExportedAt, r.updatedAt) !== "exported") && (
+            <button
+              onClick={handleDeltaExport}
+              disabled={downloadingDelta}
+              title="Descarga solo los vendedores que cambiaron desde el último export masivo"
+              className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {downloadingDelta ? "Descargando…" : "Descargar solo cambios ↓"}
+            </button>
+          )}
+        </div>
       )}
     </div>
   );
