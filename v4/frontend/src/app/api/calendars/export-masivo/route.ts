@@ -82,7 +82,7 @@ export async function GET(req: NextRequest) {
   const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer;
 
   if (includedCalendarIds.length > 0) {
-    void prisma.calendar.updateMany({
+    await prisma.calendar.updateMany({
       where: { id: { in: includedCalendarIds } },
       data: { lastExportedAt: new Date() },
     });

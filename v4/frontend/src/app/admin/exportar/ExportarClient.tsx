@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTransition } from "react";
 
 const MONTHS_ES = [
   "", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -55,6 +56,8 @@ export default function ExportarClient({ year, month, rows }: Props) {
   const [excludedWorkers, setExcludedWorkers] = useState<Set<string>>(new Set());
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [onlyNew, setOnlyNew] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [, startTransition] = useTransition();
 
   function handleMonthChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const [y, m] = e.target.value.split("-");
@@ -78,11 +81,27 @@ export default function ExportarClient({ year, month, rows }: Props) {
     setExcludedWorkers((prev) => new Set([...prev, workerId]));
   }
 
-  function handleExport() {
+  async function handleExport() {
+    if (downloading) return;
+    setDownloading(true);
     const params = new URLSearchParams({ year: String(year), month: String(month) });
     if (excludedTeams.size > 0) params.set("excludeTeams", [...excludedTeams].join(","));
     if (excludedWorkers.size > 0) params.set("excludeWorkers", [...excludedWorkers].join(","));
-    window.open(`/api/calendars/export-masivo?${params}`, "_blank");
+    try {
+      const res = await fetch(`/api/calendars/export-masivo?${params}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const disposition = res.headers.get("Content-Disposition") ?? "";
+      const match = disposition.match(/filename="([^"]+)"/);
+      a.download = match ? decodeURIComponent(match[1]) : "turnos.xlsx";
+      a.click();
+      URL.revokeObjectURL(url);
+      startTransition(() => router.refresh());
+    } finally {
+      setDownloading(false);
+    }
   }
 
   const visibleRows = rows.filter((r) => {
@@ -247,9 +266,10 @@ export default function ExportarClient({ year, month, rows }: Props) {
       {rows.length > 0 && (
         <button
           onClick={handleExport}
-          className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition-colors"
+          disabled={downloading}
+          className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          Descargar Excel — {MONTHS_ES[month]} {year} ({totalRows} filas)
+          {downloading ? "Descargando…" : `Descargar Excel — ${MONTHS_ES[month]} ${year} (${totalRows} filas)`}
         </button>
       )}
     </div>
