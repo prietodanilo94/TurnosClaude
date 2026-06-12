@@ -17,6 +17,8 @@ const EMPTY_FORM = {
   password: "",
   branchIds: [] as string[],
   branchSearch: "",
+  isAdmin: false,
+  invisible: false,
 };
 
 export default function SupervisoresClient({ initialSupervisors, branches, year, month }: Props) {
@@ -63,6 +65,8 @@ export default function SupervisoresClient({ initialSupervisors, branches, year,
       password: "",
       branchIds: supervisor.branches.map((branch) => branch.branch.id),
       branchSearch: "",
+      isAdmin: supervisor.isAdmin ?? false,
+      invisible: supervisor.invisible ?? false,
     });
     setError("");
     setShowForm(true);
@@ -86,6 +90,8 @@ export default function SupervisoresClient({ initialSupervisors, branches, year,
           nombre: form.nombre,
           email: form.email,
           branchIds: form.branchIds,
+          isAdmin: form.isAdmin,
+          invisible: form.invisible,
         };
         if (form.password) body.password = form.password;
 
@@ -361,6 +367,27 @@ export default function SupervisoresClient({ initialSupervisors, branches, year,
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder={editing ? "Dejar vacio para mantener" : "Minimo 6 caracteres"}
                 />
+              </div>
+
+              <div className="flex items-center gap-4 pt-1">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={form.isAdmin}
+                    onChange={(e) => setForm((current) => ({ ...current, isAdmin: e.target.checked }))}
+                    className="accent-blue-600"
+                  />
+                  <span className="text-xs text-gray-700">Admin (acceso total)</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={form.invisible}
+                    onChange={(e) => setForm((current) => ({ ...current, invisible: e.target.checked }))}
+                    className="accent-gray-500"
+                  />
+                  <span className="text-xs text-gray-700">Invisible en sucursales</span>
+                </label>
               </div>
 
               <div>

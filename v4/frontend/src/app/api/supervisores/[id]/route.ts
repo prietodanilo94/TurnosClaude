@@ -14,7 +14,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return NextResponse.json({ error: "Sin acceso" }, { status: 403 });
   }
 
-  const { nombre, email, password, resetPassword, branchIds, activo } = await req.json();
+  const { nombre, email, password, resetPassword, branchIds, activo, isAdmin, invisible } = await req.json();
   const current = await prisma.supervisor.findUnique({
     where: { id: params.id },
     include: {
@@ -42,6 +42,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (nombre !== undefined) data.nombre = String(nombre).trim();
   if (normalizedEmail !== undefined) data.email = normalizedEmail;
   if (activo !== undefined) data.activo = activo;
+  if (isAdmin !== undefined) data.isAdmin = Boolean(isAdmin);
+  if (invisible !== undefined) data.invisible = Boolean(invisible);
   if (resetPassword) data.passwordHash = null;
   else if (password) data.passwordHash = await bcrypt.hash(password, 12);
 

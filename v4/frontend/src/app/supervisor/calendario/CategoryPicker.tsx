@@ -2,10 +2,16 @@
 
 import { useState } from "react";
 
+interface CategoryOption {
+  id: string;
+  label: string;
+  isCustom?: boolean;
+}
+
 interface Props {
   teamIds: string[];
   current: string | null;
-  options: { id: string; label: string }[];
+  options: CategoryOption[];
 }
 
 export default function CategoryPicker({ teamIds, current, options }: Props) {
@@ -38,6 +44,9 @@ export default function CategoryPicker({ teamIds, current, options }: Props) {
     }
   }
 
+  const customOptions = options.filter((o) => o.isCustom);
+  const globalOptions = options.filter((o) => !o.isCustom);
+
   return (
     <div className="flex items-center gap-2">
       <select
@@ -47,9 +56,20 @@ export default function CategoryPicker({ teamIds, current, options }: Props) {
         className="px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 max-w-[220px]"
       >
         <option value="">— Sin categoría —</option>
-        {options.map((opt) => (
-          <option key={opt.id} value={opt.id}>{opt.label}</option>
-        ))}
+        {customOptions.length > 0 && (
+          <optgroup label="Mis horarios">
+            {customOptions.map((opt) => (
+              <option key={opt.id} value={opt.id}>{opt.label}</option>
+            ))}
+          </optgroup>
+        )}
+        {globalOptions.length > 0 && (
+          <optgroup label="Categorías">
+            {globalOptions.map((opt) => (
+              <option key={opt.id} value={opt.id}>{opt.label}</option>
+            ))}
+          </optgroup>
+        )}
       </select>
       {saving && <span className="text-xs text-gray-400">…</span>}
       {error && <span className="text-xs text-red-600">{error}</span>}

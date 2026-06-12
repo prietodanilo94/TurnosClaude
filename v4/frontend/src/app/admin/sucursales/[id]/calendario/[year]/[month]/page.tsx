@@ -51,7 +51,7 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
   // Bug 6: obtener supervisores de la sucursal para excluirlos de los trabajadores
   const branchSupervisors = await prisma.supervisorBranch.findMany({
     where: { branchId: params.id },
-    include: { supervisor: { select: { nombre: true } } },
+    include: { supervisor: { select: { nombre: true, invisible: true } } },
   });
   const supervisorKeys = new Set(branchSupervisors.map(sb => supervisorLookupKey(sb.supervisor.nombre)));
   const filteredWorkers = team.workers.filter(w => !supervisorKeys.has(supervisorLookupKey(w.nombre)));
@@ -170,7 +170,7 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
       nextAssignments={nextAssignments}
       currentYear={year}
       currentMonth={month}
-      supervisorNames={branchSupervisors.map((sb) => sb.supervisor.nombre)}
+      supervisorNames={branchSupervisors.filter((sb) => !sb.supervisor.invisible).map((sb) => sb.supervisor.nombre)}
       patternRotation={patternOverride?.rotationWeeks}
       isAdmin={true}
     />

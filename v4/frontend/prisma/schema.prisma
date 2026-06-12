@@ -107,8 +107,10 @@ model Supervisor {
   passwordHash String?
   activo       Boolean              @default(true)
   isAdmin      Boolean              @default(false)
+  invisible    Boolean              @default(false)
   branches     SupervisorBranch[]
   comments     SupervisorComment[]
+  patterns     ShiftPattern[]
   createdAt    DateTime             @default(now())
   updatedAt    DateTime             @updatedAt
 }
@@ -156,12 +158,14 @@ model AttendanceRecord {
 }
 
 model ShiftPattern {
-  id              String   @id @default(cuid())
+  id              String      @id @default(cuid())
   label           String
   areaNegocio     String
   rotationJson    String
   weeklyHoursJson String
-  createdAt       DateTime @default(now())
+  supervisorId    String?
+  supervisor      Supervisor? @relation(fields: [supervisorId], references: [id], onDelete: Cascade)
+  createdAt       DateTime    @default(now())
 }
 
 model AuditLog {

@@ -16,6 +16,8 @@ export interface SupervisorWithBranches {
   nombre: string;
   email: string | null;
   activo: boolean;
+  isAdmin: boolean;
+  invisible: boolean;
   passwordHash: string | null;
   createdAt: Date;
   branches: { branch: BranchInfo }[];

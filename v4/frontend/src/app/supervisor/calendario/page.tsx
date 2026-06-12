@@ -96,11 +96,12 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
   // Bug 6: excluir supervisores del listado de trabajadores
   const branchSupervisors = await prisma.supervisorBranch.findMany({
     where: { branchId: { in: selectedBranchIds } },
-    include: { supervisor: { select: { nombre: true } } },
+    include: { supervisor: { select: { nombre: true, invisible: true } } },
   });
   const supervisorKeys = new Set(branchSupervisors.map(sb => supervisorLookupKey(sb.supervisor.nombre)));
   const supervisorsByBranch = new Map<string, string[]>();
   for (const sb of branchSupervisors) {
+    if (sb.supervisor.invisible) continue; // no mostrar supervisores invisibles en el calendario
     if (!supervisorsByBranch.has(sb.branchId)) supervisorsByBranch.set(sb.branchId, []);
     supervisorsByBranch.get(sb.branchId)!.push(sb.supervisor.nombre);
   }
@@ -119,7 +120,13 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
     : [];
   const prevCalMap = new Map(prevCalendars.map((c) => [c.branchTeamId, c]));
 
-  const allDbPatterns = await prisma.shiftPattern.findMany({ orderBy: { createdAt: "asc" } });
+  const supervisorId = session?.supervisorId ?? null;
+  const allDbPatterns = await prisma.shiftPattern.findMany({
+    where: supervisorId
+      ? { OR: [{ supervisorId: null }, { supervisorId }] }
+      : { supervisorId: null },
+    orderBy: [{ supervisorId: "asc" }, { createdAt: "asc" }],
+  });
   const patternMap: Record<string, ShiftPatternDef> = Object.fromEntries(
     allDbPatterns.map((r) => [r.id, patternFromRow(r)]),
   );
@@ -131,7 +138,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
     areaNegocio: "ventas" | "postventa";
     categoria: string | null;
     teamIds: string[];
-    categoryOptions: { id: string; label: string }[];
+    categoryOptions: { id: string; label: string; isCustom?: boolean }[];
     slots: CalendarSlot[];
     assignments: Record<string, string | null>;
     workers: { id: string; nombre: string }[];
@@ -201,7 +208,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
         areaNegocio: area as "ventas" | "postventa",
         categoria: definedCat,
         teamIds: areaTeams.map((t) => t.id),
-        categoryOptions: allDbPatterns.filter((p) => p.areaNegocio === area).map((p) => ({ id: p.id, label: p.label })),
+        categoryOptions: allDbPatterns.filter((p) => p.areaNegocio === area).map((p) => ({ id: p.id, label: p.label, isCustom: p.supervisorId !== null })),
         slots: allSlots,
         assignments: allAssignments,
         workers: allWorkers,
@@ -246,7 +253,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
       areaNegocio: team.areaNegocio as "ventas" | "postventa",
       categoria: team.categoria,
       teamIds: [team.id],
-      categoryOptions: allDbPatterns.filter((p) => p.areaNegocio === team.areaNegocio).map((p) => ({ id: p.id, label: p.label })),
+      categoryOptions: allDbPatterns.filter((p) => p.areaNegocio === team.areaNegocio).map((p) => ({ id: p.id, label: p.label, isCustom: p.supervisorId !== null })),
       slots,
       assignments,
       workers,

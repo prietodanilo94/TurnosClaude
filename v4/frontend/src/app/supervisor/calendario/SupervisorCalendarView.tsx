@@ -79,7 +79,7 @@ interface Props {
   categoria: string | null;
   patternOverride?: ShiftPatternDef;
   teamIds: string[];
-  categoryOptions: { id: string; label: string }[];
+  categoryOptions: { id: string; label: string; isCustom?: boolean }[];
   year: number;
   month: number;
   slots: CalendarSlot[];

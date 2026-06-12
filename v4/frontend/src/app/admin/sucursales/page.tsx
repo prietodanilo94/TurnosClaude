@@ -14,7 +14,7 @@ export default async function SucursalesPage() {
         teams: {
           include: { _count: { select: { workers: { where: { activo: true } } } } },
         },
-        supervisors: { select: { supervisor: { select: { id: true, nombre: true } } } },
+        supervisors: { where: { supervisor: { invisible: false } }, select: { supervisor: { select: { id: true, nombre: true } } } },
       },
       orderBy: { nombre: "asc" },
     }),
@@ -25,7 +25,7 @@ export default async function SucursalesPage() {
             id: true,
             nombre: true,
             codigo: true,
-            supervisors: { select: { supervisor: { select: { id: true, nombre: true } } } },
+            supervisors: { where: { supervisor: { invisible: false } }, select: { supervisor: { select: { id: true, nombre: true } } } },
           },
           orderBy: { nombre: "asc" },
         },
