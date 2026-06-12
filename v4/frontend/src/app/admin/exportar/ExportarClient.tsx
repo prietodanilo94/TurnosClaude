@@ -56,6 +56,7 @@ export default function ExportarClient({ year, month, rows }: Props) {
   const [excludedWorkers, setExcludedWorkers] = useState<Set<string>>(new Set());
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [onlyNew, setOnlyNew] = useState(false);
+  const [filterFrom, setFilterFrom] = useState("");
   const [downloading, setDownloading] = useState(false);
   const [downloadingDelta, setDownloadingDelta] = useState(false);
   const [, startTransition] = useTransition();
@@ -134,6 +135,7 @@ export default function ExportarClient({ year, month, rows }: Props) {
   const visibleRows = rows.filter((r) => {
     if (excludedTeams.has(r.teamId)) return false;
     if (onlyNew && getExportStatus(r.lastExportedAt, r.updatedAt) === "exported") return false;
+    if (filterFrom && r.updatedAt < `${filterFrom}T00:00:00`) return false;
     return true;
   });
   const totalRows = visibleRows.reduce((sum, r) => {
@@ -182,6 +184,24 @@ export default function ExportarClient({ year, month, rows }: Props) {
         >
           {onlyNew ? "Solo nuevos / modificados ✓" : "Solo nuevos / modificados"}
         </button>
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-gray-500 whitespace-nowrap">Guardado desde:</label>
+          <input
+            type="date"
+            value={filterFrom}
+            onChange={(e) => setFilterFrom(e.target.value)}
+            className="text-xs border border-gray-300 rounded-md px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          {filterFrom && (
+            <button
+              onClick={() => setFilterFrom("")}
+              className="text-xs text-gray-400 hover:text-gray-700"
+              title="Limpiar filtro"
+            >
+              ✕
+            </button>
+          )}
+        </div>
       </div>
 
       {rows.length === 0 ? (
@@ -198,6 +218,7 @@ export default function ExportarClient({ year, month, rows }: Props) {
                 <th className="text-left px-4 py-2.5 font-medium text-gray-600 text-xs">Código</th>
                 <th className="text-left px-4 py-2.5 font-medium text-gray-600 text-xs">Área</th>
                 <th className="text-left px-4 py-2.5 font-medium text-gray-600 text-xs">Estado</th>
+                <th className="text-left px-4 py-2.5 font-medium text-gray-600 text-xs">Últ. guardado</th>
                 <th className="text-right px-4 py-2.5 font-medium text-gray-600 text-xs">Asignados</th>
                 <th className="w-8 px-2 py-2.5" />
               </tr>
@@ -232,6 +253,9 @@ export default function ExportarClient({ year, month, rows }: Props) {
                       <td className="px-4 py-2">
                         <StatusBadge status={getExportStatus(row.lastExportedAt, row.updatedAt)} />
                       </td>
+                      <td className="px-4 py-2 text-xs text-gray-400 whitespace-nowrap">
+                        {row.updatedAt ? new Date(row.updatedAt).toLocaleDateString("es-CL", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—"}
+                      </td>
                       <td className="px-4 py-2 text-right">
                         <span className={effectiveCount < row.totalWorkers ? "text-amber-600 font-medium" : "text-gray-900"}>
                           {effectiveCount}
@@ -252,7 +276,7 @@ export default function ExportarClient({ year, month, rows }: Props) {
                     {isExpanded && visibleWorkers.map((worker) => (
                       <tr key={worker.id} className="bg-blue-50/30">
                         <td className="px-2 py-1" />
-                        <td colSpan={4} className="px-4 py-1.5 pl-10 text-xs text-gray-700">
+                        <td colSpan={5} className="px-4 py-1.5 pl-10 text-xs text-gray-700">
                           {worker.nombre}
                           <span className="ml-2 text-gray-400 font-mono">{worker.rut.split("-")[0]}</span>
                         </td>
@@ -274,7 +298,7 @@ export default function ExportarClient({ year, month, rows }: Props) {
             </tbody>
             <tfoot>
               <tr className="border-t border-gray-200 bg-gray-50">
-                <td colSpan={5} className="px-4 py-2.5 text-xs font-medium text-gray-600">
+                <td colSpan={6} className="px-4 py-2.5 text-xs font-medium text-gray-600">
                   {visibleRows.length} equipo{visibleRows.length !== 1 ? "s" : ""} con calendario
                   {excludedTeams.size > 0 && (
                     <span className="text-gray-400 ml-1">({excludedTeams.size} excluido{excludedTeams.size !== 1 ? "s" : ""})</span>

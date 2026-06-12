@@ -105,21 +105,8 @@ export function WeekBlock({
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
-      <div className="bg-blue-700 text-white px-3 py-1.5 text-sm font-medium flex items-center justify-between">
-        <span>Sem {isoWeek} &nbsp;&nbsp; {rangeLabel}</span>
-        {hasRotation && (
-          <button
-            onClick={() => setSortBySemana(v => !v)}
-            title={sortBySemana ? "Orden original" : "Ordenar por semana (S1, S2…)"}
-            className={`text-[11px] px-2 py-0.5 rounded border font-semibold transition-colors ${
-              sortBySemana
-                ? "bg-white text-blue-700 border-white"
-                : "bg-blue-600 text-blue-100 border-blue-400 hover:bg-blue-500"
-            }`}
-          >
-            ↕ Sem
-          </button>
-        )}
+      <div className="bg-blue-700 text-white px-3 py-1.5 text-sm font-medium">
+        Sem {isoWeek} &nbsp;&nbsp; {rangeLabel}
       </div>
 
       <div className="overflow-x-auto">
@@ -128,7 +115,17 @@ export function WeekBlock({
             <tr className="bg-blue-50 border-b border-gray-200">
               <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 w-44">Vendedor</th>
               {patternRotation && patternRotation.length > 1 && (
-                <th className="px-1 py-2 text-center text-xs font-semibold text-gray-500 w-10">Sem</th>
+                <th
+                  onClick={hasRotation ? () => setSortBySemana(v => !v) : undefined}
+                  title={hasRotation ? (sortBySemana ? "Volver al orden original" : "Ordenar por semana (S1, S2…)") : undefined}
+                  className={`px-1 py-2 text-center text-xs font-semibold w-10 select-none ${
+                    hasRotation
+                      ? "cursor-pointer hover:bg-blue-100 transition-colors"
+                      : ""
+                  } ${sortBySemana ? "text-blue-600" : "text-gray-500"}`}
+                >
+                  Sem {hasRotation ? (sortBySemana ? "↑" : "↕") : ""}
+                </th>
               )}
               {week.map((d, i) => {
                 const inMonth = d.getMonth() + 1 === month;
