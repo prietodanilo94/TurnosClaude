@@ -172,6 +172,7 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
       currentMonth={month}
       supervisorNames={branchSupervisors.map((sb) => sb.supervisor.nombre)}
       patternRotation={patternOverride?.rotationWeeks}
+      isAdmin={true}
     />
   );
 }

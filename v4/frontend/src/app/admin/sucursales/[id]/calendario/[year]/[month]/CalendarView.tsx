@@ -80,6 +80,7 @@ interface Props {
   calendarScopeType?: "branch" | "group";
   supervisorNames?: string[];
   patternRotation?: WeekPattern[];
+  isAdmin?: boolean;
 }
 
 export default function CalendarView({
@@ -104,6 +105,7 @@ export default function CalendarView({
   calendarScopeType = "branch",
   supervisorNames,
   patternRotation,
+  isAdmin = false,
 }: Props) {
   const router = useRouter();
   const [localSlots, setLocalSlots] = useState<CalendarSlot[]>(() =>
@@ -819,7 +821,7 @@ export default function CalendarView({
               onShiftCellClick={(slotNum, dateStr) => setShiftEditDialog({ slotNum, dateStr })}
               onLibreSwap={handleLibreSwap}
               onWorkerSwap={(slotA, slotB, weekDates) => setWorkerSwapModal({ slotA, slotB, weekDates })}
-              lockedBefore={calId ? todayStr : undefined}
+              lockedBefore={calId && !isAdmin ? todayStr : undefined}
               workerRutMap={workerRutMap}
               attendanceByRut={attendanceByRut}
               patternRotation={patternRotation}
@@ -847,7 +849,7 @@ export default function CalendarView({
           onSlotClick={(n) => tryChangeGated(() => { setDialogSlot(n); setSelectedDay(null); })}
           onShiftCellClick={(slotNum, dateStr) => setShiftEditDialog({ slotNum, dateStr })}
           onLibreSwap={handleLibreSwap}
-          lockedBefore={calId ? todayStr : undefined}
+          lockedBefore={calId && !isAdmin ? todayStr : undefined}
         />
       ) : (
         <CoberturaDelMesView

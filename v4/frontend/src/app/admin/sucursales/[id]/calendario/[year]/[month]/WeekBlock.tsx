@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { workerColor } from "@/components/calendar/worker-colors";
 import type { CalendarSlot, DayShift, WeekPattern } from "@/types";
 import { getWorkerBlockReason, type WorkerBlockDateMap } from "@/lib/calendar/generator";
@@ -46,6 +46,7 @@ export function WeekBlock({
   const [dragOver, setDragOver] = useState<{ slotNum: number; dateStr: string } | null>(null);
   const [workerDragSlot, setWorkerDragSlot] = useState<number | null>(null);
   const [workerDragOver, setWorkerDragOver] = useState<number | null>(null);
+  const [sortBySemana, setSortBySemana] = useState(false);
 
   function assignForDay(d: Date): Record<string, string | null> {
     const dm = d.getMonth() + 1;
@@ -64,6 +65,21 @@ export function WeekBlock({
     : (() => { const d = week.find(w => w.getMonth() + 1 === month); return d ? Math.floor((d.getDate() - 1) / 7) : 0; })();
   const weekDateStrs = week.map(fmt);
   const ganttDay = selectedDay && weekDateStrs.includes(selectedDay) ? selectedDay : null;
+
+  const hasRotation = patternRotation && patternRotation.length > 1;
+  const displaySlots = useMemo(() => {
+    if (!sortBySemana || !hasRotation) return slots;
+    return [...slots].sort((a, b) => {
+      const activeA = localSlots?.find(s => s.slotNumber === a.slotNumber) ?? a;
+      const activeB = localSlots?.find(s => s.slotNumber === b.slotNumber) ?? b;
+      const semA = detectSemanaForWeek(activeA, patternRotation!, weekDateStrs);
+      const semB = detectSemanaForWeek(activeB, patternRotation!, weekDateStrs);
+      if (semA === null && semB === null) return 0;
+      if (semA === null) return 1;
+      if (semB === null) return -1;
+      return semA - semB;
+    });
+  }, [slots, sortBySemana, hasRotation, patternRotation, weekDateStrs, localSlots]);
 
   function handleDragStart(slotNum: number, dateStr: string) {
     setDragSource({ slotNum, dateStr });
@@ -89,8 +105,21 @@ export function WeekBlock({
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
-      <div className="bg-blue-700 text-white px-3 py-1.5 text-sm font-medium">
-        Sem {isoWeek} &nbsp;&nbsp; {rangeLabel}
+      <div className="bg-blue-700 text-white px-3 py-1.5 text-sm font-medium flex items-center justify-between">
+        <span>Sem {isoWeek} &nbsp;&nbsp; {rangeLabel}</span>
+        {hasRotation && (
+          <button
+            onClick={() => setSortBySemana(v => !v)}
+            title={sortBySemana ? "Orden original" : "Ordenar por semana (S1, S2…)"}
+            className={`text-[11px] px-2 py-0.5 rounded border font-semibold transition-colors ${
+              sortBySemana
+                ? "bg-white text-blue-700 border-white"
+                : "bg-blue-600 text-blue-100 border-blue-400 hover:bg-blue-500"
+            }`}
+          >
+            ↕ Sem
+          </button>
+        )}
       </div>
 
       <div className="overflow-x-auto">
@@ -156,8 +185,8 @@ export function WeekBlock({
           )}
 
           <tbody>
-            {/* El orden por semana ya viene resuelto en sortedSlots (padre) */}
-            {slots.map((slot, idx) => {
+            {/* El orden por semana ya viene resuelto en sortedSlots (padre); sortBySemana permite re-ordenar localmente */}
+            {displaySlots.map((slot, idx) => {
               const workerId = assign[String(slot.slotNumber)] ?? null;
               const workerName = workerId ? (workerMap[workerId] ?? "?") : `Vendedor ${slotDisplayNum[slot.slotNumber] ?? slot.slotNumber}`;
               const activeSlot = localSlots?.find(s => s.slotNumber === slot.slotNumber) ?? slot;
