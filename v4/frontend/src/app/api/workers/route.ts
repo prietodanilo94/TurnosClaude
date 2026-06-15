@@ -61,7 +61,16 @@ export async function POST(req: NextRequest) {
     },
     include: {
       branchTeam: {
-        include: { branch: { select: { id: true, nombre: true, codigo: true } } },
+        include: {
+          branch: {
+            select: {
+              id: true,
+              nombre: true,
+              codigo: true,
+              supervisors: { select: { supervisor: { select: { id: true, nombre: true } } } },
+            },
+          },
+        },
       },
     },
   });

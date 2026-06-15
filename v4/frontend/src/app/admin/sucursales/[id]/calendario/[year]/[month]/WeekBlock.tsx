@@ -4,25 +4,7 @@ import { useState, useMemo } from "react";
 import { workerColor } from "@/components/calendar/worker-colors";
 import type { CalendarSlot, DayShift, WeekPattern } from "@/types";
 
-function wouldExceedConsecutive(slotDays: Record<string, DayShift | null>, targetDate: string): boolean {
-  let before = 0;
-  const prevD = new Date(targetDate + "T12:00:00");
-  for (let i = 0; i < 6; i++) {
-    prevD.setDate(prevD.getDate() - 1);
-    const ds = `${prevD.getFullYear()}-${String(prevD.getMonth() + 1).padStart(2, "0")}-${String(prevD.getDate()).padStart(2, "0")}`;
-    if (!slotDays[ds]) break;
-    before++;
-  }
-  let after = 0;
-  const nextD = new Date(targetDate + "T12:00:00");
-  for (let i = 0; i < 6; i++) {
-    nextD.setDate(nextD.getDate() + 1);
-    const ds = `${nextD.getFullYear()}-${String(nextD.getMonth() + 1).padStart(2, "0")}-${String(nextD.getDate()).padStart(2, "0")}`;
-    if (!slotDays[ds]) break;
-    after++;
-  }
-  return before + after + 1 > 6;
-}
+
 import { getWorkerBlockReason, type WorkerBlockDateMap } from "@/lib/calendar/generator";
 import { GanttInline } from "./GanttInline";
 import {
@@ -266,9 +248,7 @@ export function WeekBlock({
                   )}
                   {cells.map(({ dateStr, shift, inMonth, ci, feriado, dayWorkerId, dayWorkerName, blockReason }) => {
                     const isPast = !isAdmin && (lockedBefore ? dateStr < lockedBefore : false);
-                    const isConsecutiveBlocked = inMonth && !isPast && !shift && !feriado && blockReason === null
-                      && wouldExceedConsecutive((localSlots?.find(s => s.slotNumber === slot.slotNumber) ?? slot).days, dateStr);
-                    const canDrag = inMonth && !feriado && !isPast && !isConsecutiveBlocked;
+                    const canDrag = inMonth && !feriado && !isPast;
                     const isBeingDragged = dragSource?.slotNum === slot.slotNumber && dragSource?.dateStr === dateStr;
                     const isDropTarget = dragOver?.slotNum === slot.slotNumber && dragOver?.dateStr === dateStr;
                     return (
@@ -315,13 +295,6 @@ export function WeekBlock({
                                 {shortWorkerName(dayWorkerName)}
                               </div>
                             )}
-                          </div>
-                        ) : isConsecutiveBlocked ? (
-                          <div
-                            title="Día 7 consecutivo bloqueado — añade primero un día libre antes"
-                            className="text-[10px] select-none text-gray-300 cursor-not-allowed"
-                          >
-                            🔒
                           </div>
                         ) : (
                           <div
