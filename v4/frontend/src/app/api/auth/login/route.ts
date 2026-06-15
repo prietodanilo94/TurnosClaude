@@ -54,7 +54,8 @@ export async function POST(req: NextRequest) {
         email: supervisor.email ?? normalizedEmail,
         role,
         supervisorId: supervisor.id,
-        branchIds: supervisor.branches.map((branch) => branch.branchId),
+        // isAdmin tiene acceso a todo — omitir branchIds para no exceder el límite de 4KB de cookie
+        branchIds: supervisor.isAdmin ? [] : supervisor.branches.map((branch) => branch.branchId),
         nombre: supervisor.nombre,
       });
       const res = NextResponse.json({ ok: true, role });
