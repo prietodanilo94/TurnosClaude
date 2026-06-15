@@ -169,7 +169,11 @@ export default function TrabajadoresClient({ initialWorkers, branchTeams, superv
                   </td>
                   <td className="px-4 py-3">
                     <Link
-                      href={`/admin/sucursales/${worker.branchTeam.branch.id}/calendario/${calYear}/${calMonth}?team=${worker.branchTeam.id}`}
+                      href={
+                        worker.branchTeam.branch.groupId
+                          ? `/supervisor/calendario?groupId=${worker.branchTeam.branch.groupId}&year=${calYear}&month=${calMonth}`
+                          : `/admin/sucursales/${worker.branchTeam.branch.id}/calendario/${calYear}/${calMonth}?team=${worker.branchTeam.id}`
+                      }
                       className="text-gray-700 hover:text-blue-600 hover:underline transition-colors"
                     >
                       {worker.branchTeam.branch.nombre}

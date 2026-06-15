@@ -8,6 +8,7 @@ export interface BranchInfo {
   id: string;
   nombre: string;
   codigo: string;
+  groupId: string | null;
   supervisors: { supervisor: { id: string; nombre: string } }[];
 }
 
@@ -55,6 +56,7 @@ export default async function TrabajadoresPage({
       id: true,
       nombre: true,
       codigo: true,
+      groupId: true,
       supervisors: {
         select: { supervisor: { select: { id: true, nombre: true } } },
       },
