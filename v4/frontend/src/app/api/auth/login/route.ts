@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
         branchIds: supervisor.isAdmin ? [] : supervisor.branches.map((branch) => branch.branchId),
         nombre: supervisor.nombre,
       });
-      const res = NextResponse.json({ ok: true, role });
+      const res = NextResponse.json({ ok: true, role: "supervisor" });
       res.cookies.set(sessionCookieOptions(token));
       return res;
     }
