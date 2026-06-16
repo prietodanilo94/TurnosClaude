@@ -49,12 +49,12 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Credenciales incorrectas" }, { status: 401 });
       }
 
-      const role = supervisor.isAdmin ? "admin" : "supervisor";
       const token = await createSession({
         email: supervisor.email ?? normalizedEmail,
-        role,
+        role: "supervisor",
         supervisorId: supervisor.id,
-        // isAdmin tiene acceso a todo — omitir branchIds para no exceder el límite de 4KB de cookie
+        // isAdmin: branchIds vacío — el calendario los carga desde SupervisorBranch en DB
+        // normal: incluir branchIds en JWT (máx ~50 sucursales antes del límite 4KB)
         branchIds: supervisor.isAdmin ? [] : supervisor.branches.map((branch) => branch.branchId),
         nombre: supervisor.nombre,
       });
