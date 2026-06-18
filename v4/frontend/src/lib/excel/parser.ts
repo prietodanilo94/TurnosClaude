@@ -4,7 +4,7 @@ import type { ParseResult, WorkerRow, SupervisorRow, AreaNegocio } from "@/types
 const COL_ALIASES: Record<string, string[]> = {
   rut:              ["rut"],
   nombre:           ["nombre"],
-  area:             ["área", "area"],
+  area:             ["área", "area", "sede"],
   areaNegocio:      ["área de negocio", "area de negocio", "area_negocio", "servicios/ventas"],
   supervisor:       ["supervisor"],
   cargoHomologado:  ["cargo homologado"],
@@ -42,8 +42,8 @@ function normalizeBranchName(raw: string): string {
 
 function normalizeAreaNegocio(raw: string): AreaNegocio | null {
   const v = raw.trim().toLowerCase();
+  if (v.includes("postventa") || v.includes("servicio") || v.includes("mecánica") || v.includes("mecanica")) return "postventa";
   if (v.includes("venta")) return "ventas";
-  if (v.includes("postventa") || v.includes("servicio")) return "postventa";
   return null;
 }
 
@@ -108,17 +108,14 @@ export function parseDotacionExcel(buffer: ArrayBuffer): ParseResult {
 
     const isEsSupervisor = rawEsSup === "true" || rawEsSup === "1";
 
-    // Rows that are not "Asesores de Venta": treat as supervisor if flagged
-    if (colCargo >= 0 && rawCargo.toLowerCase() !== "asesores de venta") {
-      if (isEsSupervisor && rawNombre) {
-        supervisorRows.push({
-          nombre: rawNombre,
-          codigoBranch: area.codigo,
-          nombreBranch: normalizeBranchName(area.nombre),
-          filaExcel: fila,
-        });
-      }
-      continue;
+    // Detect supervisor-flagged rows regardless of cargo
+    if (isEsSupervisor && rawNombre) {
+      supervisorRows.push({
+        nombre: rawNombre,
+        codigoBranch: area.codigo,
+        nombreBranch: normalizeBranchName(area.nombre),
+        filaExcel: fila,
+      });
     }
 
     const rut = normalizeRut(rawRut);
