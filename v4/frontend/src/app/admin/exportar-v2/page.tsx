@@ -9,6 +9,7 @@ interface Props {
     branchId?: string;
     supervisorId?: string;
     worker?: string;
+    onlyPending?: string;
     page?: string;
   };
 }
@@ -217,13 +218,18 @@ export default async function ExportarV2Page({ searchParams }: Props) {
     a.workerName.localeCompare(b.workerName, "es")
   );
 
-  // Apply worker text filter (in-memory, post-processing)
+  // Apply worker text filter
   const workerFilter = searchParams.worker?.toLowerCase().trim();
   if (workerFilter) {
     allRows = allRows.filter(r =>
       r.workerName.toLowerCase().includes(workerFilter) ||
       r.workerRut.toLowerCase().replace(/\./g, "").includes(workerFilter.replace(/\./g, ""))
     );
+  }
+
+  // Apply "solo pendientes" filter
+  if (searchParams.onlyPending === "1") {
+    allRows = allRows.filter(r => r.hasPending);
   }
 
   const total         = allRows.length;
@@ -260,6 +266,7 @@ export default async function ExportarV2Page({ searchParams }: Props) {
         branchId:     searchParams.branchId     ?? "",
         supervisorId: searchParams.supervisorId ?? "",
         worker:       searchParams.worker       ?? "",
+        onlyPending:  searchParams.onlyPending  ?? "",
       }}
     />
   );
