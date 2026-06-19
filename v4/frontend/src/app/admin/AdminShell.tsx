@@ -50,6 +50,7 @@ export default function AdminShell({ userEmail, children }: Props) {
           <NavLink href="/admin/categorias">Categorías</NavLink>
           <NavLink href="/admin/historial">Historial</NavLink>
           <NavLink href="/admin/exportar">Exportar</NavLink>
+          <NavLink href="/admin/exportar-v2">Cambios RRHH</NavLink>
           <NavLink href="/admin/comentarios">Comentarios</NavLink>
         </nav>
 
