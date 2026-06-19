@@ -299,6 +299,15 @@ export async function GET(req: NextRequest) {
     buf = Buffer.from(raw);
   }
 
+  // Marcar calendarios como exportados
+  const exportedCalendarIds = teams.flatMap(t => t.calendars.map(c => c.id));
+  if (exportedCalendarIds.length > 0) {
+    await prisma.calendar.updateMany({
+      where: { id: { in: exportedCalendarIds } },
+      data: { lastExportedAt: new Date() },
+    });
+  }
+
   await logAction({
     action: "calendar.export",
     entityType: "calendar",

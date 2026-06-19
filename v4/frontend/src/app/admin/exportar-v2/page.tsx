@@ -10,13 +10,10 @@ interface Props {
     supervisorId?: string;
     worker?: string;
     onlyPending?: string;
-    page?: string;
   };
 }
 
 export const dynamic = "force-dynamic";
-
-const PAGE_SIZE = 15;
 
 interface RawChange {
   workerId: string;
@@ -41,7 +38,7 @@ interface ParsedLog {
 export default async function ExportarV2Page({ searchParams }: Props) {
   await getSession();
 
-  const page = Math.max(1, Number(searchParams.page ?? "1") || 1);
+  const page = 1;
 
   // Resolve branchIds for supervisor filter
   let branchIdsForSupervisor: string[] | undefined;
@@ -232,11 +229,11 @@ export default async function ExportarV2Page({ searchParams }: Props) {
     allRows = allRows.filter(r => r.hasPending);
   }
 
-  const total         = allRows.length;
-  const totalPending  = allRows.filter(r => r.hasPending).length;
-  const totalEvents   = allRows.reduce((s, r) => s + r.events.length, 0);
-  const totalPages    = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const rows          = allRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const total        = allRows.length;
+  const totalPending = allRows.filter(r => r.hasPending).length;
+  const totalEvents  = allRows.reduce((s, r) => s + r.events.length, 0);
+  const totalPages   = 1;
+  const rows         = allRows;
 
   const [branches, supervisors] = await Promise.all([
     prisma.branch.findMany({
