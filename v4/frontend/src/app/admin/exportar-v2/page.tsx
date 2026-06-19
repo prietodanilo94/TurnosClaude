@@ -83,7 +83,9 @@ export default async function ExportarV2Page({ searchParams }: Props) {
     let meta: Record<string, unknown>;
     try { meta = JSON.parse(log.metadata); } catch { continue; }
 
-    const rawChanges = Array.isArray(meta.changes) ? (meta.changes as RawChange[]) : [];
+    const rawChanges = Array.isArray(meta.changes)
+      ? (meta.changes as RawChange[]).filter(c => typeof c.workerId === "string" && c.workerId)
+      : [];
     if (rawChanges.length === 0) continue;
 
     const year   = typeof meta.year   === "number" ? meta.year   : null;
