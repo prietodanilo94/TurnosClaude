@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, Fragment } from "react";
+import { useState, useMemo, useEffect, useRef, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import SemanaPicker from "@/components/calendar/SemanaPicker";
 import type { CalendarSlot, DayShift, ShiftPatternDef, WeekPattern, WorkerInfo, WorkerBlockInfo } from "@/types";
@@ -12,6 +12,7 @@ import {
   fmt, isFeriadoIrrenunciable, shiftDuration, validateConsecutiveDays, type AttendanceByRut,
 } from "./calendar-utils";
 import { CalendarValidationPanel, buildSaveSuccessFeedback, buildValidationSummary } from "./ValidationPanel";
+import { computeCalendarDiff } from "@/lib/calendar/diff";
 import { WeekBlock } from "./WeekBlock";
 import { CoberturaDelMesView } from "./CoberturaDelMes";
 import { VendedorTabView } from "./VendedorTab";
@@ -112,6 +113,8 @@ export default function CalendarView({
     slots.map(s => ({ ...s, days: { ...s.days } }))
   );
   const [assign, setAssign] = useState<Record<string, string | null>>(assignments);
+  const initialSlots = useRef<CalendarSlot[]>(slots);
+  const initialAssignments = useRef<Record<string, string | null>>(assignments);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [calId, setCalId] = useState(calendarId);
@@ -190,6 +193,21 @@ export default function CalendarView({
         setCalId(d.id);
         setDirty(false);
         setSaveFeedback(buildSaveSuccessFeedback(validation, calendarScopeLabel ?? branchName));
+        const changes = calId
+          ? computeCalendarDiff(initialSlots.current, localSlots, initialAssignments.current, assign, workerMap, year, month)
+          : undefined;
+        void fetch("/api/calendars/save-notify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            teamIds: [teamId],
+            year,
+            month,
+            scopeLabel: calendarScopeLabel ?? branchName,
+            scopeType: calendarScopeType,
+            changes: changes ?? null,
+          }),
+        });
         return d.id as string;
       }
       const data = await res.json().catch(() => ({}));
