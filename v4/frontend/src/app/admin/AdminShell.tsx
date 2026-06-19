@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 
 function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
   const pathname = usePathname();
-  const active = pathname === href || (href !== "/admin" && pathname.startsWith(href));
+  const active = pathname === href || (href !== "/admin" && pathname.startsWith(href + "/"));
   return (
     <Link
       href={href}
