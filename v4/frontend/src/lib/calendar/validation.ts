@@ -250,6 +250,8 @@ export function validateCalendarForPublish({
     }
 
     const offSundays = sundaysInMonth.filter((s) => !slot.days[s]);
+    const worksAnySunday = sundaysInMonth.some((s) => !!slot.days[s]);
+
     if (offSundays.length < 2) {
       issues.push({
         severity: "error",
@@ -258,7 +260,8 @@ export function validateCalendarForPublish({
         detail: `Se requieren al menos 2 domingos libres en el mes. Libera ${2 - offSundays.length} domingo${2 - offSundays.length !== 1 ? "s" : ""} más.`,
         slotNumber: slot.slotNumber,
       });
-    } else {
+    } else if (worksAnySunday) {
+      // Solo verificar consecutivos si el trabajador trabaja algún domingo
       for (let i = 0; i < offSundays.length - 1; i++) {
         const gap = Math.round(
           (new Date(offSundays[i + 1] + "T12:00:00").getTime() - new Date(offSundays[i] + "T12:00:00").getTime()) / 86400000,
