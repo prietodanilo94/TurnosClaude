@@ -252,7 +252,7 @@ export default function CalendarView({
     }
     void doSave().then(id => onComplete?.(id ?? null));
   }
-  const [saveFeedback, setSaveFeedback] = useState<{ tone: "success" | "warning" | "error"; text: string } | null>(null);
+  const [saveFeedback, setSaveFeedback] = useState<{ tone: "success" | "warning" | "error"; text: string; details?: string[] } | null>(null);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [view, setView] = useState<"mensual" | "vendedor" | "diario">("mensual");
   const [selectedSlots, setSelectedSlots] = useState<Set<number>>(
@@ -813,7 +813,17 @@ export default function CalendarView({
               ? "bg-amber-50 border-amber-200 text-amber-800"
               : "bg-rose-50 border-rose-200 text-rose-800"
         }`}>
-          {saveFeedback.text}
+          <span className="font-medium">{saveFeedback.text}</span>
+          {saveFeedback.details && saveFeedback.details.length > 0 && (
+            <ul className="mt-1.5 space-y-0.5 list-none">
+              {saveFeedback.details.map((d, i) => (
+                <li key={i} className="flex gap-1.5">
+                  <span className="shrink-0">•</span>
+                  <span>{d}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 

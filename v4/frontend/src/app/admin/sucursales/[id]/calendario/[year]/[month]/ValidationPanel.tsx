@@ -60,11 +60,12 @@ export function buildValidationSummary(validation: CalendarValidationResult) {
 export function buildSaveSuccessFeedback(
   validation: CalendarValidationResult,
   scopeLabel: string,
-): { tone: "success" | "warning"; text: string } {
+): { tone: "success" | "warning"; text: string; details?: string[] } {
   if (validation.errors.length > 0) {
     return {
       tone: "warning",
-      text: `${scopeLabel}: calendario guardado como version incompleta. Quedan ${validation.errors.length} problema${validation.errors.length !== 1 ? "s" : ""} por corregir.`,
+      text: `${scopeLabel}: calendario guardado como versión incompleta. Quedan ${validation.errors.length} problema${validation.errors.length !== 1 ? "s" : ""} por corregir:`,
+      details: validation.errors.map(e => `${e.title} — ${e.detail}`),
     };
   }
 
@@ -72,6 +73,7 @@ export function buildSaveSuccessFeedback(
     return {
       tone: "warning",
       text: `${scopeLabel}: calendario guardado con ${validation.warnings.length} advertencia${validation.warnings.length !== 1 ? "s" : ""}.`,
+      details: validation.warnings.map(w => `${w.title} — ${w.detail}`),
     };
   }
 
