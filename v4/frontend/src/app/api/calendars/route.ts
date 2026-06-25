@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { logAction } from "@/lib/audit/log";
+import { getSessionFromRequest } from "@/lib/auth/session";
+import { assertTeamAccess, assertBranchAccess } from "@/lib/auth/ownership";
 
 export async function POST(req: NextRequest) {
   const { teamId, year, month, slotsData, assignments, validationSummary, scopeLabel, scopeType } = await req.json();
+
+  const session = await getSessionFromRequest(req);
+  if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+  if (!(await assertTeamAccess(session, teamId))) {
+    return NextResponse.json({ error: "Sin acceso a este equipo" }, { status: 403 });
+  }
 
   const team = await prisma.branchTeam.findUnique({
     where: { id: teamId },
@@ -61,12 +70,19 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   const { id, slotsData, assignments, validationSummary, scopeLabel, scopeType } = await req.json();
 
+  const session = await getSessionFromRequest(req);
+  if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
   const current = await prisma.calendar.findUnique({
     where: { id },
     include: { branchTeam: { select: { branchId: true } } },
   });
   if (!current) {
     return NextResponse.json({ error: "Calendario no encontrado" }, { status: 404 });
+  }
+
+  if (!(await assertBranchAccess(session, current.branchTeam.branchId))) {
+    return NextResponse.json({ error: "Sin acceso a este calendario" }, { status: 403 });
   }
 
   const calendar = await prisma.calendar.update({

@@ -1,6 +1,15 @@
 // Utilidades compartidas del calendario (fechas, formato, semanas rotativas)
 import type { CalendarSlot, DayShift, WeekPattern } from "@/types";
 
+// Re-exportar desde la librería compartida para no duplicar código
+export {
+  dowIndex,
+  fmt,
+  FERIADOS_IRRENUNCIABLES,
+  isFeriadoIrrenunciable,
+  shiftDuration,
+} from "@/lib/calendar/calendar-utils";
+
 export const DOW_LABELS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 export const MONTH_NAMES = [
   "", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -10,23 +19,6 @@ export const MONTH_ABBR = [
   "", "Ene", "Feb", "Mar", "Abr", "May", "Jun",
   "Jul", "Ago", "Sep", "Oct", "Nov", "Dic",
 ];
-
-export function dowIndex(d: Date) { return (d.getDay() + 6) % 7; }
-export function fmt(d: Date) { return d.toISOString().slice(0, 10); }
-
-export const FERIADOS_IRRENUNCIABLES: [number, number][] = [
-  [1, 1], [5, 1], [9, 18], [9, 19], [12, 25],
-];
-export function isFeriadoIrrenunciable(d: Date): boolean {
-  return FERIADOS_IRRENUNCIABLES.some(([m, day]) => d.getMonth() + 1 === m && d.getDate() === day);
-}
-
-export function shiftDuration(s: DayShift): number {
-  const [h1, m1] = s.start.split(":").map(Number);
-  const [h2, m2] = s.end.split(":").map(Number);
-  const total = Math.max(0, (h2 * 60 + m2 - h1 * 60 - m1) / 60);
-  return total >= 6 ? total - 1 : total;
-}
 
 export function minutesFromTime(t: string): number {
   const [h, m] = t.split(":").map(Number);
