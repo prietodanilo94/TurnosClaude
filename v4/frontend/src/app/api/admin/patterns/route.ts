@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
-import type { WeekPattern } from "@/types";
-import { parseRotationJson, parseWeeklyHoursJson } from "@/lib/db/schemas";
+import { parseRotationJson, parseWeeklyHoursJson, ShiftPatternBodySchema } from "@/lib/db/schemas";
 
 export async function GET() {
   const [dbPatterns, usageCounts] = await Promise.all([
@@ -28,23 +27,18 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const body = await req.json() as {
-    label: string;
-    areaNegocio: string;
-    rotationWeeks: WeekPattern[];
-    weeklyHours: number[];
-  };
-
-  if (!body.label?.trim() || !body.areaNegocio || !body.rotationWeeks?.length) {
-    return NextResponse.json({ error: "Datos incompletos" }, { status: 400 });
+  const parsed = ShiftPatternBodySchema.safeParse(await req.json());
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Datos inválidos", detail: parsed.error.message }, { status: 400 });
   }
+  const { label, areaNegocio, rotationWeeks, weeklyHours } = parsed.data;
 
   const pattern = await prisma.shiftPattern.create({
     data: {
-      label: body.label.trim(),
-      areaNegocio: body.areaNegocio,
-      rotationJson: JSON.stringify(body.rotationWeeks),
-      weeklyHoursJson: JSON.stringify(body.weeklyHours),
+      label: label.trim(),
+      areaNegocio,
+      rotationJson:    JSON.stringify(rotationWeeks),
+      weeklyHoursJson: JSON.stringify(weeklyHours),
     },
   });
 
