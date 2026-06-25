@@ -6,7 +6,7 @@ const { log } = require('./utils');
 
 /**
  * Envía el archivo Excel al webhook de n8n vía HTTP POST.
- * Después de entrega exitosa, limpia el archivo local.
+ * El archivo se conserva localmente; se limpia vía cron dominical.
  */
 async function deliver(filePath, webhookUrl) {
   log('DELIVER', '=== Iniciando Entrega a n8n ===');
@@ -44,10 +44,7 @@ async function deliver(filePath, webhookUrl) {
 
     log('DELIVER', `✅ Entrega exitosa — HTTP ${response.status}`);
     log('DELIVER', `   Respuesta: ${JSON.stringify(response.data).substring(0, 200)}`);
-
-    // Limpiar archivo descargado
-    fs.unlinkSync(filePath);
-    log('DELIVER', `Archivo local eliminado: ${filePath}`);
+    log('DELIVER', `Archivo conservado: ${filePath}`);
 
     return response.data;
   } catch (err) {
