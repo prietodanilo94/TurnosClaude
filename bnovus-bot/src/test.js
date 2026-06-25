@@ -173,23 +173,28 @@ async function stepRecalculate(page) {
   const fechaHoyStr = `${String(hoy.getDate()).padStart(2,'0')}-${String(hoy.getMonth()+1).padStart(2,'0')}-${hoy.getFullYear()}`;
   const MAX_WAIT = 15 * 60 * 1000;
   const startTime = Date.now();
+  let estadoFinal = '';
 
   while (Date.now() - startTime < MAX_WAIT) {
     await page.waitForTimeout(15000);
 
-    const fechaActual = await page.evaluate(() => {
+    const { fechaActual, estado } = await page.evaluate(() => {
       const rows = document.querySelectorAll('table tbody tr');
       for (const row of rows) {
         const cells = row.querySelectorAll('td');
-        if (cells.length >= 3) return cells[2].innerText.trim();
+        if (cells.length >= 3) return {
+          fechaActual: cells[2].innerText.trim(),
+          estado: cells[5] ? cells[5].innerText.trim() : '',
+        };
       }
-      return '';
+      return { fechaActual: '', estado: '' };
     });
 
     const elapsed = Math.round((Date.now() - startTime) / 1000);
-    log('RECALC', `[${elapsed}s] Fecha Terminado: "${fechaActual}"`);
+    log('RECALC', `[${elapsed}s] Fecha Terminado: "${fechaActual}" | Estado: "${estado}"`);
 
     if (fechaActual && fechaActual !== fechaAntes && fechaActual.includes(fechaHoyStr)) {
+      estadoFinal = estado;
       log('RECALC', '✅ Proceso completado detectado');
       break;
     }
@@ -200,8 +205,12 @@ async function stepRecalculate(page) {
   }
 
   await page.waitForTimeout(2000);
-
   await screenshot(page, '03_recalc_despues');
+
+  if (estadoFinal.toLowerCase().includes('error')) {
+    throw new Error(`Recálculo terminó con estado "${estadoFinal}" — abortando para evitar entregar reporte con datos incorrectos`);
+  }
+
   log('RECALC', '✅ Recálculo completado');
 }
 
