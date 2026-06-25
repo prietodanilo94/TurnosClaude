@@ -1,16 +1,8 @@
 import { getPatternOrThrow } from "../patterns/catalog";
 import { dateRangeInclusive } from "../dates";
+import { dowIndex, fmt } from "./calendar-utils";
+import { getWeekIndex } from "../week-index";
 import type { CalendarSlot, ShiftPatternDef, DayShift, WorkerBlockInfo } from "../../types";
-
-// Devuelve índice de día de la semana: Lun=0 ... Dom=6
-function dowIndex(date: Date): number {
-  return (date.getDay() + 6) % 7; // JS: Dom=0 → Lun=0
-}
-
-// Formato YYYY-MM-DD
-function fmt(date: Date): string {
-  return date.toISOString().slice(0, 10);
-}
 
 export interface GenerateResult {
   slots: CalendarSlot[];
@@ -63,7 +55,7 @@ export function generateCalendar(
   // Compute semanaOffset for each slot: the rotation index active in week 1 of the month
   const firstDayMonday = new Date(firstDay);
   firstDayMonday.setDate(firstDay.getDate() - dowIndex(firstDay));
-  const firstIsoWeek = Math.floor(firstDayMonday.getTime() / (7 * 24 * 3600 * 1000));
+  const firstIsoWeek = getWeekIndex(firstDayMonday);
 
   for (let slotNum = 1; slotNum <= workerCount; slotNum++) {
     const days: Record<string, DayShift | null> = {};
@@ -74,7 +66,7 @@ export function generateCalendar(
 
       const monday = new Date(cur);
       monday.setDate(cur.getDate() - dowIndex(cur));
-      const isoWeek = Math.floor(monday.getTime() / (7 * 24 * 3600 * 1000));
+      const isoWeek = getWeekIndex(monday);
 
       const weekIdx = pattern.fixedSlots
         ? (slotNum - 1) % rotLen

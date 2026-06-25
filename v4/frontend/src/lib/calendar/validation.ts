@@ -1,5 +1,6 @@
 import type { CalendarSlot, DayShift } from "@/types";
 import type { WorkerBlockDateMap } from "@/lib/calendar/generator";
+import { shiftDuration, FERIADOS_IRRENUNCIABLES } from "./calendar-utils";
 
 export type CalendarValidationSeverity = "error" | "warning";
 
@@ -40,16 +41,6 @@ export interface CalendarValidationResult {
   exceeds42hLimit: boolean;
 }
 
-function shiftDuration(shift: DayShift): number {
-  const [h1, m1] = shift.start.split(":").map(Number);
-  const [h2, m2] = shift.end.split(":").map(Number);
-  const total = Math.max(0, (h2 * 60 + m2 - h1 * 60 - m1) / 60);
-  return total >= 6 ? total - 1 : total;
-}
-
-const FERIADOS_IRRENUNCIABLES: [number, number][] = [
-  [1, 1], [5, 1], [9, 18], [9, 19], [12, 25],
-];
 function isFeriado(dateStr: string): boolean {
   const d = new Date(dateStr + "T12:00:00");
   return FERIADOS_IRRENUNCIABLES.some(([m, day]) => d.getMonth() + 1 === m && d.getDate() === day);
