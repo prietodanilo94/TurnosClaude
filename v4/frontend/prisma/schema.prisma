@@ -107,6 +107,8 @@ model Supervisor {
   passwordHash String?
   activo       Boolean              @default(true)
   isAdmin      Boolean              @default(false)
+  // invisible=true: ocultar de la lista pública de supervisores (ej. admin técnico, cuenta de sistema).
+  // No afecta login ni permisos — solo visibilidad en /admin/supervisores.
   invisible    Boolean              @default(false)
   branches     SupervisorBranch[]
   comments     SupervisorComment[]
@@ -144,12 +146,15 @@ model WorkerBlock {
   createdAt DateTime @default(now())
 }
 
+// AttendanceRecord: tabla experimental para registro de marcajes (entrada/salida).
+// Estado: modelo creado y con ruta de seed (/api/admin/attendance/seed) pero SIN spec activa.
+// No está integrada al flujo principal de calendarios. Evaluar si activar o eliminar en F6.
 model AttendanceRecord {
   id        String   @id @default(cuid())
   rut       String
-  fecha     String
-  entrada   String?
-  salida    String?
+  fecha     String   // YYYY-MM-DD
+  entrada   String?  // HH:MM
+  salida    String?  // HH:MM
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -161,7 +166,10 @@ model ShiftPattern {
   id              String      @id @default(cuid())
   label           String
   areaNegocio     String
+  // JSON: WeekPattern[] — array de semanas, cada una es Record<dow, DayShift|null> (dow 0=Lun..6=Dom)
+  // ⚠️ Parsear con validación estructural antes de usar; JSON.parse ciego puede producir turnos undefined.
   rotationJson    String
+  // JSON: { weeklyHours: number } — informativo solamente. No usar para validación; calcular desde DayShift real.
   weeklyHoursJson String
   supervisorId    String?
   supervisor      Supervisor? @relation(fields: [supervisorId], references: [id], onDelete: Cascade)
