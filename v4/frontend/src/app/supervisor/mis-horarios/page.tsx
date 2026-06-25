@@ -2,6 +2,7 @@ import { getSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 import { redirect } from "next/navigation";
 import PatternBuilderClient from "./PatternBuilderClient";
+import { parseRotationJson, parseWeeklyHoursJson } from "@/lib/db/schemas";
 
 export const dynamic = "force-dynamic";
 
@@ -32,8 +33,8 @@ export default async function MisHorariosPage() {
           id: p.id,
           label: p.label,
           areaNegocio: p.areaNegocio as "ventas" | "postventa",
-          rotationWeeks: JSON.parse(p.rotationJson),
-          weeklyHours: JSON.parse(p.weeklyHoursJson),
+          rotationWeeks: parseRotationJson(p.rotationJson),
+          weeklyHours: parseWeeklyHoursJson(p.weeklyHoursJson),
         }))}
       />
     </div>

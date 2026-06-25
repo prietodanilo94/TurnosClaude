@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getSession } from "@/lib/auth/session";
 import CategorySelector from "./CategorySelector";
 import WorkerAccessManager from "./WorkerAccessManager";
+import { parseRotationJson, parseWeeklyHoursJson } from "@/lib/db/schemas";
 
 interface Props {
   params: { id: string };
@@ -47,8 +48,8 @@ export default async function BranchDetailPage({ params, searchParams }: Props) 
     id: p.id,
     label: p.label,
     areaNegocio: p.areaNegocio as "ventas" | "postventa",
-    rotationWeeks: JSON.parse(p.rotationJson) as unknown[],
-    weeklyHours: JSON.parse(p.weeklyHoursJson) as number[],
+    rotationWeeks: parseRotationJson(p.rotationJson),
+    weeklyHours: parseWeeklyHoursJson(p.weeklyHoursJson),
   }));
 
   const now = new Date();

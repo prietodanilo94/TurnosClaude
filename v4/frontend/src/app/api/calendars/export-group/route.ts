@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db/prisma";
 import { generateCalendar } from "@/lib/calendar/generator";
 import { logAction } from "@/lib/audit/log";
 import type { CalendarSlot, DayShift } from "@/types";
+import { parseSlotsData, parseAssignments } from "@/lib/db/schemas";
 
 const MONTH_NAMES = [
   "", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -254,9 +255,9 @@ export async function GET(req: NextRequest) {
       if (!existing && !team.categoria) continue;
 
       const slots: CalendarSlot[] = existing
-        ? JSON.parse(existing.slotsData)
+        ? parseSlotsData(existing.slotsData)
         : generateCalendar(team.categoria!, year, month, team.workers.length).slots;
-      const assignments: Record<string, string | null> = existing ? JSON.parse(existing.assignments) : {};
+      const assignments: Record<string, string | null> = existing ? parseAssignments(existing.assignments) : {};
       const workerRutMap = Object.fromEntries(team.workers.map((w) => [w.id, w.rut]));
 
       const sheetName = safeSheetName(`${team.branch.nombre}_${team.areaNegocio}`);
@@ -281,9 +282,9 @@ export async function GET(req: NextRequest) {
       if (!existing && !team.categoria) continue;
 
       const slots: CalendarSlot[] = existing
-        ? JSON.parse(existing.slotsData)
+        ? parseSlotsData(existing.slotsData)
         : generateCalendar(team.categoria!, year, month, team.workers.length).slots;
-      const assignments: Record<string, string | null> = existing ? JSON.parse(existing.assignments) : {};
+      const assignments: Record<string, string | null> = existing ? parseAssignments(existing.assignments) : {};
       const workerMap = Object.fromEntries(team.workers.map((w) => [w.id, w.nombre]));
 
       const sheetName = safeSheetName(`${team.branch.nombre}_${team.areaNegocio}`);

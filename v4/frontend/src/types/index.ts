@@ -1,23 +1,6 @@
-export type AreaNegocio = "ventas" | "postventa";
-
-export type ShiftCategory =
-  | "ventas_standalone"
-  | "optimo_autoplaza"
-  | "optimo_arauco_maipu"
-  | "optimo_movicenter"
-  | "optimo_autopark"
-  | "ventas_geely_oeste"
-  | "ventas_usados_oeste"
-  | "ventas_kia_oeste"
-  | "ventas_dfsk_oeste"
-  | "ventas_dfsk_oeste2"
-  | "ventas_dfsk_plaza_sur"
-  | "ventas_subaru_plaza_sur"
-  | "postventa_vista_hermosa"
-  | "postventa_standalone"
-  | "postventa_cap"
-  | "postventa_mall_mqt"  // Movicenter, Quilín, Tobalaba
-  | "postventa_mall_oeste"; // Plaza Oeste
+// ShiftCategory y AreaNegocio se derivan del registry — no editar aquí.
+// Para agregar una categoría: editar src/lib/shifts/category-registry.ts
+export type { ShiftCategory, AreaNegocio } from "@/lib/shifts/category-registry";
 
 // Turno de un día: null = libre
 export interface DayShift {

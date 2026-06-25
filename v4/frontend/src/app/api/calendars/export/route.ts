@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { generateCalendar } from "@/lib/calendar/generator";
 import { logAction } from "@/lib/audit/log";
 import * as XLSX from "xlsx";
+import { parseSlotsData, parseAssignments } from "@/lib/db/schemas";
 import ExcelJS from "exceljs";
 import type { CalendarSlot, DayShift } from "@/types";
 
@@ -98,8 +99,8 @@ export async function GET(req: NextRequest) {
 
   const existing = team.calendars[0];
   if (existing) {
-    slots = JSON.parse(existing.slotsData);
-    assignments = JSON.parse(existing.assignments);
+    slots = parseSlotsData(existing.slotsData);
+    assignments = parseAssignments(existing.assignments);
   } else {
     const result = generateCalendar(team.categoria, year, month, team.workers.length);
     slots = result.slots;

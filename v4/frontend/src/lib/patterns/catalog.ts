@@ -1,4 +1,5 @@
 import type { ShiftPatternDef, WeekPattern, DayShift } from "@/types";
+import { parseRotationJson, parseWeeklyHoursJson } from "@/lib/db/schemas";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -492,8 +493,8 @@ export function patternFromRow(row: { id: string; label: string; areaNegocio: st
     id: row.id,
     label: row.label,
     areaNegocio: row.areaNegocio as "ventas" | "postventa",
-    rotationWeeks: JSON.parse(row.rotationJson) as WeekPattern[],
-    weeklyHours: JSON.parse(row.weeklyHoursJson) as number[],
+    rotationWeeks: parseRotationJson(row.rotationJson),
+    weeklyHours: parseWeeklyHoursJson(row.weeklyHoursJson),
   };
 }
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import type { WeekPattern } from "@/types";
+import { parseRotationJson, parseWeeklyHoursJson } from "@/lib/db/schemas";
 
 export async function GET() {
   const [dbPatterns, usageCounts] = await Promise.all([
@@ -17,8 +18,8 @@ export async function GET() {
     id: p.id,
     label: p.label,
     areaNegocio: p.areaNegocio,
-    rotationWeeks: JSON.parse(p.rotationJson) as WeekPattern[],
-    weeklyHours: JSON.parse(p.weeklyHoursJson) as number[],
+    rotationWeeks: parseRotationJson(p.rotationJson),
+    weeklyHours: parseWeeklyHoursJson(p.weeklyHoursJson),
     usageCount: countMap.get(p.id) ?? 0,
     createdAt: p.createdAt,
   }));

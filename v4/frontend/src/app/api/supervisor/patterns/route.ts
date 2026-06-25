@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSessionFromRequest } from "@/lib/auth/session";
 import type { WeekPattern } from "@/types";
+import { parseRotationJson, parseWeeklyHoursJson } from "@/lib/db/schemas";
 
 export async function GET(req: NextRequest) {
   const session = await getSessionFromRequest(req);
@@ -17,7 +18,12 @@ export async function GET(req: NextRequest) {
   });
 
   return NextResponse.json(
-    patterns.map((p) => ({ ...p, isCustom: p.supervisorId !== null })),
+    patterns.map((p) => ({
+      ...p,
+      rotationWeeks: parseRotationJson(p.rotationJson),
+      weeklyHours: parseWeeklyHoursJson(p.weeklyHoursJson),
+      isCustom: p.supervisorId !== null,
+    })),
   );
 }
 
@@ -57,5 +63,10 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  return NextResponse.json({ ...pattern, isCustom: true }, { status: 201 });
+  return NextResponse.json({
+    ...pattern,
+    rotationWeeks: parseRotationJson(pattern.rotationJson),
+    weeklyHours: parseWeeklyHoursJson(pattern.weeklyHoursJson),
+    isCustom: true,
+  }, { status: 201 });
 }
