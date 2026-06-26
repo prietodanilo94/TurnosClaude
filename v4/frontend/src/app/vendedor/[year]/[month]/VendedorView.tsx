@@ -4,6 +4,10 @@ import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { buildWorkerBlockDateMap, getWorkerBlockReason } from "@/lib/calendar/generator";
 import type { CalendarSlot, DayShift, WorkerBlockInfo } from "@/types";
+import {
+  dowIndex, fmt, shiftDuration, isoWeekNumber, buildIsoWeeks,
+  isFeriadoIrrenunciable,
+} from "@/lib/calendar/calendar-utils";
 
 const MONTH_NAMES = [
   "", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -15,60 +19,8 @@ const MONTH_ABBR = [
 ];
 const DOW_LABELS = ["Lun", "Mar", "Mie", "Jue", "Vie", "Sab", "Dom"];
 
-const FERIADOS_IRRENUNCIABLES: [number, number][] = [
-  [1, 1], [5, 1], [9, 18], [9, 19], [12, 25],
-];
-function isFeriado(date: Date) {
-  return FERIADOS_IRRENUNCIABLES.some(([month, day]) => date.getMonth() + 1 === month && date.getDate() === day);
-}
-
-function dowIndex(date: Date) {
-  return (date.getDay() + 6) % 7;
-}
-
-function fmt(date: Date) {
-  return date.toISOString().slice(0, 10);
-}
-
-function shiftDuration(shift: DayShift): number {
-  const [h1, m1] = shift.start.split(":").map(Number);
-  const [h2, m2] = shift.end.split(":").map(Number);
-  const total = Math.max(0, (h2 * 60 + m2 - h1 * 60 - m1) / 60);
-  return total >= 6 ? total - 1 : total;
-}
-
 function fmtHours(hours: number): string {
   return Number.isInteger(hours) ? `${hours}h` : `${hours.toFixed(1)}h`;
-}
-
-function isoWeekNumber(date: Date): number {
-  const target = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  const dayNr = (target.getUTCDay() + 6) % 7;
-  target.setUTCDate(target.getUTCDate() - dayNr + 3);
-  const firstThursday = target.valueOf();
-  target.setUTCMonth(0, 1);
-  if (target.getUTCDay() !== 4) target.setUTCMonth(0, 1 + ((4 - target.getUTCDay()) + 7) % 7);
-  return 1 + Math.ceil((firstThursday - target.valueOf()) / 604800000);
-}
-
-function buildIsoWeeks(year: number, month: number): Date[][] {
-  const first = new Date(year, month - 1, 1);
-  const last = new Date(year, month, 0);
-  const start = new Date(first);
-  start.setDate(first.getDate() - dowIndex(first));
-  const end = new Date(last);
-  end.setDate(last.getDate() + (6 - dowIndex(last)));
-  const weeks: Date[][] = [];
-  const cursor = new Date(start);
-  while (cursor <= end) {
-    const week: Date[] = [];
-    for (let index = 0; index < 7; index++) {
-      week.push(new Date(cursor));
-      cursor.setDate(cursor.getDate() + 1);
-    }
-    weeks.push(week);
-  }
-  return weeks;
 }
 
 function fmtDateRange(start: Date, end: Date): string {
@@ -134,7 +86,7 @@ export default function VendedorView({
         const dateStr = fmt(day);
         const shift = slot.days[dateStr] ?? null;
         const blockReason = getWorkerBlockReason(blockMap, workerBlocks[0]?.workerId ?? null, dateStr);
-        if (shift && !isFeriado(day) && blockReason === null) {
+        if (shift && !isFeriadoIrrenunciable(day) && blockReason === null) {
           totalHours += shiftDuration(shift);
           totalDays++;
         }
@@ -210,7 +162,7 @@ export default function VendedorView({
                   let weekHours = 0;
                   const days = week.map((day, columnIndex) => {
                     const inMonth = day.getMonth() + 1 === month;
-                    const feriado = isFeriado(day);
+                    const feriado = isFeriadoIrrenunciable(day);
                     const dateStr = fmt(day);
                     const shift = slot.days[dateStr] ?? null;
                     const blockReason = getWorkerBlockReason(blockMap, workerBlocks[0]?.workerId ?? null, dateStr);

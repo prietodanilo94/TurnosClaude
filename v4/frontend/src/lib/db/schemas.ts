@@ -92,6 +92,21 @@ export const TeamCategoriaBodySchema = z.object({
   categoria: z.string().min(1),
 });
 
+/** POST /api/calendars/validation-attempt */
+export const ValidationAttemptBodySchema = z.object({
+  teamId:    z.string().min(1),
+  year:      z.number().int().min(2024).max(2035),
+  month:     z.number().int().min(1).max(12),
+  outcome:   z.enum(["blocked", "saved", "unknown"]).optional(),
+  scopeLabel: z.string().optional(),
+  scopeType:  z.enum(["branch", "group"]).optional(),
+  validationSummary: z.object({
+    errorCount:   z.number().int().nonnegative(),
+    warningCount: z.number().int().nonnegative(),
+    warningCodes: z.array(z.string()),
+  }).optional(),
+});
+
 const ValidationSummarySchema = z.object({
   errorCount:    z.number().int().nonnegative(),
   warningCount:  z.number().int().nonnegative(),

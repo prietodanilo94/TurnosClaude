@@ -8,6 +8,8 @@ export {
   FERIADOS_IRRENUNCIABLES,
   isFeriadoIrrenunciable,
   shiftDuration,
+  isoWeekNumber,
+  buildIsoWeeks,
 } from "@/lib/calendar/calendar-utils";
 
 export const DOW_LABELS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
@@ -45,34 +47,6 @@ export function validateConsecutiveDays(days: Record<string, DayShift | null>): 
   return true;
 }
 
-export function isoWeekNumber(d: Date): number {
-  const target = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-  const dayNr = (target.getUTCDay() + 6) % 7;
-  target.setUTCDate(target.getUTCDate() - dayNr + 3);
-  const firstThursday = target.valueOf();
-  target.setUTCMonth(0, 1);
-  if (target.getUTCDay() !== 4) {
-    target.setUTCMonth(0, 1 + ((4 - target.getUTCDay()) + 7) % 7);
-  }
-  return 1 + Math.ceil((firstThursday - target.valueOf()) / 604800000);
-}
-
-export function buildIsoWeeks(year: number, month: number): Date[][] {
-  const first = new Date(year, month - 1, 1);
-  const last = new Date(year, month, 0);
-  const start = new Date(first);
-  start.setDate(first.getDate() - dowIndex(first));
-  const end = new Date(last);
-  end.setDate(last.getDate() + (6 - dowIndex(last)));
-  const weeks: Date[][] = [];
-  const cur = new Date(start);
-  while (cur <= end) {
-    const week: Date[] = [];
-    for (let i = 0; i < 7; i++) { week.push(new Date(cur)); cur.setDate(cur.getDate() + 1); }
-    weeks.push(week);
-  }
-  return weeks;
-}
 
 export function fmtDateRange(d1: Date, d2: Date): string {
   if (d1.getMonth() === d2.getMonth()) {

@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { logAction } from "@/lib/audit/log";
+import { ValidationAttemptBodySchema } from "@/lib/db/schemas";
 
 export async function POST(req: NextRequest) {
-  const { teamId, year, month, scopeLabel, scopeType, outcome, validationSummary } = await req.json();
-
-  if (!teamId || !year || !month) {
-    return NextResponse.json({ error: "Faltan datos del calendario" }, { status: 400 });
+  const parsed = ValidationAttemptBodySchema.safeParse(await req.json());
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Datos inválidos", detail: parsed.error.message }, { status: 400 });
   }
+  const { teamId, year, month, scopeLabel, scopeType, outcome, validationSummary } = parsed.data;
 
   const team = await prisma.branchTeam.findUnique({
     where: { id: teamId },
