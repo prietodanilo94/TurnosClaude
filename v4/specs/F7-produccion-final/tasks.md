@@ -52,13 +52,13 @@
 
 ## Fase 5: Backup, restore y rollback
 
-- [ ] Documentar ubicacion real de la base SQLite en servidor.
-- [ ] Crear comando de backup manual con timestamp.
+- [x] Documentar ubicacion real de la base SQLite en servidor. (pompeyo:/data/v4.db en v4-frontend-1)
+- [x] Crear comando de backup manual con timestamp. (backup-rollback-runbook.md)
 - [ ] Probar backup antes de deploy.
 - [ ] Probar restore en ambiente controlado o registrar bloqueo.
-- [ ] Documentar rollback por git commit.
-- [ ] Documentar rollback por Docker.
-- [ ] Registrar commit estable candidato a produccion.
+- [x] Documentar rollback por git commit. (backup-rollback-runbook.md — git revert + push)
+- [x] Documentar rollback por Docker. (backup-rollback-runbook.md — retag imagen SHA)
+- [x] Registrar commit estable candidato a produccion. (tag v4-stable-20260505)
 - [ ] Definir ventana de deploy y responsable de rollback.
 
 ## Fase 6: Mensajes y soporte
@@ -71,11 +71,11 @@
 
 ## Fase 7: Observabilidad basica
 
-- [ ] Documentar comandos para revisar logs del contenedor.
-- [ ] Documentar comandos para confirmar estado Docker.
-- [ ] Documentar comandos para confirmar commit desplegado.
-- [ ] Revisar si historial cubre generacion, guardado, exportacion y errores relevantes.
-- [ ] Definir que alerta manual revisar durante primera semana.
+- [x] Documentar comandos para revisar logs del contenedor. (observabilidad.md)
+- [x] Documentar comandos para confirmar estado Docker. (observabilidad.md)
+- [x] Documentar comandos para confirmar commit desplegado. (observabilidad.md)
+- [x] Revisar si historial cubre generacion, guardado, exportacion y errores relevantes. (si — ver tabla en observabilidad.md)
+- [x] Definir que alerta manual revisar durante primera semana. (observabilidad.md — 3 checks diarios)
 
 ## Fase 8: Ensayo go-live
 
