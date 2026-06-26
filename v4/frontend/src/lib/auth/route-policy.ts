@@ -28,6 +28,7 @@ export const ROUTE_POLICY: Record<string, PolicyLevel> = {
   "POST /api/attendance":   "api-key",
 
   // ── Admin — branches, patterns, comments, utilities ─────────────────────────
+  "GET    /api/admin/data-health":          "admin",
   "POST   /api/admin/branches":             "admin",
   "GET    /api/admin/patterns":             "admin",
   "POST   /api/admin/patterns":             "admin",

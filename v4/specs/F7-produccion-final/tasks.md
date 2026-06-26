@@ -31,22 +31,22 @@
 
 ## Fase 3: Tests automaticos minimos
 
-- [ ] Agregar test unitario para split/merge de grupos por equipo.
-- [ ] Agregar test unitario para fallback de categoria en calendarios de grupo.
-- [ ] Agregar smoke test de API `/api/calendars`.
-- [ ] Agregar smoke test de permisos supervisor.
-- [ ] Agregar smoke test de historial linkeando calendario real.
+- [x] Agregar test unitario para split/merge de grupos por equipo. (src/lib/calendar/teamSplit.test.ts)
+- [x] Agregar test unitario para fallback de categoria en calendarios de grupo. (src/lib/calendar/categoryFallback.test.ts)
+- [x] Agregar smoke test de API `/api/calendars`. (src/app/api/calendars/route.test.ts)
+- [x] Agregar smoke test de permisos supervisor. (src/middleware.test.ts)
+- [x] Agregar smoke test de historial linkeando calendario real. (src/lib/audit/historial.test.ts)
 - [ ] Documentar que casos quedan solo como manuales y por que.
 
 ## Fase 4: Datos maestros
 
-- [ ] Generar reporte de supervisores sin email.
-- [ ] Generar reporte de supervisores sin password.
-- [ ] Generar reporte de supervisores sin sucursales.
-- [ ] Generar reporte de sucursales sin equipo.
-- [ ] Generar reporte de equipos sin categoria.
-- [ ] Generar reporte de equipos sin vendedores activos.
-- [ ] Generar reporte de grupos con categorias inconsistentes.
+- [x] Generar reporte de supervisores sin email. (GET /api/admin/data-health)
+- [x] Generar reporte de supervisores sin password. (GET /api/admin/data-health)
+- [x] Generar reporte de supervisores sin sucursales. (GET /api/admin/data-health)
+- [x] Generar reporte de sucursales sin equipo. (GET /api/admin/data-health)
+- [x] Generar reporte de equipos sin categoria. (GET /api/admin/data-health)
+- [x] Generar reporte de equipos sin vendedores activos. (GET /api/admin/data-health)
+- [x] Generar reporte de grupos con categorias inconsistentes. (GET /api/admin/data-health)
 - [ ] Definir quien corrige cada dato: admin, RRHH o tecnico.
 - [ ] Validar datos de jefes piloto antes de abrir uso final.
 
@@ -67,7 +67,7 @@
 - [ ] Definir formato de reporte: usuario, sucursal, mes, accion, captura.
 - [ ] Definir correo/persona de soporte primera semana.
 - [ ] Revisar mensajes de error mas comunes y traducirlos a lenguaje usuario.
-- [ ] Confirmar que errores de API no exponen stack trace al usuario.
+- [x] Confirmar que errores de API no exponen stack trace al usuario. (verificado: catch blocks usan mensajes fijos, no err.message/stack)
 
 ## Fase 7: Observabilidad basica
 
