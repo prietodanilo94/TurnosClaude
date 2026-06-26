@@ -36,7 +36,7 @@
 - [x] Agregar smoke test de API `/api/calendars`. (src/app/api/calendars/route.test.ts)
 - [x] Agregar smoke test de permisos supervisor. (src/middleware.test.ts)
 - [x] Agregar smoke test de historial linkeando calendario real. (src/lib/audit/historial.test.ts)
-- [ ] Documentar que casos quedan solo como manuales y por que.
+- [x] Documentar que casos quedan solo como manuales y por que. (ver functional-test-matrix.md — flujos UI/modal/Gantt no son automatizables sin E2E)
 
 ## Fase 4: Datos maestros
 
@@ -63,10 +63,10 @@
 
 ## Fase 6: Mensajes y soporte
 
-- [ ] Agregar mensaje o ayuda visible para reportar problemas.
-- [ ] Definir formato de reporte: usuario, sucursal, mes, accion, captura.
-- [ ] Definir correo/persona de soporte primera semana.
-- [ ] Revisar mensajes de error mas comunes y traducirlos a lenguaje usuario.
+- [x] Agregar mensaje o ayuda visible para reportar problemas. (/supervisor/ayuda — seccion "Necesitas ayuda adicional" con formato y contacto)
+- [x] Definir formato de reporte: usuario, sucursal, mes, accion, captura. (/supervisor/ayuda — texto explicito)
+- [x] Definir correo/persona de soporte primera semana. (danilo.prieto@pompeyo.cl en /supervisor/ayuda)
+- [x] Revisar mensajes de error mas comunes y traducirlos a lenguaje usuario. (F6 implemento mensajes legibles para todos los errores criticos)
 - [x] Confirmar que errores de API no exponen stack trace al usuario. (verificado: catch blocks usan mensajes fijos, no err.message/stack)
 
 ## Fase 7: Observabilidad basica
