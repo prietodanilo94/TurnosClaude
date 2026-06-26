@@ -1,6 +1,7 @@
 // ShiftCategory y AreaNegocio se derivan del registry — no editar aquí.
 // Para agregar una categoría: editar src/lib/shifts/category-registry.ts
-export type { ShiftCategory, AreaNegocio } from "@/lib/shifts/category-registry";
+import type { ShiftCategory, AreaNegocio } from "@/lib/shifts/category-registry";
+export type { ShiftCategory, AreaNegocio };
 
 // Turno de un día: null = libre
 export interface DayShift {
