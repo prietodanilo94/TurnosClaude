@@ -260,8 +260,8 @@ export default function PatternBuilderClient({ initialPatterns }: Props) {
         id: data.id,
         label: data.label,
         areaNegocio: data.areaNegocio,
-        rotationWeeks: JSON.parse(data.rotationJson),
-        weeklyHours: JSON.parse(data.weeklyHoursJson),
+        rotationWeeks: data.rotationWeeks,
+        weeklyHours: data.weeklyHours,
       }]);
       // reset form
       setLabel("");

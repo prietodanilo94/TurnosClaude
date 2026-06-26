@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
 import CategoriasClient from "./CategoriasClient";
 import type { WeekPattern } from "@/types";
+import { parseRotationJson, parseWeeklyHoursJson } from "@/lib/db/schemas";
 
 export const dynamic = "force-dynamic";
 
@@ -29,8 +30,8 @@ export default async function CategoriasPage() {
     id: p.id,
     label: p.label,
     areaNegocio: p.areaNegocio as "ventas" | "postventa",
-    rotationWeeks: JSON.parse(p.rotationJson) as WeekPattern[],
-    weeklyHours: JSON.parse(p.weeklyHoursJson) as number[],
+    rotationWeeks: parseRotationJson(p.rotationJson),
+    weeklyHours: parseWeeklyHoursJson(p.weeklyHoursJson),
     usageCount: countMap.get(p.id) ?? 0,
     usedBy: detailMap[p.id] ?? [],
   }));

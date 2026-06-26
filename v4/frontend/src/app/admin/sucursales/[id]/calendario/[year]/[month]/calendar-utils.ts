@@ -1,6 +1,17 @@
 // Utilidades compartidas del calendario (fechas, formato, semanas rotativas)
 import type { CalendarSlot, DayShift, WeekPattern } from "@/types";
 
+// Re-exportar desde la librería compartida para no duplicar código
+export {
+  dowIndex,
+  fmt,
+  FERIADOS_IRRENUNCIABLES,
+  isFeriadoIrrenunciable,
+  shiftDuration,
+  isoWeekNumber,
+  buildIsoWeeks,
+} from "@/lib/calendar/calendar-utils";
+
 export const DOW_LABELS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 export const MONTH_NAMES = [
   "", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -10,23 +21,6 @@ export const MONTH_ABBR = [
   "", "Ene", "Feb", "Mar", "Abr", "May", "Jun",
   "Jul", "Ago", "Sep", "Oct", "Nov", "Dic",
 ];
-
-export function dowIndex(d: Date) { return (d.getDay() + 6) % 7; }
-export function fmt(d: Date) { return d.toISOString().slice(0, 10); }
-
-export const FERIADOS_IRRENUNCIABLES: [number, number][] = [
-  [1, 1], [5, 1], [9, 18], [9, 19], [12, 25],
-];
-export function isFeriadoIrrenunciable(d: Date): boolean {
-  return FERIADOS_IRRENUNCIABLES.some(([m, day]) => d.getMonth() + 1 === m && d.getDate() === day);
-}
-
-export function shiftDuration(s: DayShift): number {
-  const [h1, m1] = s.start.split(":").map(Number);
-  const [h2, m2] = s.end.split(":").map(Number);
-  const total = Math.max(0, (h2 * 60 + m2 - h1 * 60 - m1) / 60);
-  return total >= 6 ? total - 1 : total;
-}
 
 export function minutesFromTime(t: string): number {
   const [h, m] = t.split(":").map(Number);
@@ -53,34 +47,6 @@ export function validateConsecutiveDays(days: Record<string, DayShift | null>): 
   return true;
 }
 
-export function isoWeekNumber(d: Date): number {
-  const target = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-  const dayNr = (target.getUTCDay() + 6) % 7;
-  target.setUTCDate(target.getUTCDate() - dayNr + 3);
-  const firstThursday = target.valueOf();
-  target.setUTCMonth(0, 1);
-  if (target.getUTCDay() !== 4) {
-    target.setUTCMonth(0, 1 + ((4 - target.getUTCDay()) + 7) % 7);
-  }
-  return 1 + Math.ceil((firstThursday - target.valueOf()) / 604800000);
-}
-
-export function buildIsoWeeks(year: number, month: number): Date[][] {
-  const first = new Date(year, month - 1, 1);
-  const last = new Date(year, month, 0);
-  const start = new Date(first);
-  start.setDate(first.getDate() - dowIndex(first));
-  const end = new Date(last);
-  end.setDate(last.getDate() + (6 - dowIndex(last)));
-  const weeks: Date[][] = [];
-  const cur = new Date(start);
-  while (cur <= end) {
-    const week: Date[] = [];
-    for (let i = 0; i < 7; i++) { week.push(new Date(cur)); cur.setDate(cur.getDate() + 1); }
-    weeks.push(week);
-  }
-  return weeks;
-}
 
 export function fmtDateRange(d1: Date, d2: Date): string {
   if (d1.getMonth() === d2.getMonth()) {

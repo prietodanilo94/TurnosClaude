@@ -3,8 +3,10 @@ import { prisma } from "@/lib/db/prisma";
 import { generateCalendar } from "@/lib/calendar/generator";
 import { logAction } from "@/lib/audit/log";
 import * as XLSX from "xlsx";
+import { parseSlotsData, parseAssignments } from "@/lib/db/schemas";
 import ExcelJS from "exceljs";
 import type { CalendarSlot, DayShift } from "@/types";
+import { dowIndex, shiftDuration, isoWeekNumber, buildIsoWeeks } from "@/lib/calendar/calendar-utils";
 
 const MONTH_NAMES = [
   "", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -15,42 +17,6 @@ const MONTH_ABBR = [
   "Jul", "Ago", "Sep", "Oct", "Nov", "Dic",
 ];
 const DOW_LABELS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
-
-function dowIndex(d: Date) { return (d.getDay() + 6) % 7; }
-
-function shiftDuration(s: DayShift): number {
-  const [h1, m1] = s.start.split(":").map(Number);
-  const [h2, m2] = s.end.split(":").map(Number);
-  const total = Math.max(0, (h2 * 60 + m2 - h1 * 60 - m1) / 60);
-  return total >= 6 ? total - 1 : total; // descuenta 1h colación en turnos ≥ 6h
-}
-
-function isoWeekNumber(d: Date): number {
-  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-  const dayNr = (t.getUTCDay() + 6) % 7;
-  t.setUTCDate(t.getUTCDate() - dayNr + 3);
-  const firstThursday = t.valueOf();
-  t.setUTCMonth(0, 1);
-  if (t.getUTCDay() !== 4) t.setUTCMonth(0, 1 + ((4 - t.getUTCDay()) + 7) % 7);
-  return 1 + Math.ceil((firstThursday - t.valueOf()) / 604800000);
-}
-
-function buildIsoWeeks(year: number, month: number): Date[][] {
-  const first = new Date(year, month - 1, 1);
-  const last = new Date(year, month, 0);
-  const start = new Date(first);
-  start.setDate(first.getDate() - dowIndex(first));
-  const end = new Date(last);
-  end.setDate(last.getDate() + (6 - dowIndex(last)));
-  const weeks: Date[][] = [];
-  const cur = new Date(start);
-  while (cur <= end) {
-    const week: Date[] = [];
-    for (let i = 0; i < 7; i++) { week.push(new Date(cur)); cur.setDate(cur.getDate() + 1); }
-    weeks.push(week);
-  }
-  return weeks;
-}
 
 function fmtDateRange(d1: Date, d2: Date): string {
   const m1 = MONTH_ABBR[d1.getMonth() + 1];
@@ -98,8 +64,8 @@ export async function GET(req: NextRequest) {
 
   const existing = team.calendars[0];
   if (existing) {
-    slots = JSON.parse(existing.slotsData);
-    assignments = JSON.parse(existing.assignments);
+    slots = parseSlotsData(existing.slotsData);
+    assignments = parseAssignments(existing.assignments);
   } else {
     const result = generateCalendar(team.categoria, year, month, team.workers.length);
     slots = result.slots;
