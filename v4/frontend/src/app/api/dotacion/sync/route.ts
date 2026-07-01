@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db/prisma";
 import type { AreaNegocio } from "@/types";
 import { normalizeSupervisorName, supervisorLookupKey } from "@/lib/supervisors";
 import { logAction } from "@/lib/audit/log";
+import { clearWorkerFromFutureCalendars } from "@/lib/calendar/cleanupStaleAssignments";
 
 function normalizeBranchName(raw: string): string {
   return raw
@@ -195,6 +196,7 @@ export async function POST(req: NextRequest) {
             where: { id: { in: toDeactivate.map((w) => w.id) } },
             data: { activo: false },
           });
+          await clearWorkerFromFutureCalendars(toDeactivate.map((w) => w.id), team.id);
           workersDeactivated += toDeactivate.length;
         }
       }
