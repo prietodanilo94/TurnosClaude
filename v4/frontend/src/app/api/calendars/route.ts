@@ -1,25 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { logAction } from "@/lib/audit/log";
-import { getSessionFromRequest } from "@/lib/auth/session";
-import { assertTeamAccess, assertBranchAccess } from "@/lib/auth/ownership";
-import { CalendarSaveBodySchema } from "@/lib/db/schemas";
 
 export async function POST(req: NextRequest) {
-  const body = await req.json();
-  const parsed = CalendarSaveBodySchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: "Datos inválidos", detail: parsed.error.message }, { status: 400 });
-  }
-  const { teamId, year, month, slotsData, assignments, validationSummary, scopeLabel, scopeType } = parsed.data;
-  if (!teamId) return NextResponse.json({ error: "Falta teamId" }, { status: 400 });
-
-  const session = await getSessionFromRequest(req);
-  if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-
-  if (!(await assertTeamAccess(session, teamId))) {
-    return NextResponse.json({ error: "Sin acceso a este equipo" }, { status: 403 });
-  }
+  const { teamId, year, month, slotsData, assignments, validationSummary, scopeLabel, scopeType } = await req.json();
 
   const team = await prisma.branchTeam.findUnique({
     where: { id: teamId },
@@ -75,16 +59,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  const body = await req.json();
-  const parsed = CalendarSaveBodySchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: "Datos inválidos", detail: parsed.error.message }, { status: 400 });
-  }
-  const { id, slotsData, assignments, validationSummary, scopeLabel, scopeType } = parsed.data;
-  if (!id) return NextResponse.json({ error: "Falta id" }, { status: 400 });
-
-  const session = await getSessionFromRequest(req);
-  if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const { id, slotsData, assignments, validationSummary, scopeLabel, scopeType } = await req.json();
 
   const current = await prisma.calendar.findUnique({
     where: { id },
@@ -92,10 +67,6 @@ export async function PUT(req: NextRequest) {
   });
   if (!current) {
     return NextResponse.json({ error: "Calendario no encontrado" }, { status: 404 });
-  }
-
-  if (!(await assertBranchAccess(session, current.branchTeam.branchId))) {
-    return NextResponse.json({ error: "Sin acceso a este calendario" }, { status: 403 });
   }
 
   const calendar = await prisma.calendar.update({
@@ -128,9 +99,6 @@ export async function PUT(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const session = await getSessionFromRequest(req);
-  if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
   if (!id) return NextResponse.json({ error: "Falta id" }, { status: 400 });
@@ -141,10 +109,6 @@ export async function DELETE(req: NextRequest) {
   });
   if (!calendar) {
     return NextResponse.json({ error: "Calendario no encontrado" }, { status: 404 });
-  }
-
-  if (!(await assertBranchAccess(session, calendar.branchTeam.branchId))) {
-    return NextResponse.json({ error: "Sin acceso a este calendario" }, { status: 403 });
   }
 
   await prisma.calendar.delete({ where: { id } });

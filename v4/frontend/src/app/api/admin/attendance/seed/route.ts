@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSessionFromRequest } from "@/lib/auth/session";
-import { parseSlotsData, parseAssignments } from "@/lib/db/schemas";
 
 export const dynamic = "force-dynamic";
 
@@ -26,8 +25,8 @@ export async function POST(req: NextRequest) {
   if (!calendar) return NextResponse.json({ error: "Calendar not found" }, { status: 404 });
 
   type SlotEntry = { slotNumber: number; days: Record<string, { start: string; end: string } | null> };
-  const slotsArr = parseSlotsData(calendar.slotsData);
-  const assignments = parseAssignments(calendar.assignments);
+  const slotsArr = JSON.parse(calendar.slotsData) as SlotEntry[];
+  const assignments = JSON.parse(calendar.assignments) as Record<string, string | null>;
 
   const workers = await prisma.worker.findMany({
     where: { branchTeamId: teamId, activo: true },

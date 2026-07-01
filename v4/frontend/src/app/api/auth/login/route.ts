@@ -58,7 +58,6 @@ export async function POST(req: NextRequest) {
         // Evita overflow de cookie (4KB) con supervisores de muchas sucursales
         branchIds: [],
         nombre: supervisor.nombre,
-        tokenVersion: supervisor.tokenVersion,
       });
       const res = NextResponse.json({ ok: true, role });
       res.cookies.set(sessionCookieOptions(token));

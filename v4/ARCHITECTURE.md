@@ -1,7 +1,7 @@
 # TeamPlanner v4 — Arquitectura y estado del sistema
 
 > Documento de referencia para agentes y desarrolladores. Última actualización: 2026-06-25.
-> Estado base: commit `ae60d8bc` (tag: `v4-pre-council-2026-06-25`). Council improvements: branch `worktree-council-improvements`.
+> Estado capturado en commit `ae60d8bc88d5a50f5d88b2e7a9ba3cbfa2a7a4e9` (tag: `v4-pre-council-2026-06-25`).
 
 ---
 
@@ -34,24 +34,17 @@ v4/frontend/
 │   │   └── api/               # Route handlers (~35 endpoints)
 │   ├── components/
 │   │   ├── calendar/          # Componentes de calendario (CalendarView, worker-colors)
-│   │   ├── ui/                # Componentes UI compartibles
-│   │   │   ├── Badge.tsx      # Badge de texto inline (roles, estados)
-│   │   │   └── MonthNavigator.tsx  # Navegador mes/año (callback-based)
 │   │   └── SemanaPicker.tsx
 │   ├── lib/
-│   │   ├── audit/             # log.ts, cleanup.ts (TTL 365d), webhook.ts, format.ts
-│   │   ├── auth/              # session.ts, roles.ts, route-policy.ts, ownership.ts
-│   │   ├── calendar/          # generator.ts, validation.ts, calendar-utils.ts, etc.
-│   │   ├── db/
-│   │   │   ├── prisma.ts      # Singleton Prisma
-│   │   │   ├── schemas.ts     # Zod schemas para columnas JSON (slotsData, assignments, etc.)
-│   │   │   └── repository/    # Queries centralizadas: branch.ts, calendar.ts, worker.ts
+│   │   ├── audit/             # Logging de acciones (log.ts, webhook.ts, format.ts)
+│   │   ├── auth/              # JWT session (session.ts)
+│   │   ├── calendar/          # Lógica de negocio (generator.ts, validation.ts, etc.)
+│   │   ├── db/                # Prisma singleton (prisma.ts)
+│   │   ├── dotacion/          # Diff de dotación
 │   │   ├── excel/             # Parser y exportador Excel
 │   │   ├── patterns/          # Catálogo de horarios (catalog.ts)
-│   │   ├── shifts/
-│   │   │   └── category-registry.ts  # Fuente de verdad de categorías
+│   │   ├── calendar-utils.ts  # Utilidades compartidas (dowIndex, fmt, shiftDuration)
 │   │   └── week-index.ts      # Fórmula de índice de semana para rotaciones
-│   ├── middleware.ts           # ROUTE_POLICY deny-by-default para /api/
 │   └── types/                 # Tipos TypeScript globales
 └── vitest.config.ts
 ```
@@ -131,57 +124,15 @@ Para grupos: sucursales ordenadas `branch.nombre asc`; dentro de cada sucursal, 
 
 ---
 
-## Autorización
-
-### ROUTE_POLICY (deny-by-default)
-
-`src/lib/auth/route-policy.ts` define el nivel requerido para cada endpoint `/api/`:
-
-```
-"public"   → /api/auth/login, /api/auth/logout (sin autenticación)
-"api-key"  → /api/attendance (ruta maneja su propia clave)
-"supervisor" → /api/calendars/*, /api/grupos, /api/comments, etc.
-"admin"    → /api/dotacion/sync, /api/supervisores, /api/workers, etc.
-```
-
-`src/middleware.ts` intercepta todas las rutas `/api/*` y aplica la política. Cualquier ruta no registrada retorna 403 automáticamente.
-
-**Cuando agregas una nueva route.ts:** agregar su entrada en `ROUTE_POLICY` o recibirás 403 en producción.
-
-### Ownership check (supervisor → branch)
-
-`src/lib/auth/ownership.ts`:
-- `assertBranchAccess(session, branchId)` — verifica link `SupervisorBranch` en DB
-- `assertTeamAccess(session, teamId)` — resuelve branchId y llama assertBranchAccess
-- Admins siempre tienen acceso; vendedores nunca
-- Usado en `/api/calendars/route.ts` (POST/PUT)
-
-### tokenVersion (revocación de sesiones)
-
-`Supervisor.tokenVersion` (Int, default 0) se incluye en el JWT al login.
-Para invalidar todas las sesiones de un supervisor:
-```ts
-import { bumpTokenVersion } from "@/lib/auth/session";
-await bumpTokenVersion(supervisorId);
-```
-Ya se llama automáticamente en: cambio de contraseña, reset de contraseña, desactivación.
-Para verificar frescura en rutas sensibles: `isSessionFresh(session)`.
-
-### Roles
-
-`src/lib/auth/roles.ts` — fuente única de verdad. No hardcodear strings de rol.
-
----
-
 ## API Routes (~35 endpoints)
 
 | Prefijo | Descripción |
 |---|---|
 | `/api/auth/login` `/logout` | JWT en cookie httpOnly |
 | `/api/calendars/` | CRUD calendario, save-notify, export, export-group |
-| `/api/dotacion/sync` `/preview` | Importación Excel masiva (solo admin) |
-| `/api/workers/` `/api/blocks/` | CRUD workers y bloqueos (solo admin) |
-| `/api/supervisores/` | CRUD supervisores con asignación de sucursales (solo admin) |
+| `/api/dotacion/sync` `/preview` | Importación Excel masiva (destructiva — sin rol guard activo) |
+| `/api/workers/` `/api/blocks/` | CRUD workers y bloqueos |
+| `/api/supervisores/` | CRUD supervisores con asignación de sucursales |
 | `/api/grupos/` | CRUD grupos de sucursales |
 | `/api/historial/` | Audit log con filtros |
 | `/api/admin/*` | Branches, patterns, attendance, comments, usuarios |
@@ -241,7 +192,7 @@ Función central: `logAction({ action, entityType, entityId, metadata, branchId,
 
 Acciones notificables: `calendar.generate`, `calendar.save`, `calendar.delete`, `dotacion.sync`.
 
-**TTL automático:** `pruneAuditLog()` en `src/lib/audit/cleanup.ts` elimina registros > 365 días. Se llama como fire-and-forget en `dotacion.sync`. Sin job scheduler separado.
+**Issue conocido:** AuditLog crece indefinidamente. Sin TTL ni archivado automático.
 
 ---
 
@@ -262,16 +213,12 @@ npx vitest run          # o: npm test
 npx vitest run --coverage
 ```
 
-Tests existentes:
+Tests existentes (con cobertura):
 - `src/lib/calendar/generator.test.ts`
 - `src/lib/calendar/validation.test.ts`
 - `src/lib/calendar/teamSplit.test.ts`
 - `src/lib/calendar/categoryFallback.test.ts`
-- `src/lib/week-index.test.ts` — pinning tests para fórmula epoch
-- `src/lib/calendar/calendar-utils.test.ts` — dowIndex, feriados, shiftDuration
-- `src/lib/auth/route-policy.test.ts` — ROUTE_POLICY + roleHasAccess
-- `src/lib/db/schemas.test.ts` — Zod parsers (válidos + inválidos)
-- `src/lib/shifts/category-registry.test.ts` — no duplicados, isValid*
+- `src/lib/week-index.test.ts`  ← nuevo (2026-06-25)
 
 Sin tests (riesgo alto):
 - `src/lib/excel/parser.ts` (Excel sync — entrada de datos principal)
@@ -308,45 +255,43 @@ docker exec v4-frontend-1 node ./node_modules/prisma/build/index.js db push
 Esta sección documenta decisiones del **council de mejora** (sesión 2026-06-25).
 El análisis completo está en los transcripts de la sesión.
 
-### Crítico (P0) — estado post-council
+### Crítico (P0) — pendiente de implementar
 
-| ID | Item | Estado |
+| ID | Item | Riesgo si no se hace |
 |---|---|---|
-| P0-A | Auth deny-by-default: ROUTE_POLICY + middleware + assertBranchAccess | ✅ Implementado |
-| P0-B | Zod schemas en JSON DB columns (slotsData, assignments, rotationJson) | ✅ Implementado (28 sites migrados) |
-| P0-C | AuditLog TTL 365 días | ✅ pruneAuditLog() en cleanup.ts |
-| P0-C | Transacción en dotacion/sync | ⏳ Diferido — SQLite + logAction hacen el wrap complejo |
-| P0-C | Fix `applyWorkerBlocksToSlots` | ⏳ Documentado — función exportada pero sin caller externo |
-| P1-F | tokenVersion en Supervisor para revocación de JWT | ✅ Implementado + bumpTokenVersion() |
+| P0-A | Auth deny-by-default: ROUTE_POLICY manifest + CI lint | Rutas sin role check aceptan cualquier usuario autenticado |
+| P0-B | Zod schemas en JSON DB columns (slotsData, assignments, rotationJson) | Datos corruptos en DB causan 500 sin log en runtime |
+| P0-C | Transacción en dotacion/sync | Sync parcial puede dejar DB en estado inconsistente |
+| P0-C | Fix `applyWorkerBlocksToSlots` | Función exportada pero nunca llamada externamente — código muerto, documentado |
+| P1-F | tokenVersion en Supervisor para revocación de JWT | Role changes no se reflejan hasta expirar el token (máx 12h) |
 
-### Estructural (P1) — estado post-council
+### Estructural (P1) — pendiente
 
-| ID | Item | Estado |
+| ID | Item | Beneficio |
 |---|---|---|
-| P1-A | Repository layer (branch, calendar, worker) | ✅ src/lib/db/repository/ |
-| P1-B | ShiftCategory registry | ✅ src/lib/shifts/category-registry.ts |
-| P1-C | Audit logger centralizado | ✅ Ya existía en src/lib/audit/log.ts |
-| P1-D | Extracción week-index.ts | ✅ Con comentario DST + pinning tests |
-| P1-E | Component layer (src/components/ui/) | ✅ Badge + MonthNavigator (max 5 cap) |
-| P1-F | tokenVersion JWT revocation | ✅ Ver arriba |
+| P1-A | Repository layer (routes no importan prisma directo) | Queries aisladas, testeables, sin scatter |
+| P1-B | ShiftCategory registry (TS const + CHECK constraint derivado) | Elimina string libre en categoria, tipado estático |
+| P1-C | ~~Audit logger centralizado~~ | ✅ Ya existe en `src/lib/audit/log.ts` |
+| P1-D | ~~Extracción week-index.ts~~ | ✅ Hecho en 2026-06-25 |
+| P1-E | Component layer (`src/components/ui/` + `domain/`) | Componentes compartibles entre vistas de rol |
 
-### Calidad (P2) — estado post-council
+### Calidad (P2) — pendiente
 
-| ID | Item | Estado |
+| ID | Item | Beneficio |
 |---|---|---|
-| P2-A | Decompose CalendarView.tsx (1,033 líneas) | ⏳ Alta complejidad — ya extraídos WeekBlock, CalendarDialogs, etc. |
-| P2-B | calendar-utils.ts deduplicado | ✅ local calendar-utils re-exporta desde lib/ |
-| P2-C | Vitest coverage (calendar-utils, route-policy, db/schemas, category-registry) | ✅ 4 suites nuevas |
-| P2-D | Export grupo UI | ✅ hideExcelExport=false en supervisor |
-| P2-E | Schema comments | ✅ Supervisor.invisible, AttendanceRecord, rotationJson |
+| P2-A | Decompose CalendarView.tsx (1,034 líneas) | Requiere P1-E primero |
+| P2-B | ~~calendar-utils.ts en lib~~ | ✅ Hecho en 2026-06-25 |
+| P2-C | Vitest 60% coverage gate en CI | ✅ config creada; threshold pendiente de subir |
+| P2-D | Export pipeline strategy interface + wire UI | Backend ya implementado en export-group/route.ts |
+| P2-E | ~~Schema comments~~ | ✅ Hecho en 2026-06-25 |
 
 ### Features pendientes
 
 | Feature | Estado | Prerequisitos |
 |---|---|---|
-| F5: Export grupo Excel multi-hoja | Backend listo, supervisor puede exportar | — |
-| F6: Jefes de sucursal | Planificado | P0-A ✅ + P1-A ✅ + repository layer ✅ |
-| Credenciales supervisores | 76 supervisores sin email/password | Fácil — schema preparado |
+| F5: Export grupo Excel multi-hoja | Backend listo, UI no conectada | P2-D |
+| F6: Jefes de sucursal | Planificado | P0-A + P1-A (modelos F6) + P2-C |
+| Credenciales supervisores | 76 supervisores sin email/password | Fácil — schema ya preparado |
 
 ---
 

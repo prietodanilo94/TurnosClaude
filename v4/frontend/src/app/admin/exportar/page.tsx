@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import { getSession } from "@/lib/auth/session";
 import ExportarClient from "./ExportarClient";
-import { parseAssignments } from "@/lib/db/schemas";
 
 interface Props {
   searchParams: { year?: string; month?: string };
@@ -31,7 +30,7 @@ export default async function ExportarPage({ searchParams }: Props) {
 
   const rows = calendars.map((cal) => {
     // assignments JSON solo se parsea aquí para listar nombres; el conteo viene denormalizado
-    const assignments: Record<string, string | null> = parseAssignments(cal.assignments);
+    const assignments: Record<string, string | null> = JSON.parse(cal.assignments);
     const assignedWorkerIds = new Set(Object.values(assignments).filter(Boolean) as string[]);
     const assignedWorkers = cal.branchTeam.workers
       .filter((w) => assignedWorkerIds.has(w.id))

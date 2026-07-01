@@ -7,7 +7,6 @@ import { supervisorLookupKey } from "@/lib/supervisors";
 import { patternFromRow } from "@/lib/patterns/catalog";
 import type { CalendarSlot, WorkerBlockInfo } from "@/types";
 import CalendarView from "./CalendarView";
-import { parseSlotsData, parseAssignments } from "@/lib/db/schemas";
 
 interface Props {
   params: { id: string; year: string; month: string };
@@ -95,8 +94,8 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
     prisma.calendar.findFirst({ where: { branchTeamId: team.id, year: nextYear, month: nextMonth } }),
   ]);
 
-  const prevAssignments: Record<string, string | null> = prevCal ? parseAssignments(prevCal.assignments) : {};
-  const nextAssignments: Record<string, string | null> = nextCal ? parseAssignments(nextCal.assignments) : {};
+  const prevAssignments: Record<string, string | null> = prevCal ? JSON.parse(prevCal.assignments) : {};
+  const nextAssignments: Record<string, string | null> = nextCal ? JSON.parse(nextCal.assignments) : {};
 
   let slots: CalendarSlot[];
   let assignments: Record<string, string | null> = {};
@@ -110,8 +109,8 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
   const patternOverride = patternRow ? patternFromRow(patternRow) : undefined;
 
   if (existing) {
-    slots = parseSlotsData(existing.slotsData);
-    assignments = parseAssignments(existing.assignments);
+    slots = JSON.parse(existing.slotsData) as CalendarSlot[];
+    assignments = JSON.parse(existing.assignments);
     calendarId = existing.id;
     if (categoryResolution.source === "group") {
       alert = `Este equipo no tiene categoria propia. Se muestra usando la categoria del grupo${categoryResolution.sourceBranchName ? ` desde ${categoryResolution.sourceBranchName}` : ""}.`;

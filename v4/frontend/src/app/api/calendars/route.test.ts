@@ -2,8 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "./route";
 import { prisma } from "@/lib/db/prisma";
 import { logAction } from "@/lib/audit/log";
-import { getSessionFromRequest } from "@/lib/auth/session";
-import { assertTeamAccess } from "@/lib/auth/ownership";
 
 vi.mock("@/lib/db/prisma", () => ({
   prisma: {
@@ -16,16 +14,6 @@ vi.mock("@/lib/audit/log", () => ({
   logAction: vi.fn(),
 }));
 
-vi.mock("@/lib/auth/session", () => ({
-  getSessionFromRequest: vi.fn(),
-}));
-
-vi.mock("@/lib/auth/ownership", () => ({
-  assertTeamAccess: vi.fn(),
-}));
-
-const ADMIN_SESSION = { email: "admin@pompeyo.cl", role: "admin" as const };
-
 function request(body: unknown): Request {
   return new Request("http://localhost/api/calendars", {
     method: "POST",
@@ -37,8 +25,6 @@ function request(body: unknown): Request {
 describe("POST /api/calendars", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(getSessionFromRequest).mockResolvedValue(ADMIN_SESSION as never);
-    vi.mocked(assertTeamAccess).mockResolvedValue(true);
   });
 
   it("creates or updates a calendar and logs validation summary", async () => {
@@ -88,55 +74,6 @@ describe("POST /api/calendars", () => {
     }));
   });
 
-  it("returns 401 when session is missing", async () => {
-    vi.mocked(getSessionFromRequest).mockResolvedValue(null);
-
-    const res = await POST(request({
-      teamId: "team-1",
-      year: 2026,
-      month: 5,
-      slotsData: [],
-      assignments: {},
-    }) as never);
-
-    expect(res.status).toBe(401);
-    expect(prisma.calendar.upsert).not.toHaveBeenCalled();
-  });
-
-  it("returns 403 when supervisor lacks access to the team", async () => {
-    vi.mocked(getSessionFromRequest).mockResolvedValue({
-      email: "jefe@pompeyo.cl",
-      role: "supervisor" as const,
-      supervisorId: "sup-1",
-      branchIds: [],
-    } as never);
-    vi.mocked(assertTeamAccess).mockResolvedValue(false);
-
-    const res = await POST(request({
-      teamId: "team-other",
-      year: 2026,
-      month: 5,
-      slotsData: [],
-      assignments: {},
-    }) as never);
-
-    expect(res.status).toBe(403);
-    expect(prisma.calendar.upsert).not.toHaveBeenCalled();
-  });
-
-  it("returns 400 when body fails Zod validation", async () => {
-    const res = await POST(request({
-      teamId: "team-1",
-      year: 9999,   // fuera del rango 2024-2035
-      month: 13,    // mes invalido
-      slotsData: "no-es-array",
-      assignments: {},
-    }) as never);
-
-    expect(res.status).toBe(400);
-    expect(prisma.calendar.upsert).not.toHaveBeenCalled();
-  });
-
   it("returns 404 when the team does not exist", async () => {
     vi.mocked(prisma.branchTeam.findUnique).mockResolvedValue(null);
 
@@ -149,6 +86,7 @@ describe("POST /api/calendars", () => {
     }) as never);
 
     expect(res.status).toBe(404);
+    await expect(res.json()).resolves.toEqual({ error: "Equipo no encontrado" });
     expect(prisma.calendar.upsert).not.toHaveBeenCalled();
   });
 });

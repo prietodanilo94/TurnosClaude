@@ -110,10 +110,6 @@ model Supervisor {
   // invisible=true: ocultar de la lista pública de supervisores (ej. admin técnico, cuenta de sistema).
   // No afecta login ni permisos — solo visibilidad en /admin/supervisores.
   invisible    Boolean              @default(false)
-  // tokenVersion: incrementar para invalidar todas las sesiones activas del supervisor.
-  // El JWT incluye el tokenVersion al momento del login; si no coincide con el DB → 401.
-  // Usar bumpTokenVersion() en: cambio de contraseña, desactivación, acceso revocado.
-  tokenVersion Int                  @default(0)
   branches     SupervisorBranch[]
   comments     SupervisorComment[]
   patterns     ShiftPattern[]

@@ -3,17 +3,16 @@ import { getSessionFromRequest } from "@/lib/auth/session";
 import { generateGroupCalendarExcel } from "@/lib/excel/calendarExport";
 import { logAction } from "@/lib/audit/log";
 import { prisma } from "@/lib/db/prisma";
-import { SaveNotifyBodySchema } from "@/lib/db/schemas";
 
 export async function POST(req: NextRequest) {
   const session = await getSessionFromRequest(req);
   if (!session) return NextResponse.json({ error: "Sin acceso" }, { status: 401 });
 
-  const parsed = SaveNotifyBodySchema.safeParse(await req.json());
-  if (!parsed.success) {
-    return NextResponse.json({ error: "Datos inválidos", detail: parsed.error.message }, { status: 400 });
+  const { teamIds, year, month, scopeLabel, scopeType, changes } = await req.json();
+
+  if (!Array.isArray(teamIds) || teamIds.length === 0 || !year || !month) {
+    return NextResponse.json({ error: "Faltan datos" }, { status: 400 });
   }
-  const { teamIds, year, month, scopeLabel, scopeType, changes } = parsed.data;
 
   // Resolves branchId and teamId for calendar URL (uses first team)
   const firstTeam = await prisma.branchTeam.findUnique({

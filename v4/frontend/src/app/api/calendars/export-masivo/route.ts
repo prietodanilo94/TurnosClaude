@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import * as XLSX from "xlsx";
 import type { CalendarSlot, DayShift } from "@/types";
-import { parseSlotsData, parseAssignments } from "@/lib/db/schemas";
 
 function rutSinDV(rut: string): string {
   return rut.split("-")[0];
@@ -55,8 +54,8 @@ export async function GET(req: NextRequest) {
     if (excludeTeams.has(cal.branchTeamId)) continue;
     includedCalendarIds.push(cal.id);
 
-    const slots: CalendarSlot[] = parseSlotsData(cal.slotsData);
-    const assignments: Record<string, string | null> = parseAssignments(cal.assignments);
+    const slots: CalendarSlot[] = JSON.parse(cal.slotsData);
+    const assignments: Record<string, string | null> = JSON.parse(cal.assignments);
     const workerRutMap = Object.fromEntries(cal.branchTeam.workers.map((w) => [w.id, w.rut]));
 
     for (const slot of slots) {

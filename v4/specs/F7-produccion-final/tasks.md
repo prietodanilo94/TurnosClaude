@@ -31,51 +31,51 @@
 
 ## Fase 3: Tests automaticos minimos
 
-- [x] Agregar test unitario para split/merge de grupos por equipo. (src/lib/calendar/teamSplit.test.ts)
-- [x] Agregar test unitario para fallback de categoria en calendarios de grupo. (src/lib/calendar/categoryFallback.test.ts)
-- [x] Agregar smoke test de API `/api/calendars`. (src/app/api/calendars/route.test.ts)
-- [x] Agregar smoke test de permisos supervisor. (src/middleware.test.ts)
-- [x] Agregar smoke test de historial linkeando calendario real. (src/lib/audit/historial.test.ts)
-- [x] Documentar que casos quedan solo como manuales y por que. (ver functional-test-matrix.md — flujos UI/modal/Gantt no son automatizables sin E2E)
+- [ ] Agregar test unitario para split/merge de grupos por equipo.
+- [ ] Agregar test unitario para fallback de categoria en calendarios de grupo.
+- [ ] Agregar smoke test de API `/api/calendars`.
+- [ ] Agregar smoke test de permisos supervisor.
+- [ ] Agregar smoke test de historial linkeando calendario real.
+- [ ] Documentar que casos quedan solo como manuales y por que.
 
 ## Fase 4: Datos maestros
 
-- [x] Generar reporte de supervisores sin email. (GET /api/admin/data-health)
-- [x] Generar reporte de supervisores sin password. (GET /api/admin/data-health)
-- [x] Generar reporte de supervisores sin sucursales. (GET /api/admin/data-health)
-- [x] Generar reporte de sucursales sin equipo. (GET /api/admin/data-health)
-- [x] Generar reporte de equipos sin categoria. (GET /api/admin/data-health)
-- [x] Generar reporte de equipos sin vendedores activos. (GET /api/admin/data-health)
-- [x] Generar reporte de grupos con categorias inconsistentes. (GET /api/admin/data-health)
+- [ ] Generar reporte de supervisores sin email.
+- [ ] Generar reporte de supervisores sin password.
+- [ ] Generar reporte de supervisores sin sucursales.
+- [ ] Generar reporte de sucursales sin equipo.
+- [ ] Generar reporte de equipos sin categoria.
+- [ ] Generar reporte de equipos sin vendedores activos.
+- [ ] Generar reporte de grupos con categorias inconsistentes.
 - [ ] Definir quien corrige cada dato: admin, RRHH o tecnico.
 - [ ] Validar datos de jefes piloto antes de abrir uso final.
 
 ## Fase 5: Backup, restore y rollback
 
-- [x] Documentar ubicacion real de la base SQLite en servidor. (pompeyo:/data/v4.db en v4-frontend-1)
-- [x] Crear comando de backup manual con timestamp. (backup-rollback-runbook.md)
+- [ ] Documentar ubicacion real de la base SQLite en servidor.
+- [ ] Crear comando de backup manual con timestamp.
 - [ ] Probar backup antes de deploy.
 - [ ] Probar restore en ambiente controlado o registrar bloqueo.
-- [x] Documentar rollback por git commit. (backup-rollback-runbook.md — git revert + push)
-- [x] Documentar rollback por Docker. (backup-rollback-runbook.md — retag imagen SHA)
-- [x] Registrar commit estable candidato a produccion. (tag v4-stable-20260505)
+- [ ] Documentar rollback por git commit.
+- [ ] Documentar rollback por Docker.
+- [ ] Registrar commit estable candidato a produccion.
 - [ ] Definir ventana de deploy y responsable de rollback.
 
 ## Fase 6: Mensajes y soporte
 
-- [x] Agregar mensaje o ayuda visible para reportar problemas. (/supervisor/ayuda — seccion "Necesitas ayuda adicional" con formato y contacto)
-- [x] Definir formato de reporte: usuario, sucursal, mes, accion, captura. (/supervisor/ayuda — texto explicito)
-- [x] Definir correo/persona de soporte primera semana. (danilo.prieto@pompeyo.cl en /supervisor/ayuda)
-- [x] Revisar mensajes de error mas comunes y traducirlos a lenguaje usuario. (F6 implemento mensajes legibles para todos los errores criticos)
-- [x] Confirmar que errores de API no exponen stack trace al usuario. (verificado: catch blocks usan mensajes fijos, no err.message/stack)
+- [ ] Agregar mensaje o ayuda visible para reportar problemas.
+- [ ] Definir formato de reporte: usuario, sucursal, mes, accion, captura.
+- [ ] Definir correo/persona de soporte primera semana.
+- [ ] Revisar mensajes de error mas comunes y traducirlos a lenguaje usuario.
+- [ ] Confirmar que errores de API no exponen stack trace al usuario.
 
 ## Fase 7: Observabilidad basica
 
-- [x] Documentar comandos para revisar logs del contenedor. (observabilidad.md)
-- [x] Documentar comandos para confirmar estado Docker. (observabilidad.md)
-- [x] Documentar comandos para confirmar commit desplegado. (observabilidad.md)
-- [x] Revisar si historial cubre generacion, guardado, exportacion y errores relevantes. (si — ver tabla en observabilidad.md)
-- [x] Definir que alerta manual revisar durante primera semana. (observabilidad.md — 3 checks diarios)
+- [ ] Documentar comandos para revisar logs del contenedor.
+- [ ] Documentar comandos para confirmar estado Docker.
+- [ ] Documentar comandos para confirmar commit desplegado.
+- [ ] Revisar si historial cubre generacion, guardado, exportacion y errores relevantes.
+- [ ] Definir que alerta manual revisar durante primera semana.
 
 ## Fase 8: Ensayo go-live
 

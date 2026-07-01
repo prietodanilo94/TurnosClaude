@@ -19,9 +19,6 @@ export interface SessionPayload {
   branchIds?: string[];
   workerId?: string;
   nombre?: string;
-  // tokenVersion: versión al momento del login. Para invalidar sesiones activas,
-  // incrementar Supervisor.tokenVersion en DB — el token queda stale en el próximo check.
-  tokenVersion?: number;
 }
 
 export async function createSession(payload: SessionPayload): Promise<string> {
@@ -51,39 +48,6 @@ export async function getSessionFromRequest(req: NextRequest): Promise<SessionPa
   const token = req.cookies.get(COOKIE)?.value;
   if (!token) return null;
   return verifySession(token);
-}
-
-/**
- * Verifica que el tokenVersion del JWT coincide con el DB.
- * Usar en rutas sensibles (cambio de password, operaciones admin críticas).
- * NO disponible en middleware (Edge runtime no soporta Prisma).
- *
- * Retorna false si el supervisor fue desactivado o su tokenVersion fue bumpeado.
- */
-export async function isSessionFresh(session: SessionPayload): Promise<boolean> {
-  if (session.role !== "supervisor" || !session.supervisorId) return true;
-  if (session.tokenVersion === undefined) return true; // tokens legacy sin versión = aceptar
-
-  const { prisma } = await import("@/lib/db/prisma");
-  const sup = await prisma.supervisor.findUnique({
-    where: { id: session.supervisorId },
-    select: { tokenVersion: true, activo: true },
-  });
-
-  if (!sup || !sup.activo) return false;
-  return sup.tokenVersion === session.tokenVersion;
-}
-
-/**
- * Invalida todas las sesiones activas de un supervisor incrementando tokenVersion.
- * Llamar en: cambio de contraseña, desactivación, revocación de acceso.
- */
-export async function bumpTokenVersion(supervisorId: string): Promise<void> {
-  const { prisma } = await import("@/lib/db/prisma");
-  await prisma.supervisor.update({
-    where: { id: supervisorId },
-    data: { tokenVersion: { increment: 1 } },
-  });
 }
 
 export function sessionCookieOptions(token: string) {

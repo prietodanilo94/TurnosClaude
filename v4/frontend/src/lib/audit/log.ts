@@ -121,7 +121,7 @@ function buildSubject(
   }
 }
 
-export function buildCalendarUrl(
+function buildCalendarUrl(
   branchId: string | null,
   metadata: Record<string, unknown> | null,
 ): string | null {

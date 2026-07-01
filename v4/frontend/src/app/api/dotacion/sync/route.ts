@@ -4,7 +4,6 @@ import { prisma } from "@/lib/db/prisma";
 import type { AreaNegocio } from "@/types";
 import { normalizeSupervisorName, supervisorLookupKey } from "@/lib/supervisors";
 import { logAction } from "@/lib/audit/log";
-import { pruneAuditLog } from "@/lib/audit/cleanup";
 
 function normalizeBranchName(raw: string): string {
   return raw
@@ -282,8 +281,6 @@ export async function POST(req: NextRequest) {
       },
       req,
     });
-
-    void pruneAuditLog();
 
     return NextResponse.json({
       branchesCreated,

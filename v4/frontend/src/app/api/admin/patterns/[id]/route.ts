@@ -1,20 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
-import { ShiftPatternBodySchema } from "@/lib/db/schemas";
 
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
-  const parsed = ShiftPatternBodySchema.safeParse(await req.json());
-  if (!parsed.success) {
-    return NextResponse.json({ error: "Datos inválidos", detail: parsed.error.message }, { status: 400 });
+  const { label, areaNegocio, rotationWeeks, weeklyHours } = await req.json() as {
+    label: string;
+    areaNegocio: string;
+    rotationWeeks: unknown;
+    weeklyHours: unknown;
+  };
+  if (!label || !areaNegocio || !rotationWeeks || !weeklyHours) {
+    return NextResponse.json({ error: "Faltan campos" }, { status: 400 });
   }
-  const { label, areaNegocio, rotationWeeks, weeklyHours } = parsed.data;
-
   const updated = await prisma.shiftPattern.update({
     where: { id: params.id },
     data: {
-      label: label.trim(),
+      label,
       areaNegocio,
-      rotationJson:    JSON.stringify(rotationWeeks),
+      rotationJson: JSON.stringify(rotationWeeks),
       weeklyHoursJson: JSON.stringify(weeklyHours),
     },
   });

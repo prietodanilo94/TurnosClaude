@@ -4,7 +4,6 @@ import { getSession } from "@/lib/auth/session";
 import { generateCalendar } from "@/lib/calendar/generator";
 import type { CalendarSlot, WorkerBlockInfo } from "@/types";
 import VendedorView from "./VendedorView";
-import { parseSlotsData, parseAssignments } from "@/lib/db/schemas";
 
 export const dynamic = "force-dynamic";
 
@@ -62,8 +61,8 @@ export default async function VendedorMesPage({ params }: Props) {
   let calendarId: string | undefined;
 
   if (calendar) {
-    slots = parseSlotsData(calendar.slotsData);
-    assignments = parseAssignments(calendar.assignments);
+    slots = JSON.parse(calendar.slotsData);
+    assignments = JSON.parse(calendar.assignments);
     calendarId = calendar.id;
   } else if (team.categoria) {
     const result = generateCalendar(team.categoria, year, month, team.workers.length);

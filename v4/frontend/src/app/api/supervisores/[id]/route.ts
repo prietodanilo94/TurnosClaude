@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db/prisma";
-import { getSession, bumpTokenVersion } from "@/lib/auth/session";
+import { getSession } from "@/lib/auth/session";
 import { logAction } from "@/lib/audit/log";
 
 async function requireAdmin() {
@@ -44,19 +44,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (activo !== undefined) data.activo = activo;
   if (isAdmin !== undefined) data.isAdmin = Boolean(isAdmin);
   if (invisible !== undefined) data.invisible = Boolean(invisible);
-  if (resetPassword) {
-    data.passwordHash = null;
-    // Invalidar sesiones activas al resetear contraseña
-    await bumpTokenVersion(params.id);
-  } else if (password) {
-    data.passwordHash = await bcrypt.hash(password, 12);
-    // Invalidar sesiones anteriores al cambiar contraseña
-    await bumpTokenVersion(params.id);
-  }
-  if (activo === false) {
-    // Invalidar sesiones activas al desactivar
-    await bumpTokenVersion(params.id);
-  }
+  if (resetPassword) data.passwordHash = null;
+  else if (password) data.passwordHash = await bcrypt.hash(password, 12);
 
   if (branchIds !== undefined) {
     await prisma.supervisorBranch.deleteMany({ where: { supervisorId: params.id } });

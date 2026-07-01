@@ -8,7 +8,6 @@ import { supervisorLookupKey } from "@/lib/supervisors";
 import type { TeamSlice } from "@/lib/calendar/teamSplit";
 import type { CalendarSlot, ShiftPatternDef, WorkerBlockInfo } from "@/types";
 import SupervisorCalendarView from "./SupervisorCalendarView";
-import { parseSlotsData, parseAssignments } from "@/lib/db/schemas";
 
 interface Props {
   searchParams: { groupId?: string; branchId?: string | string[]; year?: string; month?: string };
@@ -183,8 +182,8 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
         let teamSlots: CalendarSlot[];
         let teamAssign: Record<string, string | null>;
         if (cal) {
-          teamSlots  = parseSlotsData(cal.slotsData);
-          teamAssign = parseAssignments(cal.assignments);
+          teamSlots  = JSON.parse(cal.slotsData) as CalendarSlot[];
+          teamAssign = JSON.parse(cal.assignments) as Record<string, string | null>;
           // Auto-agregar slots para trabajadores nuevos
           if (N > teamSlots.length && definedCat) {
             const full = generateCalendar(definedCat, year, month, N, patternMap[definedCat]);
@@ -227,12 +226,12 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
     const cal = team.calendars[0];
     const N   = teamWorkers.length;
     const prevCal = prevCalMap.get(team.id);
-    const teamPrevAssignments: Record<string, string | null> = prevCal ? parseAssignments(prevCal.assignments) : {};
+    const teamPrevAssignments: Record<string, string | null> = prevCal ? JSON.parse(prevCal.assignments) : {};
     let slots: CalendarSlot[];
     let assignments: Record<string, string | null> = {};
     if (cal) {
-      slots       = parseSlotsData(cal.slotsData);
-      assignments = parseAssignments(cal.assignments);
+      slots       = JSON.parse(cal.slotsData) as CalendarSlot[];
+      assignments = JSON.parse(cal.assignments) as Record<string, string | null>;
       // Auto-agregar slots para trabajadores nuevos
       if (N > slots.length && team.categoria) {
         const full = generateCalendar(team.categoria, year, month, N, patternMap[team.categoria]);
@@ -305,7 +304,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
       {blocks.map((block) => (
         <SupervisorCalendarView
           key={block.key}
-          hideExcelExport={false}
+          hideExcelExport={session?.role !== "admin"}
           title={block.title}
           areaLabel={block.areaLabel}
           areaNegocio={block.areaNegocio}
