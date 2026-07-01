@@ -198,8 +198,14 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
         }
         allSlots.push(...teamSlots.map((s) => ({ ...s, slotNumber: s.slotNumber + offset })));
         for (const [k, v] of Object.entries(teamAssign)) allAssignments[String(Number(k) + offset)] = v;
-        slices.push({ teamId: team.id, workerIds: teamWorkers.map((w) => w.id) });
-        offset += N;
+        slices.push({ teamId: team.id, workerIds: teamWorkers.map((w) => w.id), slotCount: teamSlots.length });
+        // El offset del siguiente equipo debe avanzar segun la cantidad real
+        // de slots agregados a allSlots (teamSlots.length), no la cantidad de
+        // trabajadores activos hoy (N). Si el calendario guardado tiene mas
+        // slots que activos actuales (alguien fue desactivado sin regenerar),
+        // usar N aqui produce numeros de slot que chocan con el equipo
+        // siguiente — mismo slot combinado asignado a dos trabajadores.
+        offset += teamSlots.length;
       }
       blocks.push({
         key: `${blockKey}-${area}`,
@@ -258,7 +264,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
       assignments,
       workers,
       blocks: workerBlocks,
-      slices: [{ teamId: team.id, workerIds: workers.map((w) => w.id) }],
+      slices: [{ teamId: team.id, workerIds: workers.map((w) => w.id), slotCount: slots.length }],
       hasCalendar: !!cal,
       patternOverride: team.categoria ? patternMap[team.categoria] : undefined,
       prevAssignments: !cal && Object.keys(teamPrevAssignments).length > 0 ? teamPrevAssignments : undefined,

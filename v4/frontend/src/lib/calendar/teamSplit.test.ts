@@ -40,4 +40,39 @@ describe("splitCalendarByTeam", () => {
     });
     expect(result[1].slots.map((s) => s.slotNumber)).toEqual([1, 2, 3]);
   });
+
+  it("uses slotCount instead of workerIds.length when a team has fewer active workers than saved slots", () => {
+    // Escenario real: DFSK tiene 4 slots guardados pero solo 3 trabajadores
+    // activos hoy (uno fue desactivado sin regenerar). Sin slotCount, el
+    // offset del siguiente equipo se calcularia con 3 en vez de 4, y sus
+    // slots chocarian con el slot 4 (vacio) de DFSK.
+    const result = splitCalendarByTeam(
+      [slot(1), slot(2), slot(3), slot(4), slot(5), slot(6), slot(7)],
+      {
+        "1": "worker-a",
+        "2": "worker-b",
+        "3": "worker-c",
+        "4": null,
+        "5": "worker-d",
+        "6": "worker-e",
+        "7": "worker-f",
+      },
+      [
+        { teamId: "team-dfsk", workerIds: ["worker-a", "worker-b", "worker-c"], slotCount: 4 },
+        { teamId: "team-subaru", workerIds: ["worker-d", "worker-e", "worker-f"], slotCount: 3 },
+      ],
+    );
+
+    expect(result).toHaveLength(2);
+    expect(result[0]).toMatchObject({
+      teamId: "team-dfsk",
+      assignments: { "1": "worker-a", "2": "worker-b", "3": "worker-c", "4": null },
+    });
+    expect(result[1]).toMatchObject({
+      teamId: "team-subaru",
+      assignments: { "1": "worker-d", "2": "worker-e", "3": "worker-f" },
+    });
+    // El slot 5 (combinado) = slot 1 de Subaru, sin colisionar con el slot 4 de DFSK.
+    expect(result[1].slots.map((s) => s.slotNumber)).toEqual([1, 2, 3]);
+  });
 });
