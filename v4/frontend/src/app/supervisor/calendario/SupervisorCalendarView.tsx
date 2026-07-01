@@ -227,7 +227,7 @@ export default function SupervisorCalendarView({
             slice.workerIds.forEach((workerId, index) => {
               nextAssignments[String(offset + index + 1)] = workerId;
             });
-            offset += slice.workerIds.length;
+            offset += slice.slotCount ?? slice.workerIds.length;
           }
         }
 

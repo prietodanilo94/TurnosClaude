@@ -3,6 +3,12 @@ import type { CalendarSlot } from "@/types";
 export interface TeamSlice {
   teamId: string;
   workerIds: string[];
+  // Cantidad real de slots que ocupa este equipo en el arreglo combinado.
+  // Puede diferir de workerIds.length cuando el calendario guardado tiene
+  // mas o menos slots que trabajadores activos hoy (alguien fue agregado o
+  // desactivado sin regenerar). Si no se especifica, se asume workerIds.length
+  // (caso de generacion nueva, donde ambos siempre coinciden).
+  slotCount?: number;
 }
 
 export interface SplitTeamCalendar {
@@ -20,7 +26,7 @@ export function splitCalendarByTeam(
   let offset = 0;
 
   for (const slice of slices) {
-    const workerCount = slice.workerIds.length;
+    const workerCount = slice.slotCount ?? slice.workerIds.length;
     const teamSlots = slots
       .filter((slot) => slot.slotNumber > offset && slot.slotNumber <= offset + workerCount)
       .map((slot) => ({ ...slot, slotNumber: slot.slotNumber - offset }));
