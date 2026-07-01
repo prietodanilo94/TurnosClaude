@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
 
-  const { year, month } = await req.json();
+  const { year, month, dryRun } = await req.json();
   if (!year || !month) {
     return NextResponse.json({ error: "Falta year o month" }, { status: 400 });
   }
@@ -75,35 +75,37 @@ export async function POST(req: NextRequest) {
         assignments[String(i + 1)] = worker.id;
       });
 
-      const calendar = await prisma.calendar.create({
-        data: {
-          branchTeamId: team.id,
-          year,
-          month,
-          slotsData: JSON.stringify(slots satisfies CalendarSlot[]),
-          assignments: JSON.stringify(assignments),
-          assignedCount: team.workers.length,
-        },
-      });
+      if (!dryRun) {
+        const calendar = await prisma.calendar.create({
+          data: {
+            branchTeamId: team.id,
+            year,
+            month,
+            slotsData: JSON.stringify(slots satisfies CalendarSlot[]),
+            assignments: JSON.stringify(assignments),
+            assignedCount: team.workers.length,
+          },
+        });
 
-      await logAction({
-        action: "calendar.generate",
-        entityType: "calendar",
-        entityId: calendar.id,
-        branchId: team.branch.id,
-        metadata: {
-          teamId: team.id,
-          year,
-          month,
-          slotCount: slots.length,
-          assignedCount: team.workers.length,
-          scopeLabel: team.branch.nombre,
-          scopeType: "branch",
-          mode: "create",
-          source: "backfill-missing",
-        },
-        req,
-      });
+        await logAction({
+          action: "calendar.generate",
+          entityType: "calendar",
+          entityId: calendar.id,
+          branchId: team.branch.id,
+          metadata: {
+            teamId: team.id,
+            year,
+            month,
+            slotCount: slots.length,
+            assignedCount: team.workers.length,
+            scopeLabel: team.branch.nombre,
+            scopeType: "branch",
+            mode: "create",
+            source: "backfill-missing",
+          },
+          req,
+        });
+      }
 
       generated.push({
         teamId: team.id,
