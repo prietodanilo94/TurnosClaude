@@ -204,9 +204,10 @@ export function validateCalendarForPublish({
     const weekHours: Record<string, number> = {};
     for (const [dateStr, shift] of Object.entries(slot.days)) {
       if (!shift) continue;
-      const d = new Date(dateStr + "T12:00:00");
-      if (d.getFullYear() !== year || d.getMonth() + 1 !== month) continue;
       if (isFeriado(dateStr)) continue;
+      // Sin filtro de mes a propósito: slot.days ya trae la grilla extendida
+      // (lunes-domingo completos), así que una semana que cruza fin de mes
+      // suma sus 7 días reales en vez de solo los que caen en este mes.
       const wk = isoWeekKey(dateStr);
       weekHours[wk] = (weekHours[wk] ?? 0) + shiftDuration(shift);
     }
