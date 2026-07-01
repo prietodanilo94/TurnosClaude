@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db/prisma";
 import { getSession } from "@/lib/auth/session";
+import { clearWorkerFromFutureCalendars } from "@/lib/calendar/cleanupStaleAssignments";
 
 async function requireAdmin() {
   const session = await getSession();
@@ -27,6 +28,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return NextResponse.json({ error: "Sin campos para actualizar" }, { status: 400 });
   }
 
+  const before = await prisma.worker.findUnique({
+    where: { id: params.id },
+    select: { branchTeamId: true },
+  });
+
   const worker = await prisma.worker.update({
     where: { id: params.id },
     data,
@@ -46,6 +52,14 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     },
   });
 
+  // Si se desactivo, o si cambio de equipo, no debe seguir apareciendo
+  // asignado en calendarios del mes actual o futuros de su equipo anterior.
+  const leftOldTeam = branchTeamId !== undefined && before && before.branchTeamId !== branchTeamId;
+  const wasDeactivated = activo === false;
+  if ((leftOldTeam || wasDeactivated) && before) {
+    await clearWorkerFromFutureCalendars([params.id], before.branchTeamId);
+  }
+
   return NextResponse.json(worker);
 }
 
@@ -54,6 +68,10 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
     return NextResponse.json({ error: "Sin acceso" }, { status: 403 });
   }
 
+  // Limpiar antes de eliminar: una vez borrado el Worker, su id ya no se
+  // puede resolver a un nombre y queda como referencia huerfana ("?") en
+  // cualquier calendario donde siga asignado.
+  await clearWorkerFromFutureCalendars([params.id]);
   await prisma.worker.delete({ where: { id: params.id } });
   return NextResponse.json({ ok: true });
 }
