@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { generateCalendar } from "@/lib/calendar/generator";
+import { ensureRotationAnchors } from "@/lib/calendar/rotationAnchor";
 import { resolveCalendarDisplayCategory, type CalendarCategoryTeam } from "@/lib/calendar/categoryFallback";
 import { getSession } from "@/lib/auth/session";
 import { supervisorLookupKey } from "@/lib/supervisors";
@@ -82,7 +83,10 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
     );
   }
 
-  const workerCount = team.workers.length;
+  const anchors = await ensureRotationAnchors(
+    filteredWorkers.map((w) => ({ id: w.id, rotationAnchor: w.rotationAnchor })),
+  );
+  const slotAnchors = anchors.map((a) => a.rotationAnchor);
 
   const prevYear = month === 1 ? year - 1 : year;
   const prevMonth = month === 1 ? 12 : month - 1;
@@ -117,15 +121,19 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
     }
     // Auto-agregar slots para trabajadores nuevos
     if (filteredWorkers.length > slots.length) {
-      const full = generateCalendar(catId, year, month, filteredWorkers.length, patternOverride);
+      const full = generateCalendar(catId, year, month, slotAnchors, patternOverride);
       slots = [...slots, ...full.slots.slice(slots.length)];
     }
   } else {
-    const result = generateCalendar(catId, year, month, workerCount, patternOverride);
+    const result = generateCalendar(catId, year, month, slotAnchors, patternOverride);
     slots = result.slots;
     alert = result.alert;
     if (Object.keys(prevAssignments).length > 0) {
-      assignments = { ...prevAssignments };
+      // El ancla de rotacion de cada trabajador (F9) ya garantiza continuidad
+      // con el mes anterior si sigue activo — no se copian asignaciones por
+      // numero de slot (podian corresponder a otra persona si el equipo
+      // cambio en el medio). Solo se asigna en orden alfabetico actual.
+      filteredWorkers.forEach((w, i) => { assignments[String(i + 1)] = w.id; });
       prevMonthLabel = `${MONTHS_ES[prevMonth - 1]} ${prevYear}`;
     }
   }

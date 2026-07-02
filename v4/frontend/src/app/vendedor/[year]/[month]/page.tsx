@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { getSession } from "@/lib/auth/session";
 import { generateCalendar } from "@/lib/calendar/generator";
+import { ensureRotationAnchors } from "@/lib/calendar/rotationAnchor";
 import type { CalendarSlot, WorkerBlockInfo } from "@/types";
 import VendedorView from "./VendedorView";
 
@@ -65,7 +66,10 @@ export default async function VendedorMesPage({ params }: Props) {
     assignments = JSON.parse(calendar.assignments);
     calendarId = calendar.id;
   } else if (team.categoria) {
-    const result = generateCalendar(team.categoria, year, month, team.workers.length);
+    const anchors = await ensureRotationAnchors(
+      team.workers.map((w) => ({ id: w.id, rotationAnchor: w.rotationAnchor })),
+    );
+    const result = generateCalendar(team.categoria, year, month, anchors.map((a) => a.rotationAnchor));
     slots = result.slots;
   } else {
     slots = [];

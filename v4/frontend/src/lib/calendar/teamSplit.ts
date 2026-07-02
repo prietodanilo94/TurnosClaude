@@ -9,6 +9,9 @@ export interface TeamSlice {
   // desactivado sin regenerar). Si no se especifica, se asume workerIds.length
   // (caso de generacion nueva, donde ambos siempre coinciden).
   slotCount?: number;
+  // Ancla de rotacion de cada trabajador, mismo orden que workerIds. Se usa
+  // al generar por primera vez desde el cliente (ver F9-rotacion-estable).
+  rotationAnchors?: number[];
 }
 
 export interface SplitTeamCalendar {

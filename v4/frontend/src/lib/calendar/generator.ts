@@ -14,9 +14,16 @@ export type WorkerBlockDateMap = Record<string, Record<string, string | null>>;
 
 /**
  * Genera los slots del calendario para un mes completo.
- * - workerCount: cantidad de vendedores activos (sin contar virtuales aún).
- * - Para rotación biweekly: slot i parte en semana (i-1) % 2.
- * - Para rotación 4weekly:  slot i parte en semana (i-1) % 4.
+ * - slotAnchors: un valor de rotacion por slot, en el mismo orden en que
+ *   luego se asignaran los trabajadores (slot 1 = slotAnchors[0], etc).
+ *   Ese valor NO es la posicion del slot — es el "rotationAnchor" fijo de
+ *   cada trabajador (ver lib/calendar/rotationAnchor.ts), para que su
+ *   semana de rotacion no cambie aunque cambie el orden alfabetico del
+ *   equipo entre generaciones. Antes se usaba slotNum-1 directamente, lo
+ *   que hacia que un mismo trabajador pudiera caer en semanas de rotacion
+ *   distintas en dos meses distintos si el equipo cambiaba en el medio.
+ * - Para rotación biweekly: anchor % 2.
+ * - Para rotación 4weekly:  anchor % 4.
  * - Para horario fijo:      todos tienen siempre semana 0.
  *
  * La rotación se ancla a la semana ISO del primer día del mes para que sea
@@ -26,11 +33,12 @@ export function generateCalendar(
   category: string,
   year: number,
   month: number,  // 1-based
-  workerCount: number,
+  slotAnchors: number[],
   patternOverride?: ShiftPatternDef,
 ): GenerateResult {
   const pattern = getPatternOrThrow(category, patternOverride);
   const rotLen = pattern.rotationWeeks.length;
+  const workerCount = slotAnchors.length;
 
   let alert: string | undefined;
   if (workerCount === 1) {
@@ -58,6 +66,7 @@ export function generateCalendar(
   const firstIsoWeek = getWeekIndex(firstDayMonday);
 
   for (let slotNum = 1; slotNum <= workerCount; slotNum++) {
+    const anchor = slotAnchors[slotNum - 1];
     const days: Record<string, DayShift | null> = {};
 
     const cur = new Date(startMonday);
@@ -69,8 +78,8 @@ export function generateCalendar(
       const isoWeek = getWeekIndex(monday);
 
       const weekIdx = pattern.fixedSlots
-        ? (slotNum - 1) % rotLen
-        : rotLen === 1 ? 0 : (isoWeek + slotNum - 1) % rotLen;
+        ? anchor % rotLen
+        : rotLen === 1 ? 0 : (isoWeek + anchor) % rotLen;
 
       const dow = dowIndex(cur);
       days[dateStr] = pattern.rotationWeeks[weekIdx][dow] ?? null;
@@ -79,8 +88,8 @@ export function generateCalendar(
     }
 
     const semanaOffset = pattern.fixedSlots
-      ? (slotNum - 1) % rotLen
-      : rotLen === 1 ? 0 : (firstIsoWeek + slotNum - 1) % rotLen;
+      ? anchor % rotLen
+      : rotLen === 1 ? 0 : (firstIsoWeek + anchor) % rotLen;
 
     slots.push({ slotNumber: slotNum, days, semanaOffset });
   }

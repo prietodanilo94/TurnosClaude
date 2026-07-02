@@ -1,6 +1,7 @@
 import * as XLSX from "xlsx";
 import { prisma } from "@/lib/db/prisma";
 import { generateCalendar } from "@/lib/calendar/generator";
+import { ensureRotationAnchors } from "@/lib/calendar/rotationAnchor";
 import type { CalendarSlot, DayShift } from "@/types";
 
 const MONTH_NAMES = [
@@ -79,9 +80,15 @@ export async function generateGroupCalendarExcel({
     const existing = team.calendars[0];
     if (!existing && !team.categoria) continue;
 
-    const slots: CalendarSlot[] = existing
-      ? JSON.parse(existing.slotsData)
-      : generateCalendar(team.categoria!, year, month, team.workers.length).slots;
+    let slots: CalendarSlot[];
+    if (existing) {
+      slots = JSON.parse(existing.slotsData);
+    } else {
+      const anchors = await ensureRotationAnchors(
+        team.workers.map((w) => ({ id: w.id, rotationAnchor: w.rotationAnchor })),
+      );
+      slots = generateCalendar(team.categoria!, year, month, anchors.map((a) => a.rotationAnchor)).slots;
+    }
     const assignments: Record<string, string | null> = existing ? JSON.parse(existing.assignments) : {};
     const workerMap = Object.fromEntries(team.workers.map((w) => [w.id, w.nombre]));
     const sheetName = safeSheetName(`${team.branch.nombre}_${team.areaNegocio}`);
