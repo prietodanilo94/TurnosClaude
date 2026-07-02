@@ -245,6 +245,8 @@ export async function GET(req: NextRequest) {
   const prefix = mode === "rrhh" ? "turnos_rrhh" : "calendario";
   const fileName = safeFileName(`${prefix}_${scopeLabel}_${MONTH_NAMES[month]}_${year}`) + ".xlsx";
 
+  const skipped: { branch: string; area: string }[] = [];
+
   if (mode === "rrhh") {
     // RRHH mode: plain xlsx (sin colores)
     const wb = XLSX.utils.book_new();
@@ -252,7 +254,7 @@ export async function GET(req: NextRequest) {
 
     for (const team of teams) {
       const existing = team.calendars[0];
-      if (!existing && !team.categoria) continue;
+      if (!existing && !team.categoria) { skipped.push({ branch: team.branch.nombre, area: team.areaNegocio }); continue; }
 
       let slots: CalendarSlot[];
       if (existing) {
@@ -276,6 +278,16 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "No hay calendarios exportables para este grupo" }, { status: 400 });
     }
 
+    if (skipped.length > 0) {
+      const warnRows = [
+        ["Sucursales NO incluidas en este archivo (sin categoria asignada y sin calendario del mes)"],
+        ["Sucursal", "Area"],
+        ...skipped.map((s) => [s.branch, s.area]),
+      ];
+      const warnWs = XLSX.utils.aoa_to_sheet(warnRows);
+      XLSX.utils.book_append_sheet(wb, warnWs, "AVISO");
+    }
+
     buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer;
   } else {
     // Calendar mode: ExcelJS con colores
@@ -285,7 +297,7 @@ export async function GET(req: NextRequest) {
 
     for (const team of teams) {
       const existing = team.calendars[0];
-      if (!existing && !team.categoria) continue;
+      if (!existing && !team.categoria) { skipped.push({ branch: team.branch.nombre, area: team.areaNegocio }); continue; }
 
       let slots: CalendarSlot[];
       if (existing) {
@@ -306,6 +318,16 @@ export async function GET(req: NextRequest) {
 
     if (exportedSheets === 0) {
       return NextResponse.json({ error: "No hay calendarios exportables para este grupo" }, { status: 400 });
+    }
+
+    if (skipped.length > 0) {
+      const warnWs = wb.addWorksheet("AVISO");
+      warnWs.columns = [{ width: 40 }, { width: 20 }];
+      warnWs.addRow(["Sucursales NO incluidas (sin categoria asignada y sin calendario del mes)"]);
+      warnWs.mergeCells(1, 1, 1, 2);
+      warnWs.getCell(1, 1).font = { bold: true, color: { argb: "FFB00000" } };
+      warnWs.addRow(["Sucursal", "Area"]).font = { bold: true };
+      for (const s of skipped) warnWs.addRow([s.branch, s.area]);
     }
 
     const raw = await wb.xlsx.writeBuffer();
