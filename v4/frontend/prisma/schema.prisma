@@ -76,6 +76,11 @@ model Worker {
   activo       Boolean    @default(true)
   esVirtual    Boolean    @default(false)
   passwordHash String?
+  // Ancla fija de rotacion: se asigna una sola vez (al primer calendario
+  // donde participa) y no se recalcula mientras siga activo, para que su
+  // semana de rotacion no cambie cuando entra o sale gente del equipo.
+  // Ver v4/specs/F9-rotacion-estable.
+  rotationAnchor Int?
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   blocks       WorkerBlock[]

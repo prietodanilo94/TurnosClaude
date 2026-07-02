@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { generateCalendar } from "@/lib/calendar/generator";
+import { ensureRotationAnchors } from "@/lib/calendar/rotationAnchor";
 import { logAction } from "@/lib/audit/log";
 import * as XLSX from "xlsx";
 import ExcelJS from "exceljs";
@@ -101,7 +102,10 @@ export async function GET(req: NextRequest) {
     slots = JSON.parse(existing.slotsData);
     assignments = JSON.parse(existing.assignments);
   } else {
-    const result = generateCalendar(team.categoria, year, month, team.workers.length);
+    const anchors = await ensureRotationAnchors(
+      team.workers.map((w) => ({ id: w.id, rotationAnchor: w.rotationAnchor })),
+    );
+    const result = generateCalendar(team.categoria, year, month, anchors.map((a) => a.rotationAnchor));
     slots = result.slots;
   }
 

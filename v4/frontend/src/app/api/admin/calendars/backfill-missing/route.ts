@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSessionFromRequest } from "@/lib/auth/session";
 import { generateCalendar } from "@/lib/calendar/generator";
+import { ensureRotationAnchors, resolveRotationAnchors } from "@/lib/calendar/rotationAnchor";
 import { patternFromRow } from "@/lib/patterns/catalog";
 import { logAction } from "@/lib/audit/log";
 import type { CalendarSlot, ShiftPatternDef } from "@/types";
@@ -69,7 +70,12 @@ export async function POST(req: NextRequest) {
 
     try {
       const patternOverride = overrideByCategoria.get(team.categoria);
-      const { slots } = generateCalendar(team.categoria, year, month, team.workers.length, patternOverride);
+      // En dryRun no se persiste nada, tampoco el ancla de rotacion nueva
+      // que le tocaria a un trabajador sin una todavia.
+      const anchorInput = team.workers.map((w) => ({ id: w.id, rotationAnchor: w.rotationAnchor }));
+      const anchors = dryRun ? resolveRotationAnchors(anchorInput) : await ensureRotationAnchors(anchorInput);
+      const slotAnchors = anchors.map((a) => a.rotationAnchor);
+      const { slots } = generateCalendar(team.categoria, year, month, slotAnchors, patternOverride);
       const assignments: Record<string, string | null> = {};
       team.workers.forEach((worker, i) => {
         assignments[String(i + 1)] = worker.id;

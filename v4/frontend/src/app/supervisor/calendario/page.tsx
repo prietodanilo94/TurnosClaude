@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { getSession } from "@/lib/auth/session";
 import { generateCalendar } from "@/lib/calendar/generator";
+import { ensureRotationAnchors } from "@/lib/calendar/rotationAnchor";
 import { patternFromRow } from "@/lib/patterns/catalog";
 import { supervisorLookupKey } from "@/lib/supervisors";
 import type { TeamSlice } from "@/lib/calendar/teamSplit";
@@ -153,7 +154,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
 
   const blocks: DisplayBlock[] = [];
 
-  function buildGroupBlock(groupTeams: typeof teams, groupTitle: string, blockKey: string) {
+  async function buildGroupBlock(groupTeams: typeof teams, groupTitle: string, blockKey: string) {
     const byArea = new Map<string, typeof teams>();
     for (const team of groupTeams) {
       if (!byArea.has(team.areaNegocio)) byArea.set(team.areaNegocio, []);
@@ -177,6 +178,12 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
       for (const team of areaTeams) {
         const teamWorkers = team.workers.filter(w => !supervisorKeys.has(supervisorLookupKey(w.nombre)));
         const N = teamWorkers.length;
+        // Ancla de rotacion estable por trabajador (F9): quien ya tenia una
+        // la conserva; a quien no, se le fija ahora segun su orden actual.
+        const anchors = await ensureRotationAnchors(
+          teamWorkers.map((w) => ({ id: w.id, rotationAnchor: w.rotationAnchor })),
+        );
+        const slotAnchors = anchors.map((a) => a.rotationAnchor);
         const cal = team.calendars[0];
         if (cal) hasCalendar = true;
         let teamSlots: CalendarSlot[];
@@ -186,11 +193,11 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
           teamAssign = JSON.parse(cal.assignments) as Record<string, string | null>;
           // Auto-agregar slots para trabajadores nuevos
           if (N > teamSlots.length && definedCat) {
-            const full = generateCalendar(definedCat, year, month, N, patternMap[definedCat]);
+            const full = generateCalendar(definedCat, year, month, slotAnchors, patternMap[definedCat]);
             teamSlots = [...teamSlots, ...full.slots.slice(teamSlots.length)];
           }
         } else if (definedCat) {
-          teamSlots  = generateCalendar(definedCat, year, month, N, patternMap[definedCat]).slots;
+          teamSlots  = generateCalendar(definedCat, year, month, slotAnchors, patternMap[definedCat]).slots;
           teamAssign = {};
         } else {
           teamSlots  = [];
@@ -198,7 +205,12 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
         }
         allSlots.push(...teamSlots.map((s) => ({ ...s, slotNumber: s.slotNumber + offset })));
         for (const [k, v] of Object.entries(teamAssign)) allAssignments[String(Number(k) + offset)] = v;
-        slices.push({ teamId: team.id, workerIds: teamWorkers.map((w) => w.id), slotCount: teamSlots.length });
+        slices.push({
+          teamId: team.id,
+          workerIds: teamWorkers.map((w) => w.id),
+          slotCount: teamSlots.length,
+          rotationAnchors: slotAnchors,
+        });
         // El offset del siguiente equipo debe avanzar segun la cantidad real
         // de slots agregados a allSlots (teamSlots.length), no la cantidad de
         // trabajadores activos hoy (N). Si el calendario guardado tiene mas
@@ -227,10 +239,14 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
     }
   }
 
-  function buildSoloBlock(team: (typeof teams)[0]) {
+  async function buildSoloBlock(team: (typeof teams)[0]) {
     const teamWorkers = team.workers.filter(w => !supervisorKeys.has(supervisorLookupKey(w.nombre)));
     const cal = team.calendars[0];
     const N   = teamWorkers.length;
+    const anchors = await ensureRotationAnchors(
+      teamWorkers.map((w) => ({ id: w.id, rotationAnchor: w.rotationAnchor })),
+    );
+    const slotAnchors = anchors.map((a) => a.rotationAnchor);
     const prevCal = prevCalMap.get(team.id);
     const teamPrevAssignments: Record<string, string | null> = prevCal ? JSON.parse(prevCal.assignments) : {};
     let slots: CalendarSlot[];
@@ -240,11 +256,11 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
       assignments = JSON.parse(cal.assignments) as Record<string, string | null>;
       // Auto-agregar slots para trabajadores nuevos
       if (N > slots.length && team.categoria) {
-        const full = generateCalendar(team.categoria, year, month, N, patternMap[team.categoria]);
+        const full = generateCalendar(team.categoria, year, month, slotAnchors, patternMap[team.categoria]);
         slots = [...slots, ...full.slots.slice(slots.length)];
       }
     } else if (team.categoria) {
-      slots = generateCalendar(team.categoria, year, month, N, patternMap[team.categoria]).slots;
+      slots = generateCalendar(team.categoria, year, month, slotAnchors, patternMap[team.categoria]).slots;
     } else {
       slots = [];
     }
@@ -264,7 +280,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
       assignments,
       workers,
       blocks: workerBlocks,
-      slices: [{ teamId: team.id, workerIds: workers.map((w) => w.id), slotCount: slots.length }],
+      slices: [{ teamId: team.id, workerIds: workers.map((w) => w.id), slotCount: slots.length, rotationAnchors: slotAnchors }],
       hasCalendar: !!cal,
       patternOverride: team.categoria ? patternMap[team.categoria] : undefined,
       prevAssignments: !cal && Object.keys(teamPrevAssignments).length > 0 ? teamPrevAssignments : undefined,
@@ -275,7 +291,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
 
   if (searchParams.groupId) {
     // Single explicit group — merge all teams by area
-    buildGroupBlock(teams, pageTitle, searchParams.groupId);
+    await buildGroupBlock(teams, pageTitle, searchParams.groupId);
   } else {
     // Detect actual groups among the selected branches
     const teamsByRealGroup = new Map<string, typeof teams>();
@@ -291,10 +307,10 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
     }
     for (const [gid, groupTeams] of teamsByRealGroup) {
       const branchNames = [...new Set(groupTeams.map((t) => t.branch.nombre))];
-      buildGroupBlock(groupTeams, branchNames.join(" · "), gid);
+      await buildGroupBlock(groupTeams, branchNames.join(" · "), gid);
     }
     for (const team of soloTeams) {
-      buildSoloBlock(team);
+      await buildSoloBlock(team);
     }
   }
 

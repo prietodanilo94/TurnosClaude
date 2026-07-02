@@ -117,7 +117,6 @@ export default function SupervisorCalendarView({
   hasCalendar,
   queryBase,
   prevMonthLabel,
-  prevAssignments,
   supervisorNames,
   hideExcelExport = true,
 }: Props) {
@@ -139,7 +138,6 @@ export default function SupervisorCalendarView({
     activo: true,
     esVirtual: false,
   }));
-  const totalWorkers = slices.reduce((sum, slice) => sum + slice.workerIds.length, 0);
   const navigationQueryPrefix = queryBase ? `${queryBase}&` : "";
 
   return (
@@ -212,23 +210,21 @@ export default function SupervisorCalendarView({
           };
         }
 
-        // Generar por primera vez: mostrar plantilla sin guardar aún (usuario debe presionar Guardar)
-        const generated = generateCalendar(categoria, year, month, totalWorkers, patternOverride ?? undefined);
+        // Generar por primera vez: mostrar plantilla sin guardar aún (usuario debe presionar Guardar).
+        // El ancla de rotacion de cada trabajador (F9) ya garantiza que su
+        // semana de rotacion sea la misma que en el mes anterior si sigue
+        // activo — no hace falta copiar asignaciones por numero de slot
+        // (ese metodo asignaba mal si el equipo habia cambiado en el medio).
+        const slotAnchors = slices.flatMap((slice) => slice.rotationAnchors ?? slice.workerIds.map((_, i) => i));
+        const generated = generateCalendar(categoria, year, month, slotAnchors, patternOverride ?? undefined);
         const nextAssignments: Record<string, string | null> = {};
 
-        if (prevAssignments && Object.keys(prevAssignments).length > 0) {
-          // Continuar desde mes anterior: copiar asignaciones, null para slots nuevos
-          generated.slots.forEach((s) => {
-            nextAssignments[String(s.slotNumber)] = prevAssignments[String(s.slotNumber)] ?? null;
+        let offset = 0;
+        for (const slice of slices) {
+          slice.workerIds.forEach((workerId, index) => {
+            nextAssignments[String(offset + index + 1)] = workerId;
           });
-        } else {
-          let offset = 0;
-          for (const slice of slices) {
-            slice.workerIds.forEach((workerId, index) => {
-              nextAssignments[String(offset + index + 1)] = workerId;
-            });
-            offset += slice.slotCount ?? slice.workerIds.length;
-          }
+          offset += slice.slotCount ?? slice.workerIds.length;
         }
 
         return {
