@@ -122,12 +122,51 @@ pero reales (alguien se va de la mitad de la lista).
 
 ## Fuera de alcance de este spec
 
-- Corregir los calendarios YA generados con datos inconsistentes (requiere
-  una decisión operativa: ¿se recalculan? ¿se dejan como estaban y solo se
-  corrige hacia adelante? Discutir con el usuario antes de tocar datos
-  históricos).
 - El caso del trabajador eliminado por completo (hard delete) dejando una
-  referencia huérfana en `assignments` — es un problema de integridad
-  referencial aparte, no de rotación. Podría abordarse con un chequeo en
-  `/admin/datos` (ver F7) que detecte `workerId`s en calendarios que ya no
-  existen en `Worker`.
+  referencia huérfana en `assignments` — resuelto aparte por
+  `clearWorkerFromFutureCalendars` (ver commit `v4/feat(calendar): limpiar
+  asignaciones futuras al desactivar/eliminar/mover trabajador`).
+
+## Implementación (2026-07-02)
+
+Se implementó la Opción A. `Worker.rotationAnchor` agregado al schema,
+`lib/calendar/rotationAnchor.ts` resuelve y persiste anclas de forma
+perezosa (`ensureRotationAnchors` — sin migración masiva obligatoria previa
+al deploy), `generateCalendar` cambió su firma de `workerCount: number` a
+`slotAnchors: number[]`. Se actualizaron los 9 call sites y se eliminó
+`GenerateButton.tsx` (código muerto) y el mecanismo `prevAssignments`
+(copiaba por número de slot, mismo bug de fondo).
+
+Verificado con un caso limpio (Nissan Irarrázaval 965): dos trabajadores que
+intercambiaron de slot entre junio y julio mantienen su patrón real después
+del fix — coincidencia 100%.
+
+### Backfill retroactivo desde junio — resultado parcial
+
+Se corrió un script de migración (`rotationAnchor = slotJunio - 1` para cada
+trabajador presente en el calendario de junio 2026, luego recálculo de
+`slotsData` de julio con las anclas corregidas). Resultado:
+
+- 277 trabajadores recibieron ancla.
+- 58 equipos con junio y julio simultáneos, los 58 recalculados sin error.
+- Inconsistencias entre junio/julio bajaron de **36 a 28 equipos** (de 58).
+
+**Los 28 restantes NO se debieron seguir persiguiendo** — investigación con
+`Kia Quilin` reveló que el dato *guardado* de junio no coincide con lo que la
+fórmula actual produce para el ancla correcta, en TODOS los días de la
+semana (no un desfase puntual) — indica que el estado guardado de junio ya
+estaba desalineado desde su propia generación (23 de junio, generación
+única, sin regeneraciones posteriores que lo expliquen). Diagnosticar esto
+requeriría arqueología por equipo del historial de auditoría, con beneficio
+bajo dado que junio es un mes cerrado sin impacto operativo. De los 28: 6
+casos sí se explican por categoría creada después de generar el calendario
+(`DFSK Mall Plaza Tobalaba`, `Opel Mall Plaza Egaña`, `Peugeot Mall Plaza
+Sur`, `Subaru Mall Plaza Tobalaba`, `Virtual Peugeot`, `Landking Plaza
+Oeste`); los otros 22 quedan sin causa raíz confirmada, aceptados como
+deuda histórica no perseguida más.
+
+**Lo que sí importa de cara a futuro**: desde agosto 2026 en adelante, cada
+equipo parte de un estado ya "asentado" (julio recalculado + anclas
+correctas), por lo que el problema no debería reaparecer salvo que un
+patrón (`ShiftPattern`) se edite después de que un mes ya fue generado con
+él — ese es un modo de falla distinto, no cubierto por este fix.

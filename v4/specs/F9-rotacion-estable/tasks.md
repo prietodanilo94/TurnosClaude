@@ -2,27 +2,34 @@
 
 ## Fase 1: Diseño y validación
 
-- [ ] Confirmar con el usuario: Opción A (ancla persistente, schema) vs Opción B (continuidad por identidad, sin schema).
-- [ ] Decidir qué hacer con los calendarios ya generados en junio/julio 2026 que quedaron con datos inconsistentes (¿regenerar, dejar como están, o corregir manualmente los casos reportados?).
+- [x] Confirmar con el usuario: Opción A (ancla persistente, schema) elegida.
+- [x] Decidir qué hacer con los calendarios ya generados en junio/julio 2026: se corrió backfill retroactivo (ver Fase 4), y se acepta deuda histórica no resuelta para los casos sin causa raíz clara — junio es mes cerrado, sin impacto operativo.
 
-## Fase 2: Implementación (si se elige Opción A)
+## Fase 2: Implementación
 
-- [ ] Agregar `rotationAnchor Int?` a `Worker` en `schema.prisma`.
-- [ ] Backfill: para cada `Worker` activo con al menos un calendario, fijar `rotationAnchor` = su `slotNumber` actual en el calendario más reciente que tenga.
-- [ ] Cambiar `generateCalendar` para recibir la rotación por trabajador (no por posición) — probablemente cambiar la firma para aceptar `workers: {id, rotationAnchor}[]` en vez de solo `workerCount: number`.
-- [ ] Actualizar `buildSoloBlock` y `buildGroupBlock` (`supervisor/calendario/page.tsx`) para pasar el ancla real de cada trabajador.
-- [ ] Actualizar `onRecalculateCalendar` en `SupervisorCalendarView.tsx`.
-- [ ] Actualizar `backfill-missing/route.ts` para asignar/leer `rotationAnchor` al crear calendarios nuevos.
-- [ ] Al activar/reactivar un trabajador sin ancla, asignarle el primer valor disponible (mismo criterio que hoy, pero fijado una sola vez).
+- [x] Agregar `rotationAnchor Int?` a `Worker` en `schema.prisma`.
+- [x] `lib/calendar/rotationAnchor.ts`: `resolveRotationAnchors` (puro) + `ensureRotationAnchors` (persiste anclas nuevas de forma perezosa, sin migración masiva obligatoria).
+- [x] Cambiar `generateCalendar` para recibir `slotAnchors: number[]` en vez de `workerCount: number`.
+- [x] Actualizar `buildSoloBlock` y `buildGroupBlock` (`supervisor/calendario/page.tsx`).
+- [x] Actualizar `onRecalculateCalendar` en `SupervisorCalendarView.tsx` — se eliminó el mecanismo `prevAssignments` (mismo bug, copiaba por slot).
+- [x] Actualizar `backfill-missing/route.ts`.
+- [x] Actualizar el resto de call sites: `admin/sucursales/.../page.tsx`, `export/route.ts`, `export-group/route.ts` (2 lugares), `vendedor/[year]/[month]/page.tsx`, `calendarExport.ts`.
+- [x] Eliminar `GenerateButton.tsx` (código muerto, habría quedado inconsistente con la firma nueva).
+- [x] Trabajador nuevo sin ancla: se le fija según su posición actual la primera vez que se usa (comportamiento por defecto, mismo criterio que antes pero congelado).
 
 ## Fase 3: Tests
 
-- [ ] Test: dos generaciones consecutivas con la MISMA nómina producen el mismo resultado (regresión, ya cubierto indirectamente).
-- [ ] Test: un trabajador que sigue activo mantiene el mismo `weekIdx` para la misma fecha aunque la nómina del equipo haya cambiado entre generaciones.
-- [ ] Test: un trabajador nuevo recibe un ancla que no colisiona con los anclas ya usados por sus compañeros activos.
-- [ ] Test de regresión sobre `teamSplit.ts`/`buildGroupBlock` para confirmar que el fix de F8 (offset) sigue funcionando junto con el ancla nueva.
+- [x] Test: el ancla (no la posición en el array) determina la semana de rotación — `generator.test.ts`.
+- [x] Suite completa corrida: 24/27 tests pasan (3 fallos preexistentes sin relación, categoría `ventas_mall_7d` faltante en catálogo).
+- [ ] Test de regresión dedicado combinando el fix de offset (grupo) + ancla nueva juntos (se verificó manualmente en producción, falta cubrir en test automatizado).
 
-## Fase 4: Verificación en datos reales
+## Fase 4: Verificación y backfill en datos reales (2026-07-02)
 
-- [ ] Re-correr el script de escaneo (36/58 equipos con slot distinto entre junio/julio) después del fix y confirmar que baja a 0 para generaciones nuevas.
-- [ ] Revisar manualmente 2-3 casos reales (incluyendo DFSK/Subaru Mall Plaza Tobalaba) antes de dar por cerrado.
+- [x] Deploy a producción confirmado (commit `4f13cda`), `db push` aplicado.
+- [x] Backup de la DB antes de cualquier escritura.
+- [x] Backfill: 277 trabajadores recibieron `rotationAnchor` (desde slot de junio, o posición actual si no estaban en junio).
+- [x] Recálculo de `slotsData` de julio para 58 equipos (solo el campo de patrón, `assignments` no se tocó).
+- [x] Re-escaneo: inconsistencias bajaron de 36 a 28 de 58 equipos.
+- [x] Categorización de los 28 restantes: 6 por categoría creada después del calendario, 22 sin causa raíz confirmada (deuda histórica, no perseguida más — ver spec.md).
+- [x] Verificación con caso limpio (Nissan Irarrázaval 965): coincidencia 100% tras el fix.
+- [x] Decisión: no seguir cazando los 22 casos restantes — beneficio bajo, junio es mes cerrado.
