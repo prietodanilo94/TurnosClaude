@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { generateCalendar } from "@/lib/calendar/generator";
 import { ensureRotationAnchors } from "@/lib/calendar/rotationAnchor";
@@ -48,6 +48,14 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
   });
 
   if (!team || team.branchId !== params.id) notFound();
+
+  // Esta vista es de un solo equipo — nunca combina datos de otras sucursales.
+  // Si la sucursal pertenece a un grupo, redirigir a la vista combinada
+  // (misma que usan los supervisores) para no exportar/mostrar solo una
+  // mitad del grupo sin que el admin se de cuenta.
+  if (team.branch.groupId) {
+    redirect(`/supervisor/calendario?groupId=${team.branch.groupId}&year=${year}&month=${month}`);
+  }
 
   // Bug 6: obtener supervisores de la sucursal para excluirlos de los trabajadores
   const branchSupervisors = await prisma.supervisorBranch.findMany({
