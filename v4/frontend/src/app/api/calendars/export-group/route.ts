@@ -2,10 +2,21 @@ import { NextRequest, NextResponse } from "next/server";
 import ExcelJS from "exceljs";
 import * as XLSX from "xlsx";
 import { prisma } from "@/lib/db/prisma";
-import { generateCalendar } from "@/lib/calendar/generator";
-import { ensureRotationAnchors } from "@/lib/calendar/rotationAnchor";
+import { combineGroupTeams } from "@/lib/calendar/combineGroupTeams";
+import { getPatternOrThrow, patternFromRow } from "@/lib/patterns/catalog";
 import { logAction } from "@/lib/audit/log";
-import type { CalendarSlot, DayShift } from "@/types";
+import type { CalendarSlot, DayShift, ShiftPatternDef } from "@/types";
+
+async function resolvePatternOverride(categoria: string | null): Promise<ShiftPatternDef | undefined> {
+  if (!categoria) return undefined;
+  try {
+    getPatternOrThrow(categoria);
+    return undefined; // esta en el catalogo estatico, no hace falta override
+  } catch {
+    const row = await prisma.shiftPattern.findUnique({ where: { id: categoria } });
+    return row ? patternFromRow(row) : undefined;
+  }
+}
 
 const MONTH_NAMES = [
   "", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -241,35 +252,45 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "No se encontraron equipos para exportar" }, { status: 404 });
   }
 
+  // Agrupar por areaNegocio y combinar cada area en UNA sola tabla — misma
+  // logica que la vista en pantalla del supervisor (combineGroupTeams), para
+  // que el Excel muestre en una sola pestana lo mismo que se ve combinado.
+  const byArea = new Map<string, typeof teams>();
+  for (const team of teams) {
+    if (!byArea.has(team.areaNegocio)) byArea.set(team.areaNegocio, []);
+    byArea.get(team.areaNegocio)!.push(team);
+  }
+  const multiArea = byArea.size > 1;
+
   let buf: Buffer;
   const prefix = mode === "rrhh" ? "turnos_rrhh" : "calendario";
   const fileName = safeFileName(`${prefix}_${scopeLabel}_${MONTH_NAMES[month]}_${year}`) + ".xlsx";
 
-  const skipped: { branch: string; area: string }[] = [];
+  const skipped: { branches: string; area: string }[] = [];
 
   if (mode === "rrhh") {
     // RRHH mode: plain xlsx (sin colores)
     const wb = XLSX.utils.book_new();
     let exportedSheets = 0;
 
-    for (const team of teams) {
-      const existing = team.calendars[0];
-      if (!existing && !team.categoria) { skipped.push({ branch: team.branch.nombre, area: team.areaNegocio }); continue; }
-
-      let slots: CalendarSlot[];
-      if (existing) {
-        slots = JSON.parse(existing.slotsData);
-      } else {
-        const anchors = await ensureRotationAnchors(
-          team.workers.map((w) => ({ id: w.id, rotationAnchor: w.rotationAnchor })),
-        );
-        slots = generateCalendar(team.categoria!, year, month, anchors.map((a) => a.rotationAnchor)).slots;
+    for (const [area, areaTeams] of byArea) {
+      const definedCat = areaTeams.find((t) => t.categoria)?.categoria ?? null;
+      const patternOverride = await resolvePatternOverride(definedCat);
+      const combined = await combineGroupTeams(
+        areaTeams.map((t) => ({
+          id: t.id,
+          workers: t.workers.map((w) => ({ id: w.id, nombre: w.nombre, rotationAnchor: w.rotationAnchor })),
+          calendar: t.calendars[0] ? { slotsData: t.calendars[0].slotsData, assignments: t.calendars[0].assignments } : null,
+        })),
+        year, month, definedCat, patternOverride,
+      );
+      if (!combined.hasCalendar && !definedCat) {
+        skipped.push({ branches: areaTeams.map((t) => t.branch.nombre).join(", "), area });
+        continue;
       }
-      const assignments: Record<string, string | null> = existing ? JSON.parse(existing.assignments) : {};
-      const workerRutMap = Object.fromEntries(team.workers.map((w) => [w.id, w.rut]));
-
-      const sheetName = safeSheetName(`${team.branch.nombre}_${team.areaNegocio}`);
-      const ws = buildRrhhSheet(year, month, slots, assignments, workerRutMap);
+      const workerRutMap = Object.fromEntries(areaTeams.flatMap((t) => t.workers.map((w) => [w.id, w.rut])));
+      const sheetName = safeSheetName(multiArea ? `${scopeLabel}_${area}` : scopeLabel);
+      const ws = buildRrhhSheet(year, month, combined.slots, combined.assignments, workerRutMap);
       XLSX.utils.book_append_sheet(wb, ws, sheetName);
       exportedSheets++;
     }
@@ -281,8 +302,8 @@ export async function GET(req: NextRequest) {
     if (skipped.length > 0) {
       const warnRows = [
         ["Sucursales NO incluidas en este archivo (sin categoria asignada y sin calendario del mes)"],
-        ["Sucursal", "Area"],
-        ...skipped.map((s) => [s.branch, s.area]),
+        ["Sucursales", "Area"],
+        ...skipped.map((s) => [s.branches, s.area]),
       ];
       const warnWs = XLSX.utils.aoa_to_sheet(warnRows);
       XLSX.utils.book_append_sheet(wb, warnWs, "AVISO");
@@ -295,24 +316,25 @@ export async function GET(req: NextRequest) {
     wb.creator = "TeamPlanner";
     let exportedSheets = 0;
 
-    for (const team of teams) {
-      const existing = team.calendars[0];
-      if (!existing && !team.categoria) { skipped.push({ branch: team.branch.nombre, area: team.areaNegocio }); continue; }
-
-      let slots: CalendarSlot[];
-      if (existing) {
-        slots = JSON.parse(existing.slotsData);
-      } else {
-        const anchors = await ensureRotationAnchors(
-          team.workers.map((w) => ({ id: w.id, rotationAnchor: w.rotationAnchor })),
-        );
-        slots = generateCalendar(team.categoria!, year, month, anchors.map((a) => a.rotationAnchor)).slots;
+    for (const [area, areaTeams] of byArea) {
+      const definedCat = areaTeams.find((t) => t.categoria)?.categoria ?? null;
+      const patternOverride = await resolvePatternOverride(definedCat);
+      const combined = await combineGroupTeams(
+        areaTeams.map((t) => ({
+          id: t.id,
+          workers: t.workers.map((w) => ({ id: w.id, nombre: w.nombre, rotationAnchor: w.rotationAnchor })),
+          calendar: t.calendars[0] ? { slotsData: t.calendars[0].slotsData, assignments: t.calendars[0].assignments } : null,
+        })),
+        year, month, definedCat, patternOverride,
+      );
+      if (!combined.hasCalendar && !definedCat) {
+        skipped.push({ branches: areaTeams.map((t) => t.branch.nombre).join(", "), area });
+        continue;
       }
-      const assignments: Record<string, string | null> = existing ? JSON.parse(existing.assignments) : {};
-      const workerMap = Object.fromEntries(team.workers.map((w) => [w.id, w.nombre]));
-
-      const sheetName = safeSheetName(`${team.branch.nombre}_${team.areaNegocio}`);
-      addCalendarSheet(wb, sheetName, team.branch.nombre, year, month, slots, assignments, workerMap);
+      const branchLabel = areaTeams.map((t) => t.branch.nombre).join(" · ");
+      const workerMap = Object.fromEntries(areaTeams.flatMap((t) => t.workers.map((w) => [w.id, w.nombre])));
+      const sheetName = safeSheetName(multiArea ? `${scopeLabel}_${area}` : scopeLabel);
+      addCalendarSheet(wb, sheetName, branchLabel, year, month, combined.slots, combined.assignments, workerMap);
       exportedSheets++;
     }
 
@@ -322,12 +344,12 @@ export async function GET(req: NextRequest) {
 
     if (skipped.length > 0) {
       const warnWs = wb.addWorksheet("AVISO");
-      warnWs.columns = [{ width: 40 }, { width: 20 }];
+      warnWs.columns = [{ width: 50 }, { width: 20 }];
       warnWs.addRow(["Sucursales NO incluidas (sin categoria asignada y sin calendario del mes)"]);
       warnWs.mergeCells(1, 1, 1, 2);
       warnWs.getCell(1, 1).font = { bold: true, color: { argb: "FFB00000" } };
-      warnWs.addRow(["Sucursal", "Area"]).font = { bold: true };
-      for (const s of skipped) warnWs.addRow([s.branch, s.area]);
+      warnWs.addRow(["Sucursales", "Area"]).font = { bold: true };
+      for (const s of skipped) warnWs.addRow([s.branches, s.area]);
     }
 
     const raw = await wb.xlsx.writeBuffer();
@@ -355,7 +377,8 @@ export async function GET(req: NextRequest) {
       mode,
       scopeLabel,
       scopeType,
-      sheetCount: teams.length,
+      sheetCount: byArea.size,
+      teamCount: teams.length,
     },
     req,
   });

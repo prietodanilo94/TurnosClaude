@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getSession } from "@/lib/auth/session";
 import { generateCalendar } from "@/lib/calendar/generator";
 import { ensureRotationAnchors } from "@/lib/calendar/rotationAnchor";
+import { combineGroupTeams } from "@/lib/calendar/combineGroupTeams";
 import { patternFromRow } from "@/lib/patterns/catalog";
 import { supervisorLookupKey } from "@/lib/supervisors";
 import type { TeamSlice } from "@/lib/calendar/teamSplit";
@@ -170,55 +171,15 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
           w.blocks.map((b) => ({ id: b.id, workerId: w.id, startDate: b.startDate.toISOString().slice(0, 10), endDate: b.endDate.toISOString().slice(0, 10), motivo: b.motivo })),
         ),
       );
-      let offset = 0;
-      const allSlots: CalendarSlot[] = [];
-      const allAssignments: Record<string, string | null> = {};
-      const slices: TeamSlice[] = [];
-      let hasCalendar = false;
-      for (const team of areaTeams) {
+      const combinable = areaTeams.map((team) => {
         const teamWorkers = team.workers.filter(w => !supervisorKeys.has(supervisorLookupKey(w.nombre)));
-        const N = teamWorkers.length;
-        // Ancla de rotacion estable por trabajador (F9): quien ya tenia una
-        // la conserva; a quien no, se le fija ahora segun su orden actual.
-        const anchors = await ensureRotationAnchors(
-          teamWorkers.map((w) => ({ id: w.id, rotationAnchor: w.rotationAnchor })),
-        );
-        const slotAnchors = anchors.map((a) => a.rotationAnchor);
-        const cal = team.calendars[0];
-        if (cal) hasCalendar = true;
-        let teamSlots: CalendarSlot[];
-        let teamAssign: Record<string, string | null>;
-        if (cal) {
-          teamSlots  = JSON.parse(cal.slotsData) as CalendarSlot[];
-          teamAssign = JSON.parse(cal.assignments) as Record<string, string | null>;
-          // Auto-agregar slots para trabajadores nuevos
-          if (N > teamSlots.length && definedCat) {
-            const full = generateCalendar(definedCat, year, month, slotAnchors, patternMap[definedCat]);
-            teamSlots = [...teamSlots, ...full.slots.slice(teamSlots.length)];
-          }
-        } else if (definedCat) {
-          teamSlots  = generateCalendar(definedCat, year, month, slotAnchors, patternMap[definedCat]).slots;
-          teamAssign = {};
-        } else {
-          teamSlots  = [];
-          teamAssign = {};
-        }
-        allSlots.push(...teamSlots.map((s) => ({ ...s, slotNumber: s.slotNumber + offset })));
-        for (const [k, v] of Object.entries(teamAssign)) allAssignments[String(Number(k) + offset)] = v;
-        slices.push({
-          teamId: team.id,
-          workerIds: teamWorkers.map((w) => w.id),
-          slotCount: teamSlots.length,
-          rotationAnchors: slotAnchors,
-        });
-        // El offset del siguiente equipo debe avanzar segun la cantidad real
-        // de slots agregados a allSlots (teamSlots.length), no la cantidad de
-        // trabajadores activos hoy (N). Si el calendario guardado tiene mas
-        // slots que activos actuales (alguien fue desactivado sin regenerar),
-        // usar N aqui produce numeros de slot que chocan con el equipo
-        // siguiente — mismo slot combinado asignado a dos trabajadores.
-        offset += teamSlots.length;
-      }
+        return {
+          id: team.id,
+          workers: teamWorkers.map((w) => ({ id: w.id, nombre: w.nombre, rotationAnchor: w.rotationAnchor })),
+          calendar: team.calendars[0] ? { slotsData: team.calendars[0].slotsData, assignments: team.calendars[0].assignments } : null,
+        };
+      });
+      const combined = await combineGroupTeams(combinable, year, month, definedCat, definedCat ? patternMap[definedCat] : undefined);
       blocks.push({
         key: `${blockKey}-${area}`,
         title: groupTitle,
@@ -227,12 +188,12 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
         categoria: definedCat,
         teamIds: areaTeams.map((t) => t.id),
         categoryOptions: allDbPatterns.filter((p) => p.areaNegocio === area).map((p) => ({ id: p.id, label: p.label, isCustom: p.supervisorId !== null })),
-        slots: allSlots,
-        assignments: allAssignments,
+        slots: combined.slots,
+        assignments: combined.assignments,
         workers: allWorkers,
         blocks: allWorkerBlocks,
-        slices,
-        hasCalendar,
+        slices: combined.slices,
+        hasCalendar: combined.hasCalendar,
         patternOverride: definedCat ? patternMap[definedCat] : undefined,
         supervisorNames: [...new Set(areaTeams.flatMap((t) => supervisorsByBranch.get(t.branchId) ?? []))],
       });
