@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import type { BranchTeamInfo, WorkerWithTeam } from "./page";
+import WorkerHistoryModal from "./WorkerHistoryModal";
 
 interface Props {
   initialWorkers: WorkerWithTeam[];
@@ -20,6 +21,7 @@ export default function TrabajadoresClient({ initialWorkers, branchTeams, superv
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [historyWorker, setHistoryWorker] = useState<WorkerWithTeam | null>(null);
 
   const filtered = useMemo(() => {
     if (!search.trim()) return workers;
@@ -207,6 +209,9 @@ export default function TrabajadoresClient({ initialWorkers, branchTeams, superv
                     </button>
                   </td>
                   <td className="px-4 py-3 text-right space-x-3">
+                    <button onClick={() => setHistoryWorker(worker)} className="text-gray-500 hover:text-gray-700">
+                      Historial
+                    </button>
                     <button onClick={() => openEdit(worker)} className="text-blue-600 hover:text-blue-800">
                       Editar
                     </button>
@@ -316,6 +321,14 @@ export default function TrabajadoresClient({ initialWorkers, branchTeams, superv
             </div>
           </div>
         </div>
+      )}
+
+      {historyWorker && (
+        <WorkerHistoryModal
+          workerId={historyWorker.id}
+          workerName={historyWorker.nombre}
+          onClose={() => setHistoryWorker(null)}
+        />
       )}
     </div>
   );
