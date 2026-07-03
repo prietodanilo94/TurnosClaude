@@ -19,11 +19,21 @@ que el usuario valide la nueva con datos reales (fase final, no antes).
 
 ### La tabla (corazón de la pestaña)
 
-Estilo "hoja de Excel". **Cada fila = un evento de guardado por trabajador**:
-si un supervisor guardó un calendario y en ese guardado le cambió 4 días a
-Juan, eso es UNA fila de Juan con Eventos=4. Si otra sesión (u otro usuario)
-vuelve a guardar cambios de Juan, es OTRA fila. Las filas nunca se pisan
-entre sí — cada guardado queda como fila propia.
+**Corrección 2026-07-03, tras probar con datos reales:** en la tabla
+PRINCIPAL, cada trabajador aparece **una sola vez** — el guardado más
+reciente sobreescribe al anterior (columna Eventos = cambios de ESE último
+guardado, no acumulado). El detalle histórico completo de TODOS los
+guardados de un trabajador se ve en `/admin/trabajadores` → Historial (F10
+fase 5), que es exactamente para eso. La versión original de este párrafo
+decía "cada guardado es una fila propia, nunca se pisan" — eso quedó
+descartado porque en producción generaba filas duplicadas/redundantes
+(agravado por un bug real de guardados repetidos, ver `tasks.md`). La clave
+`(auditLogId, workerId)` se sigue usando para identificar de qué guardado
+viene la fila sobreviviente, pero ya no hay una fila por cada evento.
+
+Estilo "hoja de Excel". Fuente de datos: los `AuditLog` con
+`action: "calendar.save"`, cuyo `metadata.changes` ya trae el detalle
+`{workerId, workerName, date, dayLabel, from, to}` por cambio.
 
 Fuente de datos: los `AuditLog` con `action: "calendar.save"`, cuyo
 `metadata.changes` ya trae el detalle `{workerId, workerName, date, dayLabel,
