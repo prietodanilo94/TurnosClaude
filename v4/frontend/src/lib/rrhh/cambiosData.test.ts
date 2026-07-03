@@ -81,6 +81,48 @@ describe("buildCambioRows", () => {
     expect(buildCambioRows(logs, new Map(), [])).toEqual([]);
   });
 
+  it("collapses saves with identical content for the same worker, keeping the latest", () => {
+    const sameChange = { workerId: "w1", workerName: "Ana", date: "2026-07-02", dayLabel: "Jue 02 Jul", from: null, to: "10:00-18:00" };
+    const logs = [
+      log({ id: "log-1", createdAt: new Date("2026-07-03T14:42:00Z"), metadata: JSON.stringify({ changes: [sameChange] }) }),
+      log({ id: "log-2", createdAt: new Date("2026-07-03T14:43:00Z"), metadata: JSON.stringify({ changes: [sameChange] }) }),
+      log({ id: "log-3", createdAt: new Date("2026-07-03T14:50:00Z"), metadata: JSON.stringify({ changes: [sameChange] }) }),
+    ];
+
+    const rows = buildCambioRows(logs, new Map(), []);
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0].auditLogId).toBe("log-3"); // el guardado mas reciente sobrevive
+  });
+
+  it("does not collapse saves with different content for the same worker", () => {
+    const logs = [
+      log({ id: "log-1", metadata: JSON.stringify({ changes: [{ workerId: "w1", workerName: "Ana", date: "2026-07-02", dayLabel: "x", from: null, to: "10:00-18:00" }] }) }),
+      log({ id: "log-2", metadata: JSON.stringify({ changes: [{ workerId: "w1", workerName: "Ana", date: "2026-07-02", dayLabel: "x", from: null, to: "09:00-17:00" }] }) }),
+    ];
+
+    const rows = buildCambioRows(logs, new Map(), []);
+    expect(rows).toHaveLength(2);
+  });
+
+  it("keeps the download status when a duplicate save was the one actually downloaded", () => {
+    const sameChange = { workerId: "w1", workerName: "Ana", date: "2026-07-02", dayLabel: "x", from: null, to: "10:00-18:00" };
+    const logs = [
+      log({ id: "log-1", createdAt: new Date("2026-07-03T14:42:00Z"), metadata: JSON.stringify({ changes: [sameChange] }) }),
+      log({ id: "log-2", createdAt: new Date("2026-07-03T14:50:00Z"), metadata: JSON.stringify({ changes: [sameChange] }) }),
+    ];
+    const exportRecords: ExportRecordInput[] = [
+      { auditLogId: "log-1", workerId: "w1", exportedAt: new Date("2026-07-03T15:00:00Z"), exportedBy: "prieto.danilo94@gmail.com" },
+    ];
+
+    const rows = buildCambioRows(logs, new Map(), exportRecords);
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0].auditLogId).toBe("log-2");
+    expect(rows[0].fechaDescarga).toBe("2026-07-03T15:00:00.000Z");
+    expect(rows[0].descargadoPor).toBe("prieto.danilo94@gmail.com");
+  });
+
   it("sorts rows by fechaMod descending", () => {
     const logs = [
       log({ id: "log-old", createdAt: new Date("2026-07-01T10:00:00Z"), metadata: JSON.stringify({ changes: [{ workerId: "w1", workerName: "Ana", date: "2026-07-02", dayLabel: "x", from: null, to: "1" }] }) }),

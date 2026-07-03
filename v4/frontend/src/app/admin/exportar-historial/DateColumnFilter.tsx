@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import type { DateRangeFilter, DownloadDateFilter } from "@/lib/rrhh/tableFilters";
+import FloatingPanel from "./FloatingPanel";
 
 interface Props {
   value: DateRangeFilter | DownloadDateFilter;
@@ -10,26 +11,20 @@ interface Props {
 }
 
 // Desplegable de rango de fechas: antes de / despues de / entre. Para la
-// columna de descarga ademas ofrece "solo nunca descargados".
+// columna de descarga ademas ofrece "solo nunca descargados". El panel se
+// renderiza en un portal (ver FloatingPanel) para no quedar cortado por el
+// contenedor de la tabla.
 export default function DateColumnFilter({ value, onChange, allowEmpty }: Props) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const onlyEmpty = "onlyEmpty" in value ? value.onlyEmpty : false;
-
-  useEffect(() => {
-    if (!open) return;
-    function onClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", onClickOutside);
-    return () => document.removeEventListener("mousedown", onClickOutside);
-  }, [open]);
 
   const isActive = !!value.from || !!value.to || onlyEmpty;
 
   return (
-    <span className="relative inline-block" ref={ref}>
+    <span className="relative inline-block">
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         title="Filtrar por fecha"
@@ -41,8 +36,8 @@ export default function DateColumnFilter({ value, onChange, allowEmpty }: Props)
       >
         ▼
       </button>
-      {open && (
-        <div className="absolute z-20 top-full left-0 mt-1 w-52 bg-white border border-gray-200 rounded-md shadow-lg p-2 normal-case font-normal text-gray-700 space-y-2">
+      <FloatingPanel anchorRef={buttonRef} open={open} onClose={() => setOpen(false)} width={208}>
+        <div className="space-y-2">
           <div>
             <label className="block text-[10px] text-gray-500 mb-0.5">Después de</label>
             <input
@@ -82,7 +77,7 @@ export default function DateColumnFilter({ value, onChange, allowEmpty }: Props)
             </button>
           )}
         </div>
-      )}
+      </FloatingPanel>
     </span>
   );
 }

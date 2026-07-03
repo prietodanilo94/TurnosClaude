@@ -67,6 +67,53 @@ function buildLatestExportMap(records: ExportRecordInput[]): Map<string, ExportR
   return map;
 }
 
+function canonicalCambios(cambios: CambioDetalle[]): string {
+  return [...cambios]
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map((c) => `${c.date}|${c.from ?? ""}|${c.to ?? ""}`)
+    .join(";");
+}
+
+// Colapsa guardados con contenido IDENTICO para el mismo trabajador (mismos
+// dias, mismos horarios) en una sola fila. Esto pasaba cuando un supervisor
+// guardaba dos veces en la misma sesion sin cambios nuevos: un bug en
+// CalendarView.tsx/SupervisorCalendarView.tsx recalculaba el diff contra el
+// estado con el que se abrio la pagina en vez del ultimo guardado, y
+// duplicaba el mismo cambio en el AuditLog (corregido, pero deja historial
+// duplicado). Se conserva el guardado mas reciente; si CUALQUIERA de los
+// duplicados ya fue descargado, la fila resultante se marca como descargada.
+// Riesgo aceptado: dos ediciones genuinas y separadas en el tiempo que
+// coincidan exactamente en todos sus dias/horarios se verian como una sola
+// fila — se considera poco probable frente al beneficio de no mostrar
+// guardados repetidos como si fueran cambios distintos.
+function dedupeIdenticalSaves(rows: CambioRow[]): CambioRow[] {
+  const groups = new Map<string, CambioRow[]>();
+  for (const row of rows) {
+    const groupKey = `${row.workerId}::${canonicalCambios(row.cambios)}`;
+    if (!groups.has(groupKey)) groups.set(groupKey, []);
+    groups.get(groupKey)!.push(row);
+  }
+
+  const result: CambioRow[] = [];
+  for (const group of groups.values()) {
+    if (group.length === 1) {
+      result.push(group[0]);
+      continue;
+    }
+    const latest = group.reduce((a, b) => (b.fechaMod > a.fechaMod ? b : a));
+    const bestDownload = group
+      .filter((r) => r.fechaDescarga)
+      .reduce<CambioRow | null>((best, r) => (!best || r.fechaDescarga! > best.fechaDescarga!) ? r : best, null);
+
+    result.push({
+      ...latest,
+      fechaDescarga: bestDownload?.fechaDescarga ?? null,
+      descargadoPor: bestDownload?.descargadoPor ?? null,
+    });
+  }
+  return result;
+}
+
 // Primera pasada sobre los logs crudos: solo junta los workerId referenciados
 // para poder resolver su sucursal/area actual antes de construir las filas.
 export function extractWorkerIdsFromLogs(logs: RawAuditLogInput[]): Set<string> {
@@ -138,6 +185,7 @@ export function buildCambioRows(
     }
   }
 
-  rows.sort((a, b) => b.fechaMod.localeCompare(a.fechaMod));
-  return rows;
+  const deduped = dedupeIdenticalSaves(rows);
+  deduped.sort((a, b) => b.fechaMod.localeCompare(a.fechaMod));
+  return deduped;
 }

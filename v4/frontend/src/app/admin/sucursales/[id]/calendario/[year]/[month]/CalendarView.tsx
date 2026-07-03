@@ -196,6 +196,12 @@ export default function CalendarView({
         const changes = calId
           ? computeCalendarDiff(initialSlots.current, localSlots, initialAssignments.current, assign, workerMap, year, month)
           : undefined;
+        // Actualizar la base de comparacion al estado recien guardado: sin esto,
+        // guardar dos veces en la misma sesion (ej. click doble, o guardar de
+        // nuevo sin cambios nuevos) recalcula el diff contra el estado con el
+        // que se abrio la pagina y duplica los mismos cambios en el AuditLog.
+        initialSlots.current = localSlots;
+        initialAssignments.current = assign;
         void fetch("/api/calendars/save-notify", {
           method: "POST",
           headers: { "Content-Type": "application/json" },

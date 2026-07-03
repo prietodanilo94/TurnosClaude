@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import CalendarView from "@/app/admin/sucursales/[id]/calendario/[year]/[month]/CalendarView";
 import CategoryPicker from "./CategoryPicker";
 import { generateCalendar } from "@/lib/calendar/generator";
@@ -130,6 +131,14 @@ export default function SupervisorCalendarView({
     );
   }
 
+  // Base de comparacion para el diff de cambios: arranca en lo que trajo el
+  // server, pero se actualiza tras cada guardado exitoso. Sin esto, guardar
+  // dos veces en la misma sesion (ej. sin cerrar la pagina) recalcula el
+  // diff contra el estado con el que se abrio la pagina y duplica los mismos
+  // cambios en el AuditLog (ver CalendarView.tsx, mismo bug).
+  const lastSavedSlots = useRef<CalendarSlot[]>(slots);
+  const lastSavedAssignments = useRef<Record<string, string | null>>(assignments);
+
   const workerMap = Object.fromEntries(workers.map((worker) => [worker.id, worker.nombre]));
   const fullWorkers: WorkerInfo[] = workers.map((worker) => ({
     id: worker.id,
@@ -172,7 +181,7 @@ export default function SupervisorCalendarView({
       onNavigate={(newYear, newMonth) => `/supervisor/calendario?${navigationQueryPrefix}year=${newYear}&month=${newMonth}`}
       onSaveCalendar={async ({ slotsData, assignments: nextAssignments, validationSummary, scopeLabel, scopeType }) => {
         const changes = hasCalendar
-          ? computeCalendarDiff(slots, slotsData, assignments, nextAssignments, workerMap, year, month)
+          ? computeCalendarDiff(lastSavedSlots.current, slotsData, lastSavedAssignments.current, nextAssignments, workerMap, year, month)
           : undefined;
         await saveTeamCalendars({
           year,
@@ -185,6 +194,8 @@ export default function SupervisorCalendarView({
           scopeType,
           changes,
         });
+        lastSavedSlots.current = slotsData;
+        lastSavedAssignments.current = nextAssignments;
         return "supervisor-combined";
       }}
       onRecalculateCalendar={async ({ currentSlots }) => {
