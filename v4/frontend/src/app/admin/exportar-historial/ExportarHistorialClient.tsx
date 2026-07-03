@@ -171,27 +171,34 @@ export default function ExportarHistorialClient({ rows, windowFrom, windowDays }
         <span className="text-gray-500">{rows.length} evento{rows.length !== 1 ? "s" : ""} cargado{rows.length !== 1 ? "s" : ""}</span>
       </div>
 
-      <div className="flex items-center justify-between flex-wrap gap-3">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <span className="text-sm text-gray-600">
           {filteredRows.length} de {rows.length} filas · <span className="font-medium text-gray-900">{selected.size}</span> seleccionada{selected.size !== 1 ? "s" : ""}
         </span>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            disabled={selected.size === 0 || downloading}
-            onClick={() => downloadKeys([...selected])}
-            className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          >
-            Descargar selección
-          </button>
-          <button
-            type="button"
-            disabled={filteredRows.length === 0 || downloading}
-            onClick={() => downloadKeys(filteredRows.map((r) => r.key))}
-            className="px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          >
-            Descargar masivo (filtrado)
-          </button>
+        <div className="flex flex-col items-end gap-1">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={selected.size === 0 || downloading}
+              onClick={() => downloadKeys([...selected])}
+              title="Descarga un Excel solo con las filas marcadas con el checkbox y las deja registradas como descargadas"
+              className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Descargar marcadas ({selected.size})
+            </button>
+            <button
+              type="button"
+              disabled={filteredRows.length === 0 || downloading}
+              onClick={() => downloadKeys(filteredRows.map((r) => r.key))}
+              title="Descarga un Excel con TODAS las filas que se ven ahora en la tabla (según los filtros aplicados), sin importar si están marcadas, y las deja registradas como descargadas"
+              className="px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Descargar todo lo filtrado ({filteredRows.length})
+            </button>
+          </div>
+          <p className="text-[11px] text-gray-400">
+            &quot;Marcadas&quot; usa el checkbox de cada fila · &quot;Todo lo filtrado&quot; ignora el checkbox y baja lo que se ve en la tabla
+          </p>
         </div>
       </div>
 
@@ -270,13 +277,7 @@ export default function ExportarHistorialClient({ rows, windowFrom, windowDays }
                       <td className="px-3 py-2 text-xs text-gray-600 whitespace-nowrap">{row.modificadoPor}</td>
                       <td className="px-3 py-2 text-sm font-medium text-gray-900 whitespace-nowrap">{row.trabajador}</td>
                       <td className="px-3 py-2 text-xs text-gray-500 text-center">{row.eventos}</td>
-                      <td className="px-3 py-2 text-xs whitespace-nowrap">
-                        {row.fechaDescarga ? (
-                          <span className="text-gray-600">{fmtDateTime(row.fechaDescarga)}</span>
-                        ) : (
-                          <span className="inline-flex px-1.5 py-0.5 rounded text-[10px] bg-orange-100 text-orange-700">⚠ Pendiente</span>
-                        )}
-                      </td>
+                      <td className="px-3 py-2 text-xs text-gray-600 whitespace-nowrap">{fmtDateTime(row.fechaDescarga)}</td>
                       <td className="px-3 py-2 text-xs text-gray-600 whitespace-nowrap">{row.descargadoPor ?? "—"}</td>
                     </tr>
                     {expanded.has(row.key) && (

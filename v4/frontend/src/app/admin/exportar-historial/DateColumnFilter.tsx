@@ -33,9 +33,13 @@ export default function DateColumnFilter({ value, onChange, allowEmpty }: Props)
         type="button"
         onClick={() => setOpen((v) => !v)}
         title="Filtrar por fecha"
-        className={`ml-1 px-1 rounded text-[10px] leading-none ${isActive ? "text-blue-600 bg-blue-50" : "text-gray-400 hover:text-gray-600"}`}
+        className={`ml-1.5 inline-flex items-center justify-center w-5 h-5 rounded border text-sm leading-none transition-colors ${
+          isActive
+            ? "text-blue-700 bg-blue-100 border-blue-300"
+            : "text-gray-500 bg-gray-100 border-gray-300 hover:bg-gray-200 hover:text-gray-700"
+        }`}
       >
-        ▾
+        ▼
       </button>
       {open && (
         <div className="absolute z-20 top-full left-0 mt-1 w-52 bg-white border border-gray-200 rounded-md shadow-lg p-2 normal-case font-normal text-gray-700 space-y-2">
