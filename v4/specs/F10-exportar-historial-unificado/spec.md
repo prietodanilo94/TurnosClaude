@@ -171,3 +171,90 @@ Mes destino: el mes actual.
 - `tsc --noEmit` tiene 1 error preexistente conocido en
   `calendars/route.test.ts` (lastExportedAt) — ignorar ese, cero tolerancia
   al resto.
+
+## Guía de implementación (de programador a programador)
+
+Decisiones de diseño a nivel de código. No son sugerencias abiertas — son el
+camino elegido; desviarse solo con razón concreta.
+
+### Arquitectura de datos: ventana en server, todo lo demás en client
+
+Los filtros estilo Excel (checklist de valores únicos) son incompatibles con
+paginación server-side real: el checklist necesita los valores del set
+completo, no de la página visible. La solución NO es paginar — es acotar:
+
+1. El **server component** (`page.tsx`) carga UNA ventana de datos (default
+   últimos 60–90 días de `calendar.save`, ampliable por query param de
+   fecha), hace todos los joins, parsea los `metadata` JSON, y entrega al
+   client un array de DTOs planos. Volumen esperado: cientos de filas, no
+   miles — SQLite y React lo manejan sin paginación.
+2. El **client component** hace TODO lo demás en memoria: filtros por
+   columna, sort, selección, expansión. Sin fetch adicionales al filtrar.
+3. Si el volumen real algún día lo exige, paginar es una optimización
+   posterior — no construirla especulativamente ahora (la paginación rota
+   de exportar-v2 nació de ese intento).
+
+### DTO de fila (contrato server → client)
+
+El client NUNCA parsea `metadata` JSON — eso pasa solo en el server:
+
+```ts
+interface CambioRow {
+  key: string;            // `${auditLogId}:${workerId}` — clave única de fila
+  area: "ventas" | "postventa";
+  sucursal: string;
+  codigo: string;
+  fechaMod: string;       // ISO — createdAt del AuditLog
+  modificadoPor: string;  // userEmail del AuditLog
+  workerId: string;
+  trabajador: string;
+  eventos: number;        // changes.filter(c => c.workerId === workerId).length
+  cambios: ChangeItem[];  // el detalle para la fila expandida
+  fechaDescarga: string | null;   // max(exportedAt) de ChangeExportRecord
+  descargadoPor: string | null;   // exportedBy de ese registro max
+}
+```
+
+### Agregación de "última descarga"
+
+Prisma+SQLite no hace `groupBy` con max compuesto cómodamente. Camino simple:
+traer los `ChangeExportRecord` cuyos `auditLogId` estén en la ventana cargada
+(una query con `where: { auditLogId: { in: [...] } }`, ordenada por
+`exportedAt desc`) y reducir en memoria con un `Map` quedándose con el
+primero por `${auditLogId}:${workerId}`. Cientos de filas — trivial.
+
+### ExcelColumnFilter: cascada como Excel real
+
+Estado de filtros en el client padre: `Record<columnId, Set<string> | null>`
+(null = "todos", sin filtro). Detalle que define la sensación Excel: los
+valores del checklist de una columna se computan desde las filas que
+sobreviven a los filtros de las DEMÁS columnas (no del set original ni del
+set totalmente filtrado) — así al filtrar "ventas", el checklist de sucursal
+solo ofrece sucursales de ventas. `useMemo` por columna.
+
+Lógica pura (aplicar filtros, computar valores en cascada) en
+`src/lib/` como funciones puras testeables — patrón del repo (como
+`teamSplit.ts`, `combineGroupTeams.ts`): páginas delgadas, lógica en lib con
+test unitario al lado.
+
+### Selección y descarga selectiva
+
+- Selección: `Set<string>` de row keys. "Seleccionar todo lo filtrado" =
+  keys de las filas visibles tras filtros.
+- La descarga selectiva es un `POST` (body: array de keys) que devuelve el
+  binario — en el client usar `fetch` + `response.blob()` + link temporal
+  para descargar; `window.open` no sirve para POST.
+- El server valida las keys, regenera el Excel desde los `Calendar` ACTUALES
+  (no desde el metadata del log — el Excel siempre refleja el estado vigente
+  del mes), hace `createMany` de `ChangeExportRecord` y registra
+  `calendar.export` en el AuditLog. La generación del sheet RRHH ya existe:
+  `buildRrhhSheet` en `export-group/route.ts` — extraerla a `src/lib/excel/`
+  y reutilizar en vez de duplicar (sería la cuarta copia).
+
+### Orden de trabajo dentro de cada fase
+
+El repo se desarrolla probando contra producción real (pompeyo) con backup
+de DB antes de cada escritura de datos. Por fase: implementar → `tsc` +
+vitest local → commit (`v4/feat(rrhh): ...`) → push → esperar deploy (~4
+min) → verificar en producción con datos reales antes de pasar a la
+siguiente fase. No acumular fases sin verificar.
