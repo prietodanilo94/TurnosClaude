@@ -200,3 +200,20 @@ model AuditLog {
   @@index([branchId])
   @@index([visto])
 }
+
+// Registro de que un cambio puntual (un trabajador dentro de un
+// calendar.save especifico) fue incluido en una descarga. auditLogId +
+// workerId identifican la fila de la tabla F10 (pestana unificada
+// exportar/historial) — no es una FK tipada porque AuditLog.entityId
+// tampoco lo es, mismo estilo de acoplamiento suelto usado en el resto
+// del schema. Se guarda el historial completo; la UI muestra solo el
+// registro mas reciente por (auditLogId, workerId).
+model ChangeExportRecord {
+  id         String   @id @default(cuid())
+  auditLogId String
+  workerId   String
+  exportedAt DateTime @default(now())
+  exportedBy String
+
+  @@index([auditLogId, workerId])
+}
