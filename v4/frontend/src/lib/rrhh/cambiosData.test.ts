@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCambioRows, type RawAuditLogInput, type WorkerInfoInput, type ExportRecordInput } from "./cambiosData";
+import { buildCambioRows, keepLatestPerWorker, type RawAuditLogInput, type WorkerInfoInput, type ExportRecordInput, type CambioRow } from "./cambiosData";
 
 function log(overrides: Partial<RawAuditLogInput> & { id: string }): RawAuditLogInput {
   return {
@@ -131,5 +131,59 @@ describe("buildCambioRows", () => {
 
     const rows = buildCambioRows(logs, new Map(), []);
     expect(rows.map((r) => r.auditLogId)).toEqual(["log-new", "log-old"]);
+  });
+});
+
+describe("keepLatestPerWorker", () => {
+  function row(overrides: Partial<CambioRow> & { key: string; workerId: string; fechaMod: string }): CambioRow {
+    return {
+      auditLogId: overrides.key,
+      area: "ventas",
+      sucursal: "Peugeot Mall Plaza Sur",
+      codigo: "101",
+      modificadoPor: "supervisor@pompeyo.cl",
+      trabajador: "Ana",
+      eventos: 1,
+      cambios: [],
+      fechaDescarga: null,
+      descargadoPor: null,
+      ...overrides,
+    };
+  }
+
+  it("collapses multiple saves of the same worker into a single row: the latest one", () => {
+    const rows = [
+      row({ key: "a", workerId: "w1", fechaMod: "2026-07-01T10:00:00.000Z", eventos: 3 }),
+      row({ key: "b", workerId: "w1", fechaMod: "2026-07-03T10:00:00.000Z", eventos: 7 }),
+      row({ key: "c", workerId: "w1", fechaMod: "2026-07-02T10:00:00.000Z", eventos: 5 }),
+    ];
+
+    const result = keepLatestPerWorker(rows);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].key).toBe("b");
+    expect(result[0].eventos).toBe(7);
+  });
+
+  it("does not merge different workers", () => {
+    const rows = [
+      row({ key: "a", workerId: "w1", fechaMod: "2026-07-01T10:00:00.000Z" }),
+      row({ key: "b", workerId: "w2", fechaMod: "2026-07-02T10:00:00.000Z" }),
+    ];
+
+    expect(keepLatestPerWorker(rows).map((r) => r.key).sort()).toEqual(["a", "b"]);
+  });
+
+  it("keeps the surviving row's own download status, not any earlier one", () => {
+    const rows = [
+      row({ key: "a", workerId: "w1", fechaMod: "2026-07-01T10:00:00.000Z", fechaDescarga: "2026-07-01T12:00:00.000Z", descargadoPor: "admin@pompeyo.cl" }),
+      row({ key: "b", workerId: "w1", fechaMod: "2026-07-03T10:00:00.000Z", fechaDescarga: null, descargadoPor: null }),
+    ];
+
+    const result = keepLatestPerWorker(rows);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].key).toBe("b");
+    expect(result[0].fechaDescarga).toBeNull(); // el cambio nuevo NO esta descargado, aunque uno anterior si
   });
 });

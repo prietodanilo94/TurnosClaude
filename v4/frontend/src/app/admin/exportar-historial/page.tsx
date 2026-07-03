@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import { getSession } from "@/lib/auth/session";
-import { buildCambioRows, extractWorkerIdsFromLogs, type WorkerInfoInput } from "@/lib/rrhh/cambiosData";
+import { buildCambioRows, extractWorkerIdsFromLogs, keepLatestPerWorker, type WorkerInfoInput } from "@/lib/rrhh/cambiosData";
 import ExportarHistorialClient from "./ExportarHistorialClient";
 
 export const dynamic = "force-dynamic";
@@ -57,7 +57,9 @@ export default async function ExportarHistorialPage({ searchParams }: Props) {
       })
     : [];
 
-  const rows = buildCambioRows(logs, workerInfoMap, exportRecords);
+  // Tabla principal: una fila por trabajador (la mas reciente). El historial
+  // completo de cada uno se ve desde /admin/trabajadores -> Historial.
+  const rows = keepLatestPerWorker(buildCambioRows(logs, workerInfoMap, exportRecords));
 
   return (
     <ExportarHistorialClient

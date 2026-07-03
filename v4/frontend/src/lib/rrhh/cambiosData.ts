@@ -114,6 +114,23 @@ function dedupeIdenticalSaves(rows: CambioRow[]): CambioRow[] {
   return result;
 }
 
+// Para la tabla PRINCIPAL: una sola fila por trabajador, la del guardado mas
+// reciente — las anteriores quedan "sobreescritas" (el detalle completo de
+// TODOS los guardados de ese trabajador se ve en el historial personal de
+// /admin/trabajadores, que llama a buildCambioRows sin este paso). El estado
+// de descarga que se muestra es el de la fila sobreviviente (su propio
+// auditLogId+workerId) — a proposito NO se hereda de guardados anteriores
+// ya superados, porque esta tabla existe justamente para avisar si el
+// ULTIMO cambio de ese trabajador ya se descargo o no.
+export function keepLatestPerWorker(rows: CambioRow[]): CambioRow[] {
+  const latestByWorker = new Map<string, CambioRow>();
+  for (const row of rows) {
+    const current = latestByWorker.get(row.workerId);
+    if (!current || row.fechaMod > current.fechaMod) latestByWorker.set(row.workerId, row);
+  }
+  return [...latestByWorker.values()].sort((a, b) => b.fechaMod.localeCompare(a.fechaMod));
+}
+
 // Primera pasada sobre los logs crudos: solo junta los workerId referenciados
 // para poder resolver su sucursal/area actual antes de construir las filas.
 export function extractWorkerIdsFromLogs(logs: RawAuditLogInput[]): Set<string> {

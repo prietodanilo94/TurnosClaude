@@ -144,7 +144,7 @@ export default function ExportarHistorialClient({ rows, windowFrom, windowDays }
       <div>
         <h1 className="text-xl font-semibold text-gray-900">Exportar / Historial</h1>
         <p className="text-xs text-gray-400 mt-0.5">
-          Cambios de calendario guardados por trabajador, con estado de descarga RRHH.
+          Un trabajador aparece una sola vez, con su cambio más reciente y su estado de descarga RRHH. Para ver todos sus cambios anteriores, entra a Trabajadores → Historial.
         </p>
       </div>
 
