@@ -16,7 +16,9 @@ export interface CalendarValidationIssue {
     | "day_without_coverage"
     | "consecutive_days_exceeded"
     | "sundays_off_insufficient"
-    | "sundays_off_consecutive";
+    | "sundays_off_consecutive"
+    | "shift_too_long"
+    | "shift_out_of_window";
   title: string;
   detail: string;
   dateStr?: string;
@@ -54,6 +56,13 @@ export interface CalendarValidationResult {
   canSave: boolean;
   exceeds42hLimit: boolean;
 }
+
+// Reglas por turno individual (F11 fase 1): maximo de horas trabajadas por
+// turno (descontada la colacion via shiftDuration) y ventana horaria
+// permitida. Comparacion de strings HH:MM funciona lexicograficamente.
+export const MAX_SHIFT_WORKED_HOURS = 10;
+export const SHIFT_WINDOW_START = "06:00";
+export const SHIFT_WINDOW_END = "22:00";
 
 function isFeriado(dateStr: string): boolean {
   const d = new Date(dateStr + "T12:00:00");
@@ -277,6 +286,39 @@ export function validateCalendarForPublish({
           code: "weekly_hours_high",
           title: `Slot ${slot.slotNumber} supera 42h en semana ${wk}`,
           detail: `Tiene ${Number.isInteger(hours) ? hours : hours.toFixed(1)}h planificadas. Máximo permitido: 42h semanales.${fixable ? "" : " (Semana ya transcurrida — no bloquea el guardado.)"}`,
+          slotNumber: slot.slotNumber,
+        });
+      }
+    }
+  }
+
+  // Reglas por turno individual: duracion maxima y ventana horaria. Solo
+  // dias del mes que se esta validando (los dias de la grilla extendida
+  // pertenecen a la validacion de su propio mes).
+  for (const slot of slots) {
+    for (const [dateStr, shift] of Object.entries(slot.days)) {
+      if (!shift) continue;
+      const d = new Date(dateStr + "T12:00:00");
+      if (d.getFullYear() !== year || d.getMonth() + 1 !== month) continue;
+
+      const worked = shiftDuration(shift);
+      if (worked > MAX_SHIFT_WORKED_HOURS) {
+        issues.push({
+          severity: "error",
+          code: "shift_too_long",
+          title: `Slot ${slot.slotNumber}: turno de ${Number.isInteger(worked) ? worked : worked.toFixed(1)}h el ${dateLabel(dateStr)}`,
+          detail: `Máximo permitido: ${MAX_SHIFT_WORKED_HOURS}h trabajadas por turno (descontada la colación). Acorta el turno de ${shift.start} a ${shift.end}.`,
+          dateStr,
+          slotNumber: slot.slotNumber,
+        });
+      }
+      if (shift.start < SHIFT_WINDOW_START || shift.end > SHIFT_WINDOW_END) {
+        issues.push({
+          severity: "error",
+          code: "shift_out_of_window",
+          title: `Slot ${slot.slotNumber}: turno fuera de horario el ${dateLabel(dateStr)}`,
+          detail: `El turno ${shift.start}–${shift.end} sale de la ventana permitida (${SHIFT_WINDOW_START} a ${SHIFT_WINDOW_END}).`,
+          dateStr,
           slotNumber: slot.slotNumber,
         });
       }

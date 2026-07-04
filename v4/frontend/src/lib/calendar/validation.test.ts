@@ -204,5 +204,46 @@ describe("validateCalendarForPublish", () => {
       expect(result.exceeds42hLimit).toBe(true);
     });
   });
+
+  describe("reglas por turno individual (F11 fase 1)", () => {
+    function slotWith(shift: { start: string; end: string }): CalendarSlot {
+      return { slotNumber: 1, days: { "2026-07-15": shift } };
+    }
+    const base = {
+      year: 2026,
+      month: 7,
+      assignments: { "1": "worker-1" },
+      workerMap: { "worker-1": "Juan Perez" },
+    };
+
+    it("flags a shift with more than 10 worked hours", () => {
+      // 08:00-19:30 = 11.5h span - 1h colacion = 10.5h trabajadas
+      const result = validateCalendarForPublish({ ...base, slots: [slotWith({ start: "08:00", end: "19:30" })] });
+      expect(result.errors.some((i) => i.code === "shift_too_long")).toBe(true);
+    });
+
+    it("allows exactly 10 worked hours", () => {
+      // 08:00-19:00 = 11h span - 1h colacion = 10h justas
+      const result = validateCalendarForPublish({ ...base, slots: [slotWith({ start: "08:00", end: "19:00" })] });
+      expect(result.errors.some((i) => i.code === "shift_too_long")).toBe(false);
+    });
+
+    it("flags shifts outside the 06:00-22:00 window, allows the exact edges", () => {
+      const early = validateCalendarForPublish({ ...base, slots: [slotWith({ start: "05:30", end: "13:00" })] });
+      expect(early.errors.some((i) => i.code === "shift_out_of_window")).toBe(true);
+
+      const late = validateCalendarForPublish({ ...base, slots: [slotWith({ start: "14:00", end: "22:30" })] });
+      expect(late.errors.some((i) => i.code === "shift_out_of_window")).toBe(true);
+
+      const edges = validateCalendarForPublish({ ...base, slots: [slotWith({ start: "06:00", end: "15:00" })] });
+      expect(edges.errors.some((i) => i.code === "shift_out_of_window")).toBe(false);
+    });
+
+    it("ignores extended-grid days belonging to other months", () => {
+      const slot: CalendarSlot = { slotNumber: 1, days: { "2026-06-30": { start: "05:00", end: "23:00" } } };
+      const result = validateCalendarForPublish({ ...base, slots: [slot] });
+      expect(result.errors.some((i) => i.code === "shift_too_long" || i.code === "shift_out_of_window")).toBe(false);
+    });
+  });
 });
 
