@@ -5,6 +5,8 @@ import { getSession } from "@/lib/auth/session";
 import { generateCalendar } from "@/lib/calendar/generator";
 import { ensureRotationAnchors } from "@/lib/calendar/rotationAnchor";
 import { combineGroupTeams } from "@/lib/calendar/combineGroupTeams";
+import { extractPrevMonthTail, mergePrevMonthTails } from "@/lib/calendar/prevMonthTail";
+import type { PrevMonthShiftsMap } from "@/lib/calendar/validation";
 import { patternFromRow } from "@/lib/patterns/catalog";
 import { supervisorLookupKey } from "@/lib/supervisors";
 import type { TeamSlice } from "@/lib/calendar/teamSplit";
@@ -117,7 +119,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
   const prevCalendars = teamIds.length > 0
     ? await prisma.calendar.findMany({
         where: { branchTeamId: { in: teamIds }, year: prevYear, month: prevMonth },
-        select: { branchTeamId: true, assignments: true },
+        select: { branchTeamId: true, assignments: true, slotsData: true },
       })
     : [];
   const prevCalMap = new Map(prevCalendars.map((c) => [c.branchTeamId, c]));
@@ -150,6 +152,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
     patternOverride?: ShiftPatternDef;
     prevAssignments?: Record<string, string | null>;
     prevMonthLabel?: string;
+    prevMonthShifts?: PrevMonthShiftsMap;
     supervisorNames?: string[];
   }
 
@@ -180,6 +183,9 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
         };
       });
       const combined = await combineGroupTeams(combinable, year, month, definedCat, definedCat ? patternMap[definedCat] : undefined);
+      const prevMonthShifts = mergePrevMonthTails(
+        areaTeams.map((t) => extractPrevMonthTail(prevCalMap.get(t.id), prevYear, prevMonth)),
+      );
       blocks.push({
         key: `${blockKey}-${area}`,
         title: groupTitle,
@@ -195,6 +201,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
         slices: combined.slices,
         hasCalendar: combined.hasCalendar,
         patternOverride: definedCat ? patternMap[definedCat] : undefined,
+        prevMonthShifts,
         supervisorNames: [...new Set(areaTeams.flatMap((t) => supervisorsByBranch.get(t.branchId) ?? []))],
       });
     }
@@ -246,6 +253,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
       patternOverride: team.categoria ? patternMap[team.categoria] : undefined,
       prevAssignments: !cal && Object.keys(teamPrevAssignments).length > 0 ? teamPrevAssignments : undefined,
       prevMonthLabel: !cal && Object.keys(teamPrevAssignments).length > 0 ? prevMonthLabel : undefined,
+      prevMonthShifts: extractPrevMonthTail(prevCal, prevYear, prevMonth),
       supervisorNames: supervisorsByBranch.get(team.branchId) ?? [],
     });
   }
@@ -306,6 +314,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
           queryBase={queryBase}
           prevMonthLabel={block.prevMonthLabel}
           prevAssignments={block.prevAssignments}
+          prevMonthShifts={block.prevMonthShifts}
           supervisorNames={block.supervisorNames}
         />
       ))}

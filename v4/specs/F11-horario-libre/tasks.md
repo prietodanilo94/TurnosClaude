@@ -8,18 +8,31 @@ Convención de commits: `v4/feat(horario-libre): ...` / `v4/fix(calendar): ...`.
 - [x] Diagnóstico en producción (2026-07-04): 243 trabajadores jun+jul, 43
       con violación, 15 con racha cruzando el borde. Script:
       combinación de días reales de cada mes desde su propio Calendar.
-- [ ] `validateCalendarForPublish`: parámetro opcional `prevMonthShifts`
+- [x] `validateCalendarForPublish`: parámetro opcional `prevMonthShifts`
       (workerId → dateStr → DayShift|null, últimos ~7 días reales del mes
       anterior). Racha consecutiva y horas de la semana ISO frontera se
-      calculan con esos días reales en vez de la grilla extendida propia.
-- [ ] Cargar la cola del mes anterior en los call sites (admin page,
-      supervisor page → props de CalendarView). Ya cargan el Calendar del
-      mes anterior para `prevAssignments`; falta extraer también slotsData.
-- [ ] Tests unitarios: racha 5+4 cruzando borde = 9 (error), horas frontera
-      con datos reales vs extendidos, caso sin mes anterior (sin cola).
-- [ ] Entregar al usuario el listado de los 43 casos existentes (ya
-      generado en el diagnóstico) — decisión de corrección es de RRHH,
-      no automática.
+      calculan con esos días reales en vez de la grilla extendida propia
+      (`effectiveDays`). Nueva lib pura `prevMonthTail.ts`
+      (extractPrevMonthTail + mergePrevMonthTails) con tests.
+- [x] Cargar la cola del mes anterior en los call sites: admin page (ya
+      tenía el row completo del mes anterior) y supervisor page (se agregó
+      `slotsData` al select de prevCalendars; en grupos se unen las colas
+      de todos los equipos). Prop `prevMonthShifts` en CalendarView y
+      SupervisorCalendarView.
+- [x] Tests unitarios: racha 6+4 cruzando borde = 10 (error), horas
+      frontera con datos reales vs asumidos por la grilla (en ambos
+      sentidos: violación nueva detectada Y falso positivo eliminado),
+      comportamiento sin cola idéntico al histórico.
+- [x] **Decisión de diseño adicional** (2026-07-04): una semana >42h que ya
+      terminó por completo (parámetro `todayStr`) se reporta como error
+      pero NO activa el bloqueo duro `exceeds42hLimit` — de lo contrario
+      los ~13 calendarios de julio ya afectados quedarían inguardables el
+      resto del mes (la semana pasada no se puede corregir). El error sigue
+      visible en el panel y el flujo "Guardar versión incompleta" sigue
+      exigiendo confirmación explícita.
+- [x] Listado de los 43 casos existentes entregado al usuario en la sesión
+      del diagnóstico (2026-07-04) — corrección histórica es decisión de
+      RRHH, no automática.
 
 ## Fase 1: Reglas nuevas en la lib compartida
 

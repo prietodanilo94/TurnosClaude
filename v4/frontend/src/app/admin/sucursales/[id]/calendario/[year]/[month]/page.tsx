@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { generateCalendar } from "@/lib/calendar/generator";
 import { ensureRotationAnchors } from "@/lib/calendar/rotationAnchor";
 import { resolveCalendarDisplayCategory, type CalendarCategoryTeam } from "@/lib/calendar/categoryFallback";
+import { extractPrevMonthTail } from "@/lib/calendar/prevMonthTail";
 import { getSession } from "@/lib/auth/session";
 import { supervisorLookupKey } from "@/lib/supervisors";
 import { patternFromRow } from "@/lib/patterns/catalog";
@@ -108,6 +109,9 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
 
   const prevAssignments: Record<string, string | null> = prevCal ? JSON.parse(prevCal.assignments) : {};
   const nextAssignments: Record<string, string | null> = nextCal ? JSON.parse(nextCal.assignments) : {};
+  // Cola real del mes anterior: la validacion la usa para que rachas y
+  // horas de la semana frontera se calculen contra lo realmente guardado.
+  const prevMonthShifts = extractPrevMonthTail(prevCal, prevYear, prevMonth);
 
   let slots: CalendarSlot[];
   let assignments: Record<string, string | null> = {};
@@ -183,6 +187,7 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
       generateAlert={alert}
       prevMonthLabel={prevMonthLabel}
       prevAssignments={prevAssignments}
+      prevMonthShifts={prevMonthShifts}
       nextAssignments={nextAssignments}
       currentYear={year}
       currentMonth={month}

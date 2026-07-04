@@ -6,6 +6,7 @@ import CategoryPicker from "./CategoryPicker";
 import { generateCalendar } from "@/lib/calendar/generator";
 import { splitCalendarByTeam, type TeamSlice } from "@/lib/calendar/teamSplit";
 import { computeCalendarDiff, type ChangeItem } from "@/lib/calendar/diff";
+import type { PrevMonthShiftsMap } from "@/lib/calendar/validation";
 import type { CalendarSlot, ShiftPatternDef, WorkerBlockInfo, WorkerInfo } from "@/types";
 
 interface SimpleWorker {
@@ -33,6 +34,7 @@ interface Props {
   queryBase: string;
   prevMonthLabel?: string;
   prevAssignments?: Record<string, string | null>;
+  prevMonthShifts?: PrevMonthShiftsMap;
   supervisorNames?: string[];
   /** Export RRHH (Excel) visible solo para admins */
   hideExcelExport?: boolean;
@@ -118,6 +120,7 @@ export default function SupervisorCalendarView({
   hasCalendar,
   queryBase,
   prevMonthLabel,
+  prevMonthShifts,
   supervisorNames,
   hideExcelExport = true,
 }: Props) {
@@ -175,6 +178,7 @@ export default function SupervisorCalendarView({
       calendarScopeLabel={title}
       calendarScopeType={slices.length > 1 ? "group" : "branch"}
       supervisorNames={supervisorNames}
+      prevMonthShifts={prevMonthShifts}
       patternRotation={patternOverride?.rotationWeeks}
       changeRemindMessage="Cuidado: estás haciendo cambios en un calendario ya constituido. Los cambios serán informados a RRHH. Para que queden aplicados debes presionar Guardar al terminar. ¿Continuar?"
       prevMonthLabel={!hasCalendar ? prevMonthLabel : undefined}

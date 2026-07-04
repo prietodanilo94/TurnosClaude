@@ -24,6 +24,10 @@ export interface CalendarValidationIssue {
   workerId?: string;
 }
 
+// workerId -> dateStr -> turno real guardado (null explicito = dia libre
+// segun lo publicado el mes anterior; distinto de "sin informacion").
+export type PrevMonthShiftsMap = Record<string, Record<string, DayShift | null>>;
+
 interface ValidateCalendarInput {
   year: number;
   month: number;
@@ -31,6 +35,16 @@ interface ValidateCalendarInput {
   assignments: Record<string, string | null>;
   workerMap: Record<string, string>;
   blockMap?: WorkerBlockDateMap;
+  // Cola REAL del mes anterior (ver extractPrevMonthTail). Si se entrega,
+  // los dias previos al mes se validan contra lo realmente guardado en vez
+  // de contra la grilla extendida (que asume el patron y puede no coincidir
+  // con calendarios editados a mano). F11 Fase 0.
+  prevMonthShifts?: PrevMonthShiftsMap;
+  // Fecha de hoy (YYYY-MM-DD). Si se entrega, una semana >42h que ya
+  // termino por completo en el pasado sigue reportandose como error pero
+  // NO activa el bloqueo duro de guardado (exceeds42hLimit): ya no es
+  // corregible y bloquearia el calendario para siempre.
+  todayStr?: string;
 }
 
 export interface CalendarValidationResult {
@@ -70,13 +84,44 @@ function isoWeekKey(dateStr: string): string {
   return `${year}-W${String(week).padStart(2, "0")}`;
 }
 
-function maxConsecutiveWorkRun(slot: CalendarSlot): number {
-  const sortedDates = Object.keys(slot.days).sort();
+// Dias efectivos de un slot para validar: los dias del mes actual (y
+// posteriores) vienen de la grilla del calendario; los dias ANTERIORES al
+// mes se reemplazan por la cola real del mes anterior cuando se conoce al
+// trabajador. Sin trabajador asignado o sin cola, se usa la grilla tal cual
+// (comportamiento historico).
+function effectiveDays(
+  slot: CalendarSlot,
+  workerId: string | null,
+  monthStartStr: string,
+  prevMonthShifts?: PrevMonthShiftsMap,
+): Record<string, DayShift | null> {
+  const tail = workerId ? prevMonthShifts?.[workerId] : undefined;
+  if (!tail) return slot.days as Record<string, DayShift | null>;
+  const merged: Record<string, DayShift | null> = {};
+  for (const [dateStr, shift] of Object.entries(slot.days)) {
+    if (dateStr >= monthStartStr) merged[dateStr] = shift as DayShift | null;
+  }
+  for (const [dateStr, shift] of Object.entries(tail)) {
+    if (dateStr < monthStartStr) merged[dateStr] = shift;
+  }
+  return merged;
+}
+
+// Domingo (fin de semana ISO) de la semana a la que pertenece la fecha.
+function isoWeekSunday(dateStr: string): string {
+  const d = new Date(dateStr + "T12:00:00");
+  const dayNr = (d.getDay() + 6) % 7;
+  d.setDate(d.getDate() - dayNr + 6);
+  return fmt(d);
+}
+
+function maxConsecutiveWorkRun(days: Record<string, DayShift | null>): number {
+  const sortedDates = Object.keys(days).sort();
   let maxRun = 0;
   let curRun = 0;
   let prevDate: string | null = null;
   for (const dateStr of sortedDates) {
-    const shift = slot.days[dateStr];
+    const shift = days[dateStr];
     if (shift !== null && shift !== undefined) {
       if (prevDate !== null) {
         const diff = Math.round(
@@ -120,8 +165,11 @@ export function validateCalendarForPublish({
   assignments,
   workerMap,
   blockMap = {},
+  prevMonthShifts,
+  todayStr,
 }: ValidateCalendarInput): CalendarValidationResult {
   const issues: CalendarValidationIssue[] = [];
+  const monthStartStr = `${year}-${String(month).padStart(2, "0")}-01`;
 
   if (slots.length === 0) {
     issues.push({
@@ -201,24 +249,34 @@ export function validateCalendarForPublish({
 
   let exceeds42hLimit = false;
   for (const slot of slots) {
+    const workerId = assignments[String(slot.slotNumber)] ?? null;
+    // Sin filtro de mes a propósito: se usa la grilla extendida (semanas
+    // lunes-domingo completas) para que la semana que cruza fin de mes sume
+    // sus 7 días. Los días previos al mes se reemplazan por la cola REAL
+    // del mes anterior si está disponible (effectiveDays) — la grilla
+    // asume el patrón y puede no coincidir con lo realmente publicado.
+    const days = effectiveDays(slot, workerId, monthStartStr, prevMonthShifts);
     const weekHours: Record<string, number> = {};
-    for (const [dateStr, shift] of Object.entries(slot.days)) {
+    const weekSunday: Record<string, string> = {};
+    for (const [dateStr, shift] of Object.entries(days)) {
       if (!shift) continue;
       if (isFeriado(dateStr)) continue;
-      // Sin filtro de mes a propósito: slot.days ya trae la grilla extendida
-      // (lunes-domingo completos), así que una semana que cruza fin de mes
-      // suma sus 7 días reales en vez de solo los que caen en este mes.
       const wk = isoWeekKey(dateStr);
       weekHours[wk] = (weekHours[wk] ?? 0) + shiftDuration(shift);
+      if (!weekSunday[wk]) weekSunday[wk] = isoWeekSunday(dateStr);
     }
     for (const [wk, hours] of Object.entries(weekHours)) {
       if (hours > 42) {
-        exceeds42hLimit = true;
+        // Una semana que ya terminó no es corregible: se reporta como error
+        // (visibilidad) pero no activa el bloqueo duro, o el calendario
+        // quedaría inguardable el resto del mes.
+        const fixable = !todayStr || weekSunday[wk] >= todayStr;
+        if (fixable) exceeds42hLimit = true;
         issues.push({
           severity: "error",
           code: "weekly_hours_high",
           title: `Slot ${slot.slotNumber} supera 42h en semana ${wk}`,
-          detail: `Tiene ${Number.isInteger(hours) ? hours : hours.toFixed(1)}h planificadas. Máximo permitido: 42h semanales.`,
+          detail: `Tiene ${Number.isInteger(hours) ? hours : hours.toFixed(1)}h planificadas. Máximo permitido: 42h semanales.${fixable ? "" : " (Semana ya transcurrida — no bloquea el guardado.)"}`,
           slotNumber: slot.slotNumber,
         });
       }
@@ -230,7 +288,10 @@ export function validateCalendarForPublish({
   for (const slot of slots) {
     if (!hasShiftInMonth(slot, year, month)) continue;
 
-    const maxRun = maxConsecutiveWorkRun(slot);
+    const workerId = assignments[String(slot.slotNumber)] ?? null;
+    const days = effectiveDays(slot, workerId, monthStartStr, prevMonthShifts);
+
+    const maxRun = maxConsecutiveWorkRun(days);
     if (maxRun > 6) {
       issues.push({
         severity: "error",
@@ -241,8 +302,8 @@ export function validateCalendarForPublish({
       });
     }
 
-    const offSundays = sundaysInMonth.filter((s) => !slot.days[s]);
-    const worksAnySunday = sundaysInMonth.some((s) => !!slot.days[s]);
+    const offSundays = sundaysInMonth.filter((s) => !days[s]);
+    const worksAnySunday = sundaysInMonth.some((s) => !!days[s]);
 
     if (offSundays.length < 2) {
       issues.push({

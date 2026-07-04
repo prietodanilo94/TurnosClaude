@@ -6,7 +6,7 @@ import SemanaPicker from "@/components/calendar/SemanaPicker";
 import type { CalendarSlot, DayShift, ShiftPatternDef, WeekPattern, WorkerInfo, WorkerBlockInfo } from "@/types";
 import { getOperatingWindow, getScheduleBreakdown } from "@/lib/patterns/catalog";
 import { buildWorkerBlockDateMap } from "@/lib/calendar/generator";
-import { validateCalendarForPublish } from "@/lib/calendar/validation";
+import { validateCalendarForPublish, type PrevMonthShiftsMap } from "@/lib/calendar/validation";
 import {
   MONTH_NAMES, addMinutesToTime, buildIsoWeeks, detectSemanaForWeek, detectSemanaOffset,
   fmt, isFeriadoIrrenunciable, shiftDuration, validateConsecutiveDays, type AttendanceByRut,
@@ -37,6 +37,9 @@ interface Props {
   generateAlert?: string;
   prevMonthLabel?: string;
   prevAssignments?: Record<string, string | null>;
+  // Cola real del mes anterior por trabajador (extractPrevMonthTail) — la
+  // validacion la usa para rachas y horas de la semana frontera (F11 Fase 0).
+  prevMonthShifts?: PrevMonthShiftsMap;
   nextAssignments?: Record<string, string | null>;
   currentYear?: number;
   currentMonth?: number;
@@ -87,7 +90,7 @@ interface Props {
 export default function CalendarView({
   branchId, branchName, branchCodigo, teamId, areaNegocio, categoria, patternOverride,
   year, month, slots, assignments, workers, workerMap, calendarId, generateAlert,
-  workerBlocks = [], prevMonthLabel, prevAssignments = {}, nextAssignments = {}, currentYear, currentMonth,
+  workerBlocks = [], prevMonthLabel, prevAssignments = {}, prevMonthShifts, nextAssignments = {}, currentYear, currentMonth,
   backHref = "/admin/sucursales",
   backLabel = "Sucursales",
   onNavigate,
@@ -268,6 +271,7 @@ export default function CalendarView({
   const weeks = useMemo(() => buildIsoWeeks(year, month), [year, month]);
   const operatingWindow = useMemo(() => getOperatingWindow(categoria, patternOverride), [categoria, patternOverride]);
   const blockMap = useMemo(() => buildWorkerBlockDateMap(workerBlocks), [workerBlocks]);
+  const todayStr = fmt(new Date());
   const validation = useMemo(
     () => validateCalendarForPublish({
       year,
@@ -276,8 +280,10 @@ export default function CalendarView({
       assignments: assign,
       workerMap,
       blockMap,
+      prevMonthShifts,
+      todayStr,
     }),
-    [year, month, localSlots, assign, workerMap, blockMap],
+    [year, month, localSlots, assign, workerMap, blockMap, prevMonthShifts, todayStr],
   );
 
   // Rotativos: orden por semana de inicio (S1 arriba). Fijos: por horario de inicio dominante.
@@ -644,8 +650,6 @@ export default function CalendarView({
     }
     return set;
   };
-
-  const todayStr = fmt(new Date());
 
   // Datos para ShiftEditDialog
   const shiftForEdit = shiftEditDialog
