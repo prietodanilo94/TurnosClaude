@@ -485,13 +485,24 @@ export default function CalendarView({
     setDirty(true);
   }
 
-  function handleShiftSave(slotNum: number, dateStr: string, newShift: DayShift, redistributeDate?: string | null, scope: "week" | "month" = "week") {
+  // Fechas destino segun alcance: "week" = solo ese dia (nombre historico),
+  // "isoweek" = todos los dias de esa semana (solo los del mes actual),
+  // "month" = todos los [mismo dia de semana] del mes.
+  function scopeDates(dateStr: string, scope: "week" | "isoweek" | "month"): string[] {
+    if (scope === "month") {
+      const clickedDow = new Date(dateStr + "T12:00:00").getDay();
+      return weeks.flat().filter(d => d.getMonth() + 1 === month && d.getDay() === clickedDow).map(d => fmt(d));
+    }
+    if (scope === "isoweek") {
+      const week = weeks.find(w => w.some(d => fmt(d) === dateStr));
+      return week ? week.filter(d => d.getMonth() + 1 === month).map(d => fmt(d)) : [dateStr];
+    }
+    return [dateStr];
+  }
+
+  function handleShiftSave(slotNum: number, dateStr: string, newShift: DayShift, redistributeDate?: string | null, scope: "week" | "isoweek" | "month" = "week") {
     tryChangeGated(() => {
-      const clickedDate = new Date(dateStr + "T12:00:00");
-      const clickedDow = clickedDate.getDay();
-      const monthDates: string[] = scope === "month"
-        ? weeks.flat().filter(d => d.getMonth() + 1 === month && d.getDay() === clickedDow).map(d => fmt(d))
-        : [dateStr];
+      const monthDates: string[] = scopeDates(dateStr, scope);
       setLocalSlots(prev => prev.map(s => {
         if (s.slotNumber !== slotNum) return s;
         const newDays: Record<string, DayShift | null> = { ...s.days };
@@ -515,13 +526,9 @@ export default function CalendarView({
     });
   }
 
-  function handleSetShiftLibre(slotNum: number, dateStr: string, scope: "week" | "month" = "week") {
+  function handleSetShiftLibre(slotNum: number, dateStr: string, scope: "week" | "isoweek" | "month" = "week") {
     tryChangeGated(() => {
-      const clickedDate = new Date(dateStr + "T12:00:00");
-      const clickedDow = clickedDate.getDay();
-      const monthDates: string[] = scope === "month"
-        ? weeks.flat().filter(d => d.getMonth() + 1 === month && d.getDay() === clickedDow).map(d => fmt(d))
-        : [dateStr];
+      const monthDates: string[] = scopeDates(dateStr, scope);
       setLocalSlots(prev => prev.map(s => {
         if (s.slotNumber !== slotNum) return s;
         const newDays: Record<string, DayShift | null> = { ...s.days };
@@ -572,11 +579,13 @@ export default function CalendarView({
     const sh2 = slot.days[d2] ?? null;
     if (sh1 === null && sh2 === null) return;
 
-    // Bug 5: bloquear si la sucursal nunca opera ese día de la semana (e.g. domingo)
+    // Bug 5: bloquear si la sucursal nunca opera ese día de la semana (e.g. domingo).
+    // En horario libre no aplica: la plantilla original parte vacía, así que
+    // ningún día "opera" — todos los días de la ventana son válidos.
     const targetDay = sh1 !== null ? d2 : d1; // el día que recibirá el turno
     const targetDow = new Date(targetDay + "T12:00:00").getDay();
     // Verifica si ALGÚN slot tiene turno en ALGUNA fecha con el mismo día de semana
-    const branchOperatesOnTarget = slots.some(s =>
+    const branchOperatesOnTarget = categoria === "horario_libre" || slots.some(s =>
       Object.entries(s.days).some(([ds, shift]) =>
         shift != null && new Date(ds + "T12:00:00").getDay() === targetDow,
       ),
@@ -837,7 +846,12 @@ export default function CalendarView({
         </div>
       )}
 
-      {showValidationPanel && <CalendarValidationPanel validation={validation} />}
+      {/* Panel oculto mientras el calendario esta intacto y su unico problema
+          es estar vacio (horario libre recien abierto): mostrar un error rojo
+          antes de que el usuario haga nada es ruido. */}
+      {showValidationPanel && (dirty || validation.issues.some((i) => i.code !== "empty_calendar")) && (
+        <CalendarValidationPanel validation={validation} />
+      )}
 
       {view === "mensual" ? (
         <div className="space-y-4">

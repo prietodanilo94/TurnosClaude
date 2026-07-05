@@ -7,6 +7,9 @@ import {
   DOW_LABELS, addMinutesToTime, dowIndex, fmtHours, minutesFromTime, shiftDuration,
 } from "./calendar-utils";
 
+// Plural para "A todos los [dia] del mes" (Lun=0 .. Dom=6)
+const DOW_PLURAL = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábados", "Domingos"];
+
 export interface AssignDialogProps {
   slotNumber: number;
   currentWorkerId: string | null;
@@ -79,9 +82,9 @@ export interface ShiftEditDialogProps {
   originalShift?: DayShift;
   redistributeDays: Array<{ dateStr: string; shift: DayShift; d: Date }>;
   operatingWindow: { start: string; end: string };
-  onSave: (newShift: DayShift, redistributeDate: string | null | undefined, scope: "week" | "month") => void;
+  onSave: (newShift: DayShift, redistributeDate: string | null | undefined, scope: "week" | "isoweek" | "month") => void;
   onClose: () => void;
-  onSetLibre?: (scope: "week" | "month") => void;
+  onSetLibre?: (scope: "week" | "isoweek" | "month") => void;
 }
 
 export function ShiftEditDialog({
@@ -92,7 +95,9 @@ export function ShiftEditDialog({
   const [end, setEnd] = useState(currentShift?.end ?? operatingWindow.end);
   const [step, setStep] = useState<"edit" | "redistribute">("edit");
   const [selectedRedist, setSelectedRedist] = useState<string | null>(null);
-  const [scope, setScope] = useState<"week" | "month">("week");
+  // "week" = solo este dia (nombre historico), "isoweek" = toda la semana,
+  // "month" = todos los [dia de semana] del mes.
+  const [scope, setScope] = useState<"week" | "isoweek" | "month">("week");
 
   const winStartMin = minutesFromTime(operatingWindow.start);
   const winEndMin   = minutesFromTime(operatingWindow.end);
@@ -323,19 +328,19 @@ export function ShiftEditDialog({
         {/* Alcance del cambio */}
         <div className="px-4 pb-3">
           <p className="text-[11px] text-gray-400 mb-1.5 text-center">Aplicar cambio a</p>
-          <div className="flex rounded-lg border border-gray-200 overflow-hidden text-sm font-medium">
-            {(["week", "month"] as const).map((s) => (
+          <div className="flex flex-col rounded-lg border border-gray-200 overflow-hidden text-sm font-medium divide-y divide-gray-200">
+            {(["week", "isoweek", "month"] as const).map((s) => (
               <button
                 key={s}
                 type="button"
                 onClick={() => setScope(s)}
-                className={`flex-1 py-2 transition-colors ${
+                className={`py-2 transition-colors ${
                   scope === s
                     ? "bg-blue-600 text-white"
                     : "bg-white text-gray-600 hover:bg-gray-50"
                 }`}
               >
-                {s === "week" ? "Solo este día" : "Todo el mes"}
+                {s === "week" ? "Solo este día" : s === "isoweek" ? "A toda esta semana" : `A todos los ${DOW_PLURAL[dowIndex(date)]} del mes`}
               </button>
             ))}
           </div>

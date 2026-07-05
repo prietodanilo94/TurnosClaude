@@ -265,6 +265,13 @@ export function validateCalendarForPublish({
     });
   }
 
+  // Nombre legible para mensajes: el trabajador asignado al slot, o un
+  // rotulo generico si la fila no tiene a nadie asignado.
+  function slotLabel(slot: CalendarSlot): string {
+    const workerId = assignments[String(slot.slotNumber)] ?? null;
+    return (workerId && workerMap[workerId]) || `Vendedor ${slot.slotNumber}`;
+  }
+
   let exceeds42hLimit = false;
   for (const slot of slots) {
     const workerId = assignments[String(slot.slotNumber)] ?? null;
@@ -293,7 +300,7 @@ export function validateCalendarForPublish({
         issues.push({
           severity: "error",
           code: "weekly_hours_high",
-          title: `Slot ${slot.slotNumber} supera 42h en semana ${wk}`,
+          title: `${slotLabel(slot)}: más de 42h en la semana que termina el ${dateLabel(weekSunday[wk])}`,
           detail: `Tiene ${Number.isInteger(hours) ? hours : hours.toFixed(1)}h planificadas. Máximo permitido: 42h semanales.${fixable ? "" : " (Semana ya transcurrida — no bloquea el guardado.)"}`,
           slotNumber: slot.slotNumber,
         });
@@ -315,7 +322,7 @@ export function validateCalendarForPublish({
         issues.push({
           severity: "error",
           code: "shift_too_long",
-          title: `Slot ${slot.slotNumber}: turno de ${Number.isInteger(worked) ? worked : worked.toFixed(1)}h el ${dateLabel(dateStr)}`,
+          title: `${slotLabel(slot)}: turno de ${Number.isInteger(worked) ? worked : worked.toFixed(1)}h el ${dateLabel(dateStr)}`,
           detail: `Máximo permitido: ${MAX_SHIFT_WORKED_HOURS}h trabajadas por turno (descontada la colación). Acorta el turno de ${shift.start} a ${shift.end}.`,
           dateStr,
           slotNumber: slot.slotNumber,
@@ -325,7 +332,7 @@ export function validateCalendarForPublish({
         issues.push({
           severity: "error",
           code: "shift_out_of_window",
-          title: `Slot ${slot.slotNumber}: turno fuera de horario el ${dateLabel(dateStr)}`,
+          title: `${slotLabel(slot)}: turno fuera de horario el ${dateLabel(dateStr)}`,
           detail: `El turno ${shift.start}–${shift.end} sale de la ventana permitida (${SHIFT_WINDOW_START} a ${SHIFT_WINDOW_END}).`,
           dateStr,
           slotNumber: slot.slotNumber,
@@ -347,7 +354,7 @@ export function validateCalendarForPublish({
       issues.push({
         severity: "error",
         code: "consecutive_days_exceeded",
-        title: `Slot ${slot.slotNumber}: ${maxRun} días laborales consecutivos`,
+        title: `${slotLabel(slot)}: ${maxRun} días laborales consecutivos`,
         detail: `El máximo permitido es 6 días consecutivos de trabajo. Añade un día libre para romper la racha.`,
         slotNumber: slot.slotNumber,
       });
@@ -360,7 +367,7 @@ export function validateCalendarForPublish({
       issues.push({
         severity: "error",
         code: "sundays_off_insufficient",
-        title: `Slot ${slot.slotNumber}: solo ${offSundays.length} domingo${offSundays.length !== 1 ? "s" : ""} libre`,
+        title: `${slotLabel(slot)}: solo ${offSundays.length} domingo${offSundays.length !== 1 ? "s" : ""} libre`,
         detail: `Se requieren al menos 2 domingos libres en el mes. Libera ${2 - offSundays.length} domingo${2 - offSundays.length !== 1 ? "s" : ""} más.`,
         slotNumber: slot.slotNumber,
       });
@@ -374,7 +381,7 @@ export function validateCalendarForPublish({
           issues.push({
             severity: "error",
             code: "sundays_off_consecutive",
-            title: `Slot ${slot.slotNumber}: domingos libres en semanas seguidas`,
+            title: `${slotLabel(slot)}: domingos libres en semanas seguidas`,
             detail: `Los domingos ${dateLabel(offSundays[i])} y ${dateLabel(offSundays[i + 1])} son consecutivos. Al menos un domingo entre ellos debe ser trabajado.`,
             slotNumber: slot.slotNumber,
             dateStr: offSundays[i],
