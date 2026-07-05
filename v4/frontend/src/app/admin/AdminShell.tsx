@@ -33,7 +33,9 @@ export default function AdminShell({ userEmail, children }: Props) {
 
   return (
     <div className="min-h-screen flex">
-      <aside className="w-48 bg-gray-900 text-white flex flex-col shrink-0 sticky top-0 h-screen">
+      {/* sticky left-0: la barra queda fija tambien cuando una pagina ancha
+          (ej. Exportar/Historial) provoca scroll horizontal del body */}
+      <aside className="w-48 bg-gray-900 text-white flex flex-col shrink-0 sticky top-0 left-0 h-screen z-30">
         <div className="px-4 py-5 border-b border-gray-700 text-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/tp-icon.png" alt="TeamPlanner" className="h-10 w-auto mx-auto mb-2" />
@@ -66,7 +68,10 @@ export default function AdminShell({ userEmail, children }: Props) {
         </div>
       </aside>
 
-      <main className="flex-1 bg-gray-50 min-h-screen">{children}</main>
+      {/* min-w-0: evita que un hijo ancho estire el main mas alla del
+          viewport — asi las tablas scrollean dentro de su propio
+          overflow-x-auto en vez de mover toda la pagina */}
+      <main className="flex-1 min-w-0 bg-gray-50 min-h-screen">{children}</main>
     </div>
   );
 }

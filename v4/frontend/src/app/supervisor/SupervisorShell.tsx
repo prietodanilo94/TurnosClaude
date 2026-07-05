@@ -34,7 +34,8 @@ export default function SupervisorShell({
 
   return (
     <div className="min-h-screen flex">
-      <aside className="w-52 bg-gray-900 text-white flex flex-col shrink-0 sticky top-0 h-screen overflow-y-auto">
+      {/* sticky left-0 + z-30: la barra queda fija tambien con scroll horizontal (paginas anchas) */}
+      <aside className="w-52 bg-gray-900 text-white flex flex-col shrink-0 sticky top-0 left-0 h-screen overflow-y-auto z-30">
         <div className="px-4 py-5 border-b border-gray-700 text-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/tp-icon.png" alt="TeamPlanner" className="h-10 w-auto mx-auto mb-2" />
@@ -60,7 +61,7 @@ export default function SupervisorShell({
         </div>
       </aside>
 
-      <main className="flex-1 bg-gray-50 min-h-screen overflow-auto">{children}</main>
+      <main className="flex-1 min-w-0 bg-gray-50 min-h-screen overflow-auto">{children}</main>
     </div>
   );
 }
