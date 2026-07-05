@@ -4,14 +4,15 @@ import { generateCalendar } from "@/lib/calendar/generator";
 import { ensureRotationAnchors } from "@/lib/calendar/rotationAnchor";
 import { resolveCalendarDisplayCategory, type CalendarCategoryTeam } from "@/lib/calendar/categoryFallback";
 import { extractPrevMonthTail } from "@/lib/calendar/prevMonthTail";
-import { stateFromCalendar } from "@/lib/calendar/freeSchedule";
+import { blankCombinedCalendar } from "@/lib/calendar/freeSchedule";
+import { buildIsoWeeks, fmt } from "./calendar-utils";
 import { getSession } from "@/lib/auth/session";
 import { supervisorLookupKey } from "@/lib/supervisors";
 import { patternFromRow } from "@/lib/patterns/catalog";
 import type { CalendarSlot, WorkerBlockInfo } from "@/types";
 import CalendarView from "./CalendarView";
 import CalendarTabs from "@/components/calendar/CalendarTabs";
-import FreeScheduleEditor from "@/components/calendar/FreeScheduleEditor";
+import FreeCalendarView from "@/components/calendar/FreeCalendarView";
 
 interface Props {
   params: { id: string; year: string; month: string };
@@ -99,9 +100,23 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
   );
 
   const savedOrigen: "libre" | null = existing?.origen === "libre" ? "libre" : null;
-  const savedState = existing
-    ? stateFromCalendar(JSON.parse(existing.slotsData) as CalendarSlot[], JSON.parse(existing.assignments))
-    : {};
+
+  // Seed del modo libre: lo guardado si el mes ya es de origen libre; una
+  // grilla en blanco (un slot por trabajador) en cualquier otro caso.
+  const gridDates = buildIsoWeeks(year, month).flat().map(fmt);
+  const blank = blankCombinedCalendar(
+    [{ teamId: team.id, workers: filteredWorkers.map((w) => ({ id: w.id, nombre: w.nombre })) }],
+    gridDates,
+  );
+  const libreSlots: CalendarSlot[] = savedOrigen === "libre" && existing
+    ? (JSON.parse(existing.slotsData) as CalendarSlot[])
+    : blank.slots;
+  const libreAssignments: Record<string, string | null> = savedOrigen === "libre" && existing
+    ? JSON.parse(existing.assignments)
+    : blank.assignments;
+  const libreSlices = savedOrigen === "libre" && existing
+    ? [{ teamId: team.id, workerIds: filteredWorkers.map((w) => w.id), slotCount: libreSlots.length, rotationAnchors: [] }]
+    : blank.slices;
 
   // ─── Pestana Horario rotativo ──────────────────────────────────────────────
   const groupCategoryCandidates =
@@ -217,23 +232,24 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
     );
   }
 
-  // ─── Pestana Horario libre (F11) ───────────────────────────────────────────
+  // ─── Modo Horario libre (F11) ──────────────────────────────────────────────
   const session = await getSession();
   const libreContent = (
-    <FreeScheduleEditor
-      teams={[{
-        teamId: team.id,
-        workers: filteredWorkers.map((w) => ({ id: w.id, nombre: w.nombre })),
-      }]}
+    <FreeCalendarView
+      title={team.branch.nombre}
+      areaNegocio={team.areaNegocio as "ventas" | "postventa"}
       year={year}
       month={month}
-      savedState={savedState}
+      slots={libreSlots}
+      assignments={libreAssignments}
+      slices={libreSlices}
+      workers={filteredWorkers.map((w) => ({ id: w.id, nombre: w.nombre }))}
+      blocks={workerBlocks}
       savedOrigen={savedOrigen}
       hasCalendar={!!existing}
       scopeLabel={team.branch.nombre}
       scopeType="branch"
       prevMonthShifts={prevMonthShifts}
-      workerBlocks={workerBlocks}
       isAdmin={session?.role === "admin"}
     />
   );

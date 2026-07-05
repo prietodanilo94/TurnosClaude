@@ -63,6 +63,41 @@ export function materializeTeam(
   return { slots, assignments };
 }
 
+// Seed en blanco para el modo libre montado sobre CalendarView: un slot por
+// trabajador (todos los dias en null) a traves de uno o mas equipos, con los
+// slices por equipo que usa splitCalendarByTeam al guardar.
+export function blankCombinedCalendar(
+  teams: { teamId: string; workers: FreeWorkerInput[] }[],
+  gridDates: string[],
+): {
+  slots: CalendarSlot[];
+  assignments: Record<string, string | null>;
+  slices: { teamId: string; workerIds: string[]; slotCount: number; rotationAnchors: number[] }[];
+} {
+  const slots: CalendarSlot[] = [];
+  const assignments: Record<string, string | null> = {};
+  const slices: { teamId: string; workerIds: string[]; slotCount: number; rotationAnchors: number[] }[] = [];
+  let offset = 0;
+  for (const team of teams) {
+    team.workers.forEach((worker, i) => {
+      const slotNumber = offset + i + 1;
+      slots.push({
+        slotNumber,
+        days: Object.fromEntries(gridDates.map((d) => [d, null])),
+      });
+      assignments[String(slotNumber)] = worker.id;
+    });
+    slices.push({
+      teamId: team.teamId,
+      workerIds: team.workers.map((w) => w.id),
+      slotCount: team.workers.length,
+      rotationAnchors: [],
+    });
+    offset += team.workers.length;
+  }
+  return { slots, assignments, slices };
+}
+
 // ─── edicion ─────────────────────────────────────────────────────────────────
 
 export function applyToCells(

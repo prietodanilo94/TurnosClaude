@@ -6,10 +6,11 @@ import { generateCalendar } from "@/lib/calendar/generator";
 import { ensureRotationAnchors } from "@/lib/calendar/rotationAnchor";
 import { combineGroupTeams } from "@/lib/calendar/combineGroupTeams";
 import { extractPrevMonthTail, mergePrevMonthTails } from "@/lib/calendar/prevMonthTail";
-import { mergeStates, stateFromCalendar, type FreeScheduleState } from "@/lib/calendar/freeSchedule";
+import { blankCombinedCalendar } from "@/lib/calendar/freeSchedule";
+import { buildIsoWeeks, fmt } from "@/app/admin/sucursales/[id]/calendario/[year]/[month]/calendar-utils";
 import type { PrevMonthShiftsMap } from "@/lib/calendar/validation";
 import CalendarTabs from "@/components/calendar/CalendarTabs";
-import FreeScheduleEditor, { type FreeTeamInput } from "@/components/calendar/FreeScheduleEditor";
+import FreeCalendarView from "@/components/calendar/FreeCalendarView";
 import { patternFromRow } from "@/lib/patterns/catalog";
 import { supervisorLookupKey } from "@/lib/supervisors";
 import type { TeamSlice } from "@/lib/calendar/teamSplit";
@@ -157,10 +158,11 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
     prevMonthLabel?: string;
     prevMonthShifts?: PrevMonthShiftsMap;
     supervisorNames?: string[];
-    // F11 — pestana Horario libre
+    // F11 — modo Horario libre (seed para FreeCalendarView)
     savedOrigen: "libre" | null;
-    savedState: FreeScheduleState;
-    freeTeams: FreeTeamInput[];
+    libreSlots: CalendarSlot[];
+    libreAssignments: Record<string, string | null>;
+    libreSlices: TeamSlice[];
   }
 
   const blocks: DisplayBlock[] = [];
@@ -193,19 +195,19 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
       const prevMonthShifts = mergePrevMonthTails(
         areaTeams.map((t) => extractPrevMonthTail(prevCalMap.get(t.id), prevYear, prevMonth)),
       );
-      const savedState = mergeStates(areaTeams.map((t) =>
-        t.calendars[0]
-          ? stateFromCalendar(JSON.parse(t.calendars[0].slotsData) as CalendarSlot[], JSON.parse(t.calendars[0].assignments))
-          : {},
-      ));
       const savedOrigen: "libre" | null = areaTeams.some((t) => t.calendars[0]?.origen === "libre") ? "libre" : null;
-      const freeTeams: FreeTeamInput[] = areaTeams.map((team) => ({
-        teamId: team.id,
-        label: team.branch.nombre,
-        workers: team.workers
-          .filter((w) => !supervisorKeys.has(supervisorLookupKey(w.nombre)))
-          .map((w) => ({ id: w.id, nombre: w.nombre })),
-      }));
+      // Seed del modo libre: lo guardado (tabla combinada) si el mes ya es
+      // libre; grilla en blanco un-slot-por-trabajador si no.
+      const gridDates = buildIsoWeeks(year, month).flat().map(fmt);
+      const blank = blankCombinedCalendar(
+        areaTeams.map((team) => ({
+          teamId: team.id,
+          workers: team.workers
+            .filter((w) => !supervisorKeys.has(supervisorLookupKey(w.nombre)))
+            .map((w) => ({ id: w.id, nombre: w.nombre })),
+        })),
+        gridDates,
+      );
       blocks.push({
         key: `${blockKey}-${area}`,
         title: groupTitle,
@@ -224,8 +226,9 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
         prevMonthShifts,
         supervisorNames: [...new Set(areaTeams.flatMap((t) => supervisorsByBranch.get(t.branchId) ?? []))],
         savedOrigen,
-        savedState,
-        freeTeams,
+        libreSlots: savedOrigen === "libre" ? combined.slots : blank.slots,
+        libreAssignments: savedOrigen === "libre" ? combined.assignments : blank.assignments,
+        libreSlices: savedOrigen === "libre" ? combined.slices : blank.slices,
       });
     }
   }
@@ -279,8 +282,22 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
       prevMonthShifts: extractPrevMonthTail(prevCal, prevYear, prevMonth),
       supervisorNames: supervisorsByBranch.get(team.branchId) ?? [],
       savedOrigen: cal?.origen === "libre" ? "libre" : null,
-      savedState: cal ? stateFromCalendar(JSON.parse(cal.slotsData) as CalendarSlot[], JSON.parse(cal.assignments)) : {},
-      freeTeams: [{ teamId: team.id, workers: teamWorkers.map((w) => ({ id: w.id, nombre: w.nombre })) }],
+      ...(() => {
+        const gridDates = buildIsoWeeks(year, month).flat().map(fmt);
+        const blank = blankCombinedCalendar(
+          [{ teamId: team.id, workers: teamWorkers.map((w) => ({ id: w.id, nombre: w.nombre })) }],
+          gridDates,
+        );
+        if (cal?.origen === "libre") {
+          const savedSlots = JSON.parse(cal.slotsData) as CalendarSlot[];
+          return {
+            libreSlots: savedSlots,
+            libreAssignments: JSON.parse(cal.assignments) as Record<string, string | null>,
+            libreSlices: [{ teamId: team.id, workerIds: teamWorkers.map((w) => w.id), slotCount: savedSlots.length, rotationAnchors: [] }],
+          };
+        }
+        return { libreSlots: blank.slots, libreAssignments: blank.assignments, libreSlices: blank.slices };
+      })(),
     });
   }
 
@@ -352,18 +369,24 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
             />
           }
           libre={
-            <FreeScheduleEditor
-              teams={block.freeTeams}
+            <FreeCalendarView
+              title={block.title}
+              areaNegocio={block.areaNegocio}
               year={year}
               month={month}
-              savedState={block.savedState}
+              slots={block.libreSlots}
+              assignments={block.libreAssignments}
+              slices={block.libreSlices}
+              workers={block.workers}
+              blocks={block.blocks}
               savedOrigen={block.savedOrigen}
               hasCalendar={block.hasCalendar}
               scopeLabel={block.title}
               scopeType={block.teamIds.length > 1 ? "group" : "branch"}
               prevMonthShifts={block.prevMonthShifts}
-              workerBlocks={block.blocks}
               isAdmin={session?.role === "admin"}
+              backHref="/supervisor"
+              backLabel="Volver"
             />
           }
         />

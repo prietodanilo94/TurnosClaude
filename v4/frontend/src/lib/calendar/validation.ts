@@ -187,6 +187,15 @@ export function validateCalendarForPublish({
       title: "Calendario sin turnos",
       detail: "Genera el calendario antes de guardarlo.",
     });
+  } else if (!slots.some((slot) => hasShiftInMonth(slot, year, month))) {
+    // Hay slots pero ninguno tiene turnos este mes (ej. horario libre recien
+    // abierto, todo en blanco): no esta "listo para guardar", esta vacio.
+    issues.push({
+      severity: "error",
+      code: "empty_calendar",
+      title: "Calendario sin turnos",
+      detail: "Aún no hay ningún turno asignado este mes. Pinta al menos un turno antes de guardar.",
+    });
   }
 
   const assignedWorkers = new Map<string, number[]>();
