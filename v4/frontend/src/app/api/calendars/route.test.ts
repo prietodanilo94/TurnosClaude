@@ -46,6 +46,8 @@ describe("POST /api/calendars", () => {
       slotsData: "[]",
       assignments: "{}",
       assignedCount: 0,
+      origen: null,
+      lastExportedAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     });

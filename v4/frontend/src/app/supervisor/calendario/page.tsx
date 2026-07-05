@@ -6,7 +6,10 @@ import { generateCalendar } from "@/lib/calendar/generator";
 import { ensureRotationAnchors } from "@/lib/calendar/rotationAnchor";
 import { combineGroupTeams } from "@/lib/calendar/combineGroupTeams";
 import { extractPrevMonthTail, mergePrevMonthTails } from "@/lib/calendar/prevMonthTail";
+import { mergeStates, stateFromCalendar, type FreeScheduleState } from "@/lib/calendar/freeSchedule";
 import type { PrevMonthShiftsMap } from "@/lib/calendar/validation";
+import CalendarTabs from "@/components/calendar/CalendarTabs";
+import FreeScheduleEditor, { type FreeTeamInput } from "@/components/calendar/FreeScheduleEditor";
 import { patternFromRow } from "@/lib/patterns/catalog";
 import { supervisorLookupKey } from "@/lib/supervisors";
 import type { TeamSlice } from "@/lib/calendar/teamSplit";
@@ -154,6 +157,10 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
     prevMonthLabel?: string;
     prevMonthShifts?: PrevMonthShiftsMap;
     supervisorNames?: string[];
+    // F11 — pestana Horario libre
+    savedOrigen: "libre" | null;
+    savedState: FreeScheduleState;
+    freeTeams: FreeTeamInput[];
   }
 
   const blocks: DisplayBlock[] = [];
@@ -186,6 +193,19 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
       const prevMonthShifts = mergePrevMonthTails(
         areaTeams.map((t) => extractPrevMonthTail(prevCalMap.get(t.id), prevYear, prevMonth)),
       );
+      const savedState = mergeStates(areaTeams.map((t) =>
+        t.calendars[0]
+          ? stateFromCalendar(JSON.parse(t.calendars[0].slotsData) as CalendarSlot[], JSON.parse(t.calendars[0].assignments))
+          : {},
+      ));
+      const savedOrigen: "libre" | null = areaTeams.some((t) => t.calendars[0]?.origen === "libre") ? "libre" : null;
+      const freeTeams: FreeTeamInput[] = areaTeams.map((team) => ({
+        teamId: team.id,
+        label: team.branch.nombre,
+        workers: team.workers
+          .filter((w) => !supervisorKeys.has(supervisorLookupKey(w.nombre)))
+          .map((w) => ({ id: w.id, nombre: w.nombre })),
+      }));
       blocks.push({
         key: `${blockKey}-${area}`,
         title: groupTitle,
@@ -203,6 +223,9 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
         patternOverride: definedCat ? patternMap[definedCat] : undefined,
         prevMonthShifts,
         supervisorNames: [...new Set(areaTeams.flatMap((t) => supervisorsByBranch.get(t.branchId) ?? []))],
+        savedOrigen,
+        savedState,
+        freeTeams,
       });
     }
   }
@@ -255,6 +278,9 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
       prevMonthLabel: !cal && Object.keys(teamPrevAssignments).length > 0 ? prevMonthLabel : undefined,
       prevMonthShifts: extractPrevMonthTail(prevCal, prevYear, prevMonth),
       supervisorNames: supervisorsByBranch.get(team.branchId) ?? [],
+      savedOrigen: cal?.origen === "libre" ? "libre" : null,
+      savedState: cal ? stateFromCalendar(JSON.parse(cal.slotsData) as CalendarSlot[], JSON.parse(cal.assignments)) : {},
+      freeTeams: [{ teamId: team.id, workers: teamWorkers.map((w) => ({ id: w.id, nombre: w.nombre })) }],
     });
   }
 
@@ -293,29 +319,53 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
       )}
 
       {blocks.map((block) => (
-        <SupervisorCalendarView
+        <CalendarTabs
           key={block.key}
-          hideExcelExport={session?.role !== "admin"}
-          title={block.title}
-          areaLabel={block.areaLabel}
-          areaNegocio={block.areaNegocio}
-          categoria={block.categoria}
-          patternOverride={block.patternOverride}
-          teamIds={block.teamIds}
-          categoryOptions={block.categoryOptions}
-          year={year}
-          month={month}
-          slots={block.slots}
-          assignments={block.assignments}
-          workers={block.workers}
-          blocks={block.blocks}
-          slices={block.slices}
+          savedOrigen={block.savedOrigen}
           hasCalendar={block.hasCalendar}
-          queryBase={queryBase}
-          prevMonthLabel={block.prevMonthLabel}
-          prevAssignments={block.prevAssignments}
-          prevMonthShifts={block.prevMonthShifts}
-          supervisorNames={block.supervisorNames}
+          rotativo={
+            <SupervisorCalendarView
+              hideExcelExport={session?.role !== "admin"}
+              title={block.title}
+              areaLabel={block.areaLabel}
+              areaNegocio={block.areaNegocio}
+              categoria={block.categoria}
+              patternOverride={block.patternOverride}
+              teamIds={block.teamIds}
+              categoryOptions={block.categoryOptions}
+              year={year}
+              month={month}
+              slots={block.slots}
+              assignments={block.assignments}
+              workers={block.workers}
+              blocks={block.blocks}
+              slices={block.slices}
+              hasCalendar={block.hasCalendar}
+              queryBase={queryBase}
+              prevMonthLabel={block.prevMonthLabel}
+              prevAssignments={block.prevAssignments}
+              prevMonthShifts={block.prevMonthShifts}
+              supervisorNames={block.supervisorNames}
+              saveConfirmMessage={block.savedOrigen === "libre"
+                ? `Ya tienes un horario LIBRE guardado para este mes. Si guardas desde la vista rotativa, el rotativo pasará a ser el horario oficial y lo reemplazará. ¿Continuar?`
+                : undefined}
+            />
+          }
+          libre={
+            <FreeScheduleEditor
+              teams={block.freeTeams}
+              year={year}
+              month={month}
+              savedState={block.savedState}
+              savedOrigen={block.savedOrigen}
+              hasCalendar={block.hasCalendar}
+              scopeLabel={block.title}
+              scopeType={block.teamIds.length > 1 ? "group" : "branch"}
+              prevMonthShifts={block.prevMonthShifts}
+              workerBlocks={block.blocks}
+              isAdmin={session?.role === "admin"}
+            />
+          }
         />
       ))}
     </div>

@@ -3,7 +3,13 @@ import { prisma } from "@/lib/db/prisma";
 import { logAction } from "@/lib/audit/log";
 
 export async function POST(req: NextRequest) {
-  const { teamId, year, month, slotsData, assignments, validationSummary, scopeLabel, scopeType } = await req.json();
+  const { teamId, year, month, slotsData, assignments, validationSummary, scopeLabel, scopeType, origen } = await req.json();
+
+  // origen: "libre" (editor de horario libre, F11) o null/ausente (rotativo).
+  // El ultimo guardado define el tipo oficial del mes — guardar rotativo
+  // sobre un calendario libre lo vuelve rotativo, y viceversa (la UI
+  // advierte antes de cambiar de tipo).
+  const origenValue = origen === "libre" ? "libre" : null;
 
   const team = await prisma.branchTeam.findUnique({
     where: { id: teamId },
@@ -28,11 +34,13 @@ export async function POST(req: NextRequest) {
       slotsData: JSON.stringify(slotsData),
       assignments: JSON.stringify(assignments),
       assignedCount,
+      origen: origenValue,
     },
     update: {
       slotsData: JSON.stringify(slotsData),
       assignments: JSON.stringify(assignments),
       assignedCount,
+      origen: origenValue,
     },
   });
 
@@ -51,6 +59,7 @@ export async function POST(req: NextRequest) {
       scopeLabel: scopeLabel ?? null,
       scopeType: scopeType ?? "branch",
       mode: existing ? "update" : "create",
+      origen: origenValue,
     },
     req,
   });

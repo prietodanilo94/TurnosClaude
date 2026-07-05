@@ -98,6 +98,10 @@ model Calendar {
   assignments  String     @default("{}")
   // Denormalizado: cantidad de slots con worker asignado (evita parsear assignments en listados)
   assignedCount  Int       @default(0)
+  // "libre" = autoreado con el editor de horario libre (F11); null = rotativo.
+  // Decide que pestana aparece activa y hace que "Regenerar" advierta antes
+  // de pisar un horario pintado a mano. El ultimo guardado define el tipo.
+  origen         String?
   lastExportedAt DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt

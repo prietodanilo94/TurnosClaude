@@ -34,59 +34,77 @@ Convención de commits: `v4/feat(horario-libre): ...` / `v4/fix(calendar): ...`.
       del diagnóstico (2026-07-04) — corrección histórica es decisión de
       RRHH, no automática.
 
-## Fase 1: Reglas nuevas en la lib compartida
+## Fase 1: Reglas nuevas en la lib compartida — COMPLETO (2026-07-04)
 
-- [ ] `shift_too_long` en `validation.ts`: error si un turno supera 10h
+- [x] `shift_too_long` en `validation.ts`: error si un turno supera 10h
       trabajadas (shiftDuration, ya descuenta colación). Aplica a ambos modos.
-- [ ] `shift_out_of_window` (o validación en el editor): inicio < 06:00 o
-      fin > 22:00. En el editor libre los pickers ya lo impiden; la
-      validación lo cubre para el modo rotativo editado a mano.
-- [ ] Tests de ambas reglas.
-- [ ] Verificar que los patrones rotativos existentes del catálogo no
-      disparan falsos positivos (ninguno debería tener turnos >10h, pero
-      confirmar antes de desplegar — si alguno lo hace, es hallazgo real).
+- [x] `shift_out_of_window`: inicio < 06:00 o fin > 22:00. Constantes
+      exportadas (MAX_SHIFT_WORKED_HOURS, SHIFT_WINDOW_*) que el editor
+      libre reutiliza en sus pickers.
+- [x] Tests de ambas reglas (incluye bordes exactos 06:00/22:00/10h y que
+      la grilla extendida de otros meses no dispara).
+- [x] Auditoría en producción antes de desplegar: 0 turnos existentes
+      (jun/jul) y 0 de los 37 ShiftPatterns violan las reglas — sin falsos
+      positivos.
 
-## Fase 2: Editor libre mínimo + pestañas
+## Fase 2: Editor libre mínimo + pestañas — COMPLETO (2026-07-04)
 
-- [ ] Columna `Calendar.origen String?` en schema + prisma generate + (tras
-      deploy) db push en pompeyo con backup.
-- [ ] `src/lib/calendar/freeSchedule.ts`: estado del editor (workerId →
-      dateStr → DayShift|null), materialización a slots/assignments (orden
-      nombre asc), aplicación de pincel. Tests.
-- [ ] `FreeScheduleEditor.tsx`: grilla filas=trabajadores (individual y
-      grupo combinado por área), pintar celda a celda, presets + turno
-      personalizado (06:00-22:00, ≤10h trabajadas), días pasados
-      bloqueados para supervisor (admin edita todo).
-- [ ] Guardado único: validar (con cola de mes anterior) → errores
-      bloquean / incompletitud advierte → advertencia de reemplazo de tipo
-      si `origen` guardado difiere → POST /api/calendars con
-      `origen: "libre"` (split por equipo en grupos) → save-notify con
-      diff → actualizar base de diff local tras guardar.
-- [ ] Pestañas "Horario rotativo" | "Horario libre" en la vista supervisor
-      y admin: la del tipo guardado primera y activa, la otra explorable
-      en memoria.
-- [ ] "Regenerar" del modo rotativo advierte si origen === "libre".
-- [ ] Botón guardar deshabilitado con calendario totalmente vacío.
+- [x] Columna `Calendar.origen String?` en schema + prisma generate. El
+      POST /api/calendars acepta `origen` y el último guardado define el
+      tipo (rotativo sin campo → null). db push en pompeyo tras el deploy.
+- [x] `src/lib/calendar/freeSchedule.ts`: estado (workerId → dateStr →
+      DayShift, ausencia = libre), materialización a slots/assignments,
+      herramientas puras, métricas por fila y diff para save-notify.
+      13 tests.
+- [x] `FreeScheduleEditor.tsx` (components/calendar): grilla
+      filas=trabajadores, individual y grupo combinado (etiqueta de
+      sucursal por fila en grupos), pintar con click y arrastre, presets +
+      turno personalizado acotado (06:00-22:00, ≤10h trabajadas con aviso
+      inline), días pasados bloqueados para supervisor, feriados
+      irrenunciables y días con WorkerBlock no pintables.
+- [x] Guardado único: valida con cola del mes anterior → errores legales
+      bloquean (con la excepción de semanas >42h ya transcurridas, vía
+      exceeds42hLimit) / incompletitud (trabajadores sin turnos) advierte →
+      advertencia de reemplazo si el guardado era rotativo → POST por
+      equipo con `origen: "libre"` → save-notify con diff → baseline local
+      actualizado (lección del bug 35d09db).
+- [x] `CalendarTabs.tsx`: pestañas Rotativo | Libre en la vista supervisor
+      (por bloque, incluye grupos) y en la vista admin. La del tipo
+      guardado va primera, activa y con badge "oficial"; ambas quedan
+      montadas (la inactiva oculta) para no perder trabajo al explorar.
+- [x] "Regenerar" advierte si origen === "libre" (admin,
+      recalculateConfirmMessage) y guardar desde la pestaña rotativa sobre
+      un horario libre también advierte (saveConfirmMessage en ambas vistas).
+- [x] Botón guardar deshabilitado con 0 turnos pintados.
+- [x] La página admin ahora muestra las pestañas incluso si el equipo no
+      tiene categoría (el horario libre es la alternativa natural).
 
-## Fase 3: Herramientas de propagación
+## Fase 3: Herramientas de propagación — COMPLETO salvo un ítem (2026-07-04)
 
-- [ ] Copiar día → pegar en otros días.
-- [ ] "Todos los [día de semana] con este horario" (encabezado de columna).
-- [ ] Copiar semana → pegar en otra(s) semana(s) + repetir semana 1 en todo el mes.
-- [ ] Copiar fila completa de otro trabajador.
-- [ ] Limpiar día / semana / fila.
-- [ ] Deshacer (Ctrl+Z, stack en memoria).
-- [ ] Toda la lógica de propagación en freeSchedule.ts con tests (las
-      herramientas son funciones puras sobre el estado del editor).
+- [x] "Aplicar pincel a todos los [día de semana]" (cubre "todos los
+      martes con este horario") — botones Lun..Dom en la toolbar.
+- [x] Copiar semana anterior → esta semana (botón por semana) + repetir
+      semana 1 en todo el mes.
+- [x] Copiar fila completa de otro trabajador (dropdown en la fila).
+- [x] Limpiar semana / limpiar fila / pincel borrador.
+- [x] Deshacer (Ctrl+Z + botón, stack de 50 en memoria).
+- [x] Lógica de propagación pura en freeSchedule.ts con tests.
+- [ ] "Copiar UN día → pegar en otros días arbitrarios" (menú contextual
+      por celda) — no implementado; el pincel + aplicar-a-día-de-semana
+      cubren el caso principal. Evaluar con feedback real del usuario.
 
-## Fase 4: Feedback en vivo
+## Fase 4: Feedback en vivo — COMPLETO salvo un ítem (2026-07-04)
 
-- [ ] Contadores por fila: horas semana actual vs 42h, domingos libres del
-      mes, racha máxima (incluyendo cola del mes anterior).
-- [ ] Validación live (debounced) con CalendarValidationPanel + celdas
-      problemáticas marcadas.
-- [ ] Guardas preventivas al pintar: 7º día consecutivo, >10h, fuera de
-      ventana (referencia: wouldExceedConsecutive de PatternBuilderClient).
+- [x] Contadores por fila: horas por semana vs 42h (columna Hrs por semana,
+      rojo si excede, usa la cola real del mes anterior en la semana
+      frontera), racha máxima y domingos libres (chips bajo el nombre,
+      rojos si violan).
+- [x] Validación live (useMemo, sin debounce — el volumen es trivial) con
+      CalendarValidationPanel + celdas problemáticas marcadas en rojo.
+- [ ] Guardas preventivas que IMPIDAN pintar la celda violatoria (estilo
+      wouldExceedConsecutive de PatternBuilderClient) — no implementado:
+      hoy se puede pintar y el feedback es inmediato (chip de racha, panel,
+      celda roja) pero no se bloquea el gesto. Evaluar si hace falta.
 
 ## Validación final (usuario, con datos reales)
 

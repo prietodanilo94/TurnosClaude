@@ -38,6 +38,8 @@ interface Props {
   supervisorNames?: string[];
   /** Export RRHH (Excel) visible solo para admins */
   hideExcelExport?: boolean;
+  /** Advertencia extra antes de guardar (ej. reemplazo de horario libre, F11) */
+  saveConfirmMessage?: string;
 }
 
 async function saveTeamCalendars({
@@ -123,6 +125,7 @@ export default function SupervisorCalendarView({
   prevMonthShifts,
   supervisorNames,
   hideExcelExport = true,
+  saveConfirmMessage,
 }: Props) {
   if (!categoria) {
     return (
@@ -179,6 +182,7 @@ export default function SupervisorCalendarView({
       calendarScopeType={slices.length > 1 ? "group" : "branch"}
       supervisorNames={supervisorNames}
       prevMonthShifts={prevMonthShifts}
+      saveConfirmMessage={saveConfirmMessage}
       patternRotation={patternOverride?.rotationWeeks}
       changeRemindMessage="Cuidado: estás haciendo cambios en un calendario ya constituido. Los cambios serán informados a RRHH. Para que queden aplicados debes presionar Guardar al terminar. ¿Continuar?"
       prevMonthLabel={!hasCalendar ? prevMonthLabel : undefined}

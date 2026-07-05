@@ -4,11 +4,14 @@ import { generateCalendar } from "@/lib/calendar/generator";
 import { ensureRotationAnchors } from "@/lib/calendar/rotationAnchor";
 import { resolveCalendarDisplayCategory, type CalendarCategoryTeam } from "@/lib/calendar/categoryFallback";
 import { extractPrevMonthTail } from "@/lib/calendar/prevMonthTail";
+import { stateFromCalendar } from "@/lib/calendar/freeSchedule";
 import { getSession } from "@/lib/auth/session";
 import { supervisorLookupKey } from "@/lib/supervisors";
 import { patternFromRow } from "@/lib/patterns/catalog";
 import type { CalendarSlot, WorkerBlockInfo } from "@/types";
 import CalendarView from "./CalendarView";
+import CalendarTabs from "@/components/calendar/CalendarTabs";
+import FreeScheduleEditor from "@/components/calendar/FreeScheduleEditor";
 
 interface Props {
   params: { id: string; year: string; month: string };
@@ -67,35 +70,6 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
   const filteredWorkers = team.workers.filter(w => !supervisorKeys.has(supervisorLookupKey(w.nombre)));
 
   const existing = team.calendars[0];
-  const groupCategoryCandidates =
-    !team.categoria && existing && team.branch.groupId
-      ? await prisma.branchTeam.findMany({
-          where: {
-            areaNegocio: team.areaNegocio,
-            categoria: { not: null },
-            branch: { groupId: team.branch.groupId },
-          },
-          include: { branch: { select: { groupId: true, nombre: true } } },
-          orderBy: { updatedAt: "desc" },
-        })
-      : [];
-  const categoryResolution = resolveCalendarDisplayCategory(
-    team as CalendarCategoryTeam,
-    groupCategoryCandidates as CalendarCategoryTeam[],
-  );
-
-  if (!categoryResolution.categoria) {
-    return (
-      <div className="p-6">
-        <p className="text-sm text-orange-600">Este equipo no tiene categoria de turno asignada.</p>
-      </div>
-    );
-  }
-
-  const anchors = await ensureRotationAnchors(
-    filteredWorkers.map((w) => ({ id: w.id, rotationAnchor: w.rotationAnchor })),
-  );
-  const slotAnchors = anchors.map((a) => a.rotationAnchor);
 
   const prevYear = month === 1 ? year - 1 : year;
   const prevMonth = month === 1 ? 12 : month - 1;
@@ -113,43 +87,6 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
   // horas de la semana frontera se calculen contra lo realmente guardado.
   const prevMonthShifts = extractPrevMonthTail(prevCal, prevYear, prevMonth);
 
-  let slots: CalendarSlot[];
-  let assignments: Record<string, string | null> = {};
-  let calendarId: string | undefined;
-  let alert: string | undefined;
-  let prevMonthLabel: string | undefined;
-
-  const MONTHS_ES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
-  const catId = categoryResolution.categoria;
-  const patternRow = catId ? await prisma.shiftPattern.findUnique({ where: { id: catId } }) : null;
-  const patternOverride = patternRow ? patternFromRow(patternRow) : undefined;
-
-  if (existing) {
-    slots = JSON.parse(existing.slotsData) as CalendarSlot[];
-    assignments = JSON.parse(existing.assignments);
-    calendarId = existing.id;
-    if (categoryResolution.source === "group") {
-      alert = `Este equipo no tiene categoria propia. Se muestra usando la categoria del grupo${categoryResolution.sourceBranchName ? ` desde ${categoryResolution.sourceBranchName}` : ""}.`;
-    }
-    // Auto-agregar slots para trabajadores nuevos
-    if (filteredWorkers.length > slots.length) {
-      const full = generateCalendar(catId, year, month, slotAnchors, patternOverride);
-      slots = [...slots, ...full.slots.slice(slots.length)];
-    }
-  } else {
-    const result = generateCalendar(catId, year, month, slotAnchors, patternOverride);
-    slots = result.slots;
-    alert = result.alert;
-    if (Object.keys(prevAssignments).length > 0) {
-      // El ancla de rotacion de cada trabajador (F9) ya garantiza continuidad
-      // con el mes anterior si sigue activo — no se copian asignaciones por
-      // numero de slot (podian corresponder a otra persona si el equipo
-      // cambio en el medio). Solo se asigna en orden alfabetico actual.
-      filteredWorkers.forEach((w, i) => { assignments[String(i + 1)] = w.id; });
-      prevMonthLabel = `${MONTHS_ES[prevMonth - 1]} ${prevYear}`;
-    }
-  }
-
   const workerMap = Object.fromEntries(filteredWorkers.map((worker) => [worker.id, worker.nombre]));
   const workerBlocks: WorkerBlockInfo[] = filteredWorkers.flatMap((worker) =>
     worker.blocks.map((block) => ({
@@ -161,39 +98,152 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
     })),
   );
 
-  return (
-    <CalendarView
-      branchId={params.id}
-      branchName={team.branch.nombre}
-      branchCodigo={team.branch.codigo}
-      teamId={team.id}
-      areaNegocio={team.areaNegocio as "ventas" | "postventa"}
-      categoria={catId}
-      patternOverride={patternOverride}
+  const savedOrigen: "libre" | null = existing?.origen === "libre" ? "libre" : null;
+  const savedState = existing
+    ? stateFromCalendar(JSON.parse(existing.slotsData) as CalendarSlot[], JSON.parse(existing.assignments))
+    : {};
+
+  // ─── Pestana Horario rotativo ──────────────────────────────────────────────
+  const groupCategoryCandidates =
+    !team.categoria && existing && team.branch.groupId
+      ? await prisma.branchTeam.findMany({
+          where: {
+            areaNegocio: team.areaNegocio,
+            categoria: { not: null },
+            branch: { groupId: team.branch.groupId },
+          },
+          include: { branch: { select: { groupId: true, nombre: true } } },
+          orderBy: { updatedAt: "desc" },
+        })
+      : [];
+  const categoryResolution = resolveCalendarDisplayCategory(
+    team as CalendarCategoryTeam,
+    groupCategoryCandidates as CalendarCategoryTeam[],
+  );
+
+  let rotativoContent: React.ReactNode;
+
+  if (!categoryResolution.categoria) {
+    rotativoContent = (
+      <div className="p-6">
+        <p className="text-sm text-orange-600">
+          Este equipo no tiene categoria de turno asignada. Puedes asignar una desde Sucursales, o crear el mes en la pestaña Horario libre.
+        </p>
+      </div>
+    );
+  } else {
+    const anchors = await ensureRotationAnchors(
+      filteredWorkers.map((w) => ({ id: w.id, rotationAnchor: w.rotationAnchor })),
+    );
+    const slotAnchors = anchors.map((a) => a.rotationAnchor);
+
+    let slots: CalendarSlot[];
+    let assignments: Record<string, string | null> = {};
+    let calendarId: string | undefined;
+    let alert: string | undefined;
+    let prevMonthLabel: string | undefined;
+
+    const MONTHS_ES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+    const catId = categoryResolution.categoria;
+    const patternRow = catId ? await prisma.shiftPattern.findUnique({ where: { id: catId } }) : null;
+    const patternOverride = patternRow ? patternFromRow(patternRow) : undefined;
+
+    if (existing) {
+      slots = JSON.parse(existing.slotsData) as CalendarSlot[];
+      assignments = JSON.parse(existing.assignments);
+      calendarId = existing.id;
+      if (categoryResolution.source === "group") {
+        alert = `Este equipo no tiene categoria propia. Se muestra usando la categoria del grupo${categoryResolution.sourceBranchName ? ` desde ${categoryResolution.sourceBranchName}` : ""}.`;
+      }
+      // Auto-agregar slots para trabajadores nuevos
+      if (filteredWorkers.length > slots.length) {
+        const full = generateCalendar(catId, year, month, slotAnchors, patternOverride);
+        slots = [...slots, ...full.slots.slice(slots.length)];
+      }
+    } else {
+      const result = generateCalendar(catId, year, month, slotAnchors, patternOverride);
+      slots = result.slots;
+      alert = result.alert;
+      if (Object.keys(prevAssignments).length > 0) {
+        // El ancla de rotacion de cada trabajador (F9) ya garantiza continuidad
+        // con el mes anterior si sigue activo — no se copian asignaciones por
+        // numero de slot (podian corresponder a otra persona si el equipo
+        // cambio en el medio). Solo se asigna en orden alfabetico actual.
+        filteredWorkers.forEach((w, i) => { assignments[String(i + 1)] = w.id; });
+        prevMonthLabel = `${MONTHS_ES[prevMonth - 1]} ${prevYear}`;
+      }
+    }
+
+    rotativoContent = (
+      <CalendarView
+        branchId={params.id}
+        branchName={team.branch.nombre}
+        branchCodigo={team.branch.codigo}
+        teamId={team.id}
+        areaNegocio={team.areaNegocio as "ventas" | "postventa"}
+        categoria={catId}
+        patternOverride={patternOverride}
+        year={year}
+        month={month}
+        slots={slots}
+        assignments={assignments}
+        workers={filteredWorkers.map((worker) => ({
+          id: worker.id,
+          nombre: worker.nombre,
+          rut: worker.rut,
+          activo: worker.activo,
+          esVirtual: worker.esVirtual,
+        }))}
+        workerMap={workerMap}
+        workerBlocks={workerBlocks}
+        calendarId={calendarId}
+        generateAlert={alert}
+        prevMonthLabel={prevMonthLabel}
+        prevAssignments={prevAssignments}
+        prevMonthShifts={prevMonthShifts}
+        nextAssignments={nextAssignments}
+        currentYear={year}
+        currentMonth={month}
+        supervisorNames={branchSupervisors.filter((sb) => !sb.supervisor.invisible).map((sb) => sb.supervisor.nombre)}
+        patternRotation={patternOverride?.rotationWeeks}
+        isAdmin={true}
+        saveConfirmMessage={savedOrigen === "libre"
+          ? "El horario oficial de este mes fue creado en modo LIBRE. Tus cambios se guardarán sobre él. ¿Continuar?"
+          : undefined}
+        recalculateConfirmMessage={savedOrigen === "libre"
+          ? "⚠️ Este mes tiene guardado un HORARIO LIBRE. Regenerar lo eliminará y lo reemplazará por el patrón rotativo. ¿Continuar?"
+          : undefined}
+      />
+    );
+  }
+
+  // ─── Pestana Horario libre (F11) ───────────────────────────────────────────
+  const session = await getSession();
+  const libreContent = (
+    <FreeScheduleEditor
+      teams={[{
+        teamId: team.id,
+        workers: filteredWorkers.map((w) => ({ id: w.id, nombre: w.nombre })),
+      }]}
       year={year}
       month={month}
-      slots={slots}
-      assignments={assignments}
-      workers={filteredWorkers.map((worker) => ({
-        id: worker.id,
-        nombre: worker.nombre,
-        rut: worker.rut,
-        activo: worker.activo,
-        esVirtual: worker.esVirtual,
-      }))}
-      workerMap={workerMap}
-      workerBlocks={workerBlocks}
-      calendarId={calendarId}
-      generateAlert={alert}
-      prevMonthLabel={prevMonthLabel}
-      prevAssignments={prevAssignments}
+      savedState={savedState}
+      savedOrigen={savedOrigen}
+      hasCalendar={!!existing}
+      scopeLabel={team.branch.nombre}
+      scopeType="branch"
       prevMonthShifts={prevMonthShifts}
-      nextAssignments={nextAssignments}
-      currentYear={year}
-      currentMonth={month}
-      supervisorNames={branchSupervisors.filter((sb) => !sb.supervisor.invisible).map((sb) => sb.supervisor.nombre)}
-      patternRotation={patternOverride?.rotationWeeks}
-      isAdmin={true}
+      workerBlocks={workerBlocks}
+      isAdmin={session?.role === "admin"}
+    />
+  );
+
+  return (
+    <CalendarTabs
+      savedOrigen={savedOrigen}
+      hasCalendar={!!existing}
+      rotativo={rotativoContent}
+      libre={libreContent}
     />
   );
 }
