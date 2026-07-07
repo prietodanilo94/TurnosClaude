@@ -622,10 +622,23 @@ export default function CalendarView({
 
   async function handleExport(mode: "calendar" | "rrhh") {
     if (validation.errors.length > 0) {
-      const message = `Antes de exportar, corrige ${validation.errors.length} problema${validation.errors.length !== 1 ? "s" : ""} del calendario o guarda una version incompleta solo como respaldo.`;
-      setSaveFeedback({ tone: "warning", text: message });
-      alert(message);
-      return;
+      // Detalle real de los problemas (con nombre y fecha), no solo el conteo.
+      const sample = validation.errors.slice(0, 6).map((e) => `• ${e.title}`).join("\n");
+      const more = validation.errors.length > 6 ? `\n• y ${validation.errors.length - 6} más` : "";
+      if (isAdmin) {
+        // Los admins pueden descargar igual: muchos errores son historicos e
+        // incorregibles (ej. rachas de un cruce de mes ya trabajado) y RRHH
+        // necesita el archivo de todas formas.
+        const ok = confirm(
+          `El calendario tiene ${validation.errors.length} problema${validation.errors.length !== 1 ? "s" : ""}:\n\n${sample}${more}\n\n¿Descargar de todos modos? (se guardará tal como está)`,
+        );
+        if (!ok) return;
+      } else {
+        const message = `Antes de exportar, corrige estos problemas del calendario:\n\n${sample}${more}`;
+        setSaveFeedback({ tone: "warning", text: message });
+        alert(message);
+        return;
+      }
     }
 
     if (mode === "rrhh") {
