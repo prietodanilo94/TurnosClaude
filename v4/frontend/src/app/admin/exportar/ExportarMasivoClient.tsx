@@ -47,12 +47,21 @@ export default function ExportarMasivoClient({ rows, year, month }: { rows: Masi
 
   const hasFilters = COLS.some(({ id }) => filters[id] !== null);
 
-  function download() {
-    const params = new URLSearchParams({ year: String(year), month: String(month) });
-    if (hasFilters) {
-      params.set("branchIds", [...new Set(filtered.map((r) => r.branchId))].join(","));
-    }
-    window.open(`/api/rrhh/export-mes?${params}`, "_blank");
+  async function download() {
+    // Exporta EXACTAMENTE las filas visibles (trabajadores individuales).
+    const res = await fetch("/api/rrhh/export-mes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ year, month, ruts: hasFilters ? filtered.map((r) => r.rut) : undefined }),
+    });
+    if (!res.ok) { alert("Error al generar la descarga"); return; }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `exportar_masivo_${MESES[month]}_${year}.xlsx`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
   }
 
   return (
@@ -62,7 +71,7 @@ export default function ExportarMasivoClient({ rows, year, month }: { rows: Masi
           <h1 className="text-xl font-semibold text-gray-900">Exportar Masivo</h1>
           <p className="text-xs text-gray-400 mt-0.5">
             Toda la empresa, un mes a la vez — el archivo descargado corresponde SOLO al mes seleccionado.
-            {hasFilters && " La descarga incluye las sucursales completas de las filas filtradas."}
+            {hasFilters && " La descarga incluye exactamente las filas visibles."}
           </p>
         </div>
         <button
@@ -71,7 +80,7 @@ export default function ExportarMasivoClient({ rows, year, month }: { rows: Masi
           disabled={filtered.length === 0}
           className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-40"
         >
-          Descargar {hasFilters ? "sucursales filtradas" : "todo el mes"}
+          Descargar {hasFilters ? `lo filtrado (${filtered.length})` : "todo el mes"}
         </button>
       </div>
 
