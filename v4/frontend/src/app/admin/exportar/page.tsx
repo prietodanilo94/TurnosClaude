@@ -1,62 +1,66 @@
 import { prisma } from "@/lib/db/prisma";
 import { getSession } from "@/lib/auth/session";
-import ExportarClient from "./ExportarClient";
+import type { CalendarSlot, DayShift } from "@/types";
+import ExportarMasivoClient, { type MasivoRow } from "./ExportarMasivoClient";
+
+export const dynamic = "force-dynamic";
 
 interface Props {
   searchParams: { year?: string; month?: string };
 }
 
-export const dynamic = "force-dynamic";
-
-export default async function ExportarPage({ searchParams }: Props) {
+// F10 fase 8 — Exportar Masivo: toda la empresa, UN mes a la vez (el mes es
+// explicito y obligatorio para que nunca se mezclen meses en una carga al
+// sistema central — incidente 2026-07-07).
+export default async function ExportarMasivoPage({ searchParams }: Props) {
   await getSession();
-
   const now = new Date();
-  const year  = Number(searchParams.year  ?? now.getFullYear());
-  const month = Number(searchParams.month ?? now.getMonth() + 1);
+  const year = parseInt(searchParams.year ?? "", 10) || now.getFullYear();
+  const month = parseInt(searchParams.month ?? "", 10) || now.getMonth() + 1;
 
   const calendars = await prisma.calendar.findMany({
     where: { year, month },
     include: {
       branchTeam: {
         include: {
-          branch: { select: { nombre: true, codigo: true } },
+          branch: { select: { id: true, nombre: true, codigo: true } },
           workers: { where: { activo: true }, select: { id: true, nombre: true, rut: true } },
         },
       },
     },
-    orderBy: [{ branchTeam: { branch: { nombre: "asc" } } }, { branchTeam: { areaNegocio: "asc" } }],
   });
 
-  const rows = calendars.map((cal) => {
-    // assignments JSON solo se parsea aquí para listar nombres; el conteo viene denormalizado
-    const assignments: Record<string, string | null> = JSON.parse(cal.assignments);
-    const assignedWorkerIds = new Set(Object.values(assignments).filter(Boolean) as string[]);
-    const assignedWorkers = cal.branchTeam.workers
-      .filter((w) => assignedWorkerIds.has(w.id))
-      .map((w) => ({ id: w.id, nombre: w.nombre, rut: w.rut }));
+  const rows: MasivoRow[] = [];
+  for (const cal of calendars) {
+    let slots: CalendarSlot[]; let assignments: Record<string, string | null>;
+    try {
+      slots = JSON.parse(cal.slotsData);
+      assignments = JSON.parse(cal.assignments);
+    } catch { continue; }
+    const byId = new Map(cal.branchTeam.workers.map((w) => [w.id, w]));
+    for (const slot of slots) {
+      const wid = assignments[String(slot.slotNumber)];
+      if (!wid) continue;
+      const w = byId.get(wid);
+      if (!w || !w.rut) continue;
+      const days: string[] = [];
+      for (let d = 1; d <= 31; d++) {
+        const ds = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+        const sh = (slot.days as Record<string, DayShift | null>)[ds] ?? null;
+        days.push(sh ? `${sh.start} a ${sh.end}` : "");
+      }
+      rows.push({
+        area: cal.branchTeam.areaNegocio,
+        sucursal: cal.branchTeam.branch.nombre,
+        codigo: cal.branchTeam.branch.codigo,
+        branchId: cal.branchTeam.branch.id,
+        trabajador: w.nombre,
+        rut: w.rut.split("-")[0],
+        days,
+      });
+    }
+  }
+  rows.sort((a, b) => a.sucursal.localeCompare(b.sucursal, "es") || a.trabajador.localeCompare(b.trabajador, "es"));
 
-    return {
-      teamId: cal.branchTeamId,
-      branchNombre: cal.branchTeam.branch.nombre,
-      branchCodigo: cal.branchTeam.branch.codigo,
-      areaNegocio: cal.branchTeam.areaNegocio,
-      totalWorkers: cal.branchTeam.workers.length,
-      assignedCount: cal.assignedCount,
-      assignedWorkers,
-      lastExportedAt: cal.lastExportedAt?.toISOString() ?? null,
-      updatedAt: cal.updatedAt.toISOString(),
-    };
-  });
-
-  const totalAssigned = rows.reduce((sum, r) => sum + r.assignedCount, 0);
-
-  return (
-    <ExportarClient
-      year={year}
-      month={month}
-      rows={rows}
-      totalAssigned={totalAssigned}
-    />
-  );
+  return <ExportarMasivoClient rows={rows} year={year} month={month} />;
 }
