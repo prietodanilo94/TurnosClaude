@@ -908,6 +908,7 @@ export default function CalendarView({
               nextAssignments={nextAssignments}
               workerMap={workerMap}
               blockMap={blockMap}
+              prevMonthShifts={prevMonthShifts}
               slotDisplayNum={slotDisplayNum}
               onSlotClick={(n) => setDialogSlot(n)}
               selectedDay={selectedDay}

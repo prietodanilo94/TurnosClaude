@@ -6,6 +6,7 @@ import type { CalendarSlot, DayShift, WeekPattern } from "@/types";
 
 
 import { getWorkerBlockReason, type WorkerBlockDateMap } from "@/lib/calendar/generator";
+import type { PrevMonthShiftsMap } from "@/lib/calendar/validation";
 import { GanttInline } from "./GanttInline";
 import {
   DOW_LABELS, SEMANA_COLORS, detectSemanaForWeek, fmt, fmtDateRange, fmtHours,
@@ -21,6 +22,9 @@ export interface WeekBlockProps {
   nextAssignments: Record<string, string | null>;
   workerMap: Record<string, string>;
   blockMap: WorkerBlockDateMap;
+  // Cola real del mes anterior por trabajador: los dias fronterizos se
+  // muestran desde lo realmente guardado ese mes, no desde la copia local.
+  prevMonthShifts?: PrevMonthShiftsMap;
   slotDisplayNum: Record<number, number>;
   onSlotClick: (slotNum: number) => void;
   selectedDay: string | null;
@@ -40,7 +44,7 @@ export interface WeekBlockProps {
 }
 
 export function WeekBlock({
-  week, month, slots, assign, prevAssignments, nextAssignments, workerMap, blockMap, slotDisplayNum,
+  week, month, slots, assign, prevAssignments, nextAssignments, workerMap, blockMap, prevMonthShifts, slotDisplayNum,
   onSlotClick, selectedDay, onDayClick, onShiftCellClick, onLibreSwap, onWorkerSwap, lockedBefore, isAdmin = false,
   workerRutMap = {}, attendanceByRut = {},
   patternRotation, localSlots, onSemanaPicker, year, weekIndex: weekIndexProp,
@@ -201,13 +205,25 @@ export function WeekBlock({
               const altRow = idx % 2 === 1 ? "bg-gray-50/30" : "";
 
               let totalHours = 0;
+              const realTail = workerId ? prevMonthShifts?.[workerId] : undefined;
               const cells = week.map((d, ci) => {
                 const dateStr = fmt(d);
-                const shift = slot.days[dateStr] ?? null;
                 const inMonth = d.getMonth() + 1 === month;
-                const feriado = isFeriadoIrrenunciable(d);
+                const dm = d.getMonth() + 1;
+                const isPrevMonthDay = !inMonth && (dm === month - 1 || (month === 1 && dm === 12));
+                let shift = slot.days[dateStr] ?? null;
                 const dayAssign = assignForDay(d);
-                const dayWorkerId = dayAssign[String(slot.slotNumber)] ?? null;
+                let dayWorkerId = dayAssign[String(slot.slotNumber)] ?? null;
+                // Dias del mes ANTERIOR: mostrar lo realmente guardado ese mes
+                // para el trabajador de la fila, no la copia local de esta
+                // grilla (que puede estar vacia o desactualizada). Mismo
+                // criterio que effectiveDays en validation.ts — asi la columna
+                // Hrs Sem coincide con el panel de validacion.
+                if (isPrevMonthDay && realTail && dateStr in realTail) {
+                  shift = realTail[dateStr];
+                  dayWorkerId = workerId;
+                }
+                const feriado = isFeriadoIrrenunciable(d);
                 const dayWorkerName = dayWorkerId ? (workerMap[dayWorkerId] ?? "?") : null;
                 const blockReason = getWorkerBlockReason(blockMap, dayWorkerId, dateStr);
                 if (shift && !feriado && blockReason === null) totalHours += shiftDuration(shift);
