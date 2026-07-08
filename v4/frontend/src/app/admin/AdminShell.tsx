@@ -50,10 +50,9 @@ export default function AdminShell({ userEmail, children }: Props) {
           <NavLink href="/admin/supervisores">Supervisores</NavLink>
           <NavLink href="/admin/trabajadores">Trabajadores</NavLink>
           <NavLink href="/admin/categorias">Categorías</NavLink>
-          <NavLink href="/admin/exportar-historial">Exportar / Historial</NavLink>
-          <NavLink href="/admin/historial">Historial</NavLink>
-          <NavLink href="/admin/exportar">Exportar</NavLink>
-          <NavLink href="/admin/exportar-v2">Cambios RRHH</NavLink>
+          <NavLink href="/admin/exportar-historial">Exportar Historial</NavLink>
+          {/* Historial y Cambios RRHH ocultos (2026-07-07): reemplazados por Exportar Historial; las rutas siguen vivas por si hay que volver */}
+          <NavLink href="/admin/exportar">Exportar Masivo</NavLink>
           <NavLink href="/admin/comentarios">Comentarios</NavLink>
         </nav>
 

@@ -52,6 +52,20 @@ export function buildRrhhWorkbookBuffer(rows: (string | number)[][], sheetName =
   return XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer;
 }
 
+// Varias hojas (una por mes) en un mismo workbook — evita mezclar meses en
+// una sola tabla al descargar desde Exportar Historial (incidente 2026-07-07).
+export function buildRrhhWorkbookBufferSheets(sheets: { name: string; rows: (string | number)[][] }[]): Buffer {
+  const header: string[] = ["RUT"];
+  for (let d = 1; d <= 31; d++) header.push(`DIA${d}`);
+  const wb = XLSX.utils.book_new();
+  for (const sh of sheets) {
+    const ws = XLSX.utils.aoa_to_sheet([header, ...sh.rows]);
+    ws["!cols"] = [{ wch: 12 }, ...Array(31).fill({ wch: 14 })];
+    XLSX.utils.book_append_sheet(wb, ws, sh.name.slice(0, 31));
+  }
+  return XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer;
+}
+
 export function safeFileName(value: string): string {
   return value
     .normalize("NFD")

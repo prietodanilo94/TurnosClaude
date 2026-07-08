@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSessionFromRequest } from "@/lib/auth/session";
 import { logAction } from "@/lib/audit/log";
-import { rrhhRowsFromTeam, buildRrhhWorkbookBuffer, safeFileName } from "@/lib/excel/rrhhSheet";
+import { rrhhRowsFromTeam, buildRrhhWorkbookBufferSheets, safeFileName } from "@/lib/excel/rrhhSheet";
 import type { CalendarSlot } from "@/types";
 
 // F10 — descarga selectiva de filas de la tabla Exportar/Historial. Recibe
@@ -79,6 +79,10 @@ export async function POST(req: NextRequest) {
   const calendarByKey = new Map(calendars.map((c) => [`${c.branchTeamId}:${c.year}:${c.month}`, c]));
   const rutById = new Map(workers.map((w) => [w.id, w.rut]));
 
+  const MESES = ["", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+  // Una hoja por mes: seleccionar cambios de meses distintos ya no los mezcla
+  // en una sola tabla (incidente carga masiva 2026-07-07).
+  const rowsByMonth = new Map<string, (string | number)[][]>();
   const allRows: (string | number)[][] = [];
   const exportedWorkerIdsByBucket = new Map<string, Set<string>>();
 
@@ -94,7 +98,11 @@ export async function POST(req: NextRequest) {
       if (rut) workerRutMap[wid] = rut;
     }
 
-    allRows.push(...rrhhRowsFromTeam(bucket.year, bucket.month, slots, assignments, workerRutMap, bucket.workerIds));
+    const teamRows = rrhhRowsFromTeam(bucket.year, bucket.month, slots, assignments, workerRutMap, bucket.workerIds);
+    allRows.push(...teamRows);
+    const mk = `${MESES[bucket.month]} ${bucket.year}`;
+    if (!rowsByMonth.has(mk)) rowsByMonth.set(mk, []);
+    rowsByMonth.get(mk)!.push(...teamRows);
 
     const assignedSet = new Set(Object.values(assignments).filter((v): v is string => !!v));
     exportedWorkerIdsByBucket.set(bucketKey, new Set([...bucket.workerIds].filter((wid) => assignedSet.has(wid))));
@@ -138,7 +146,7 @@ export async function POST(req: NextRequest) {
     req,
   });
 
-  const buf = buildRrhhWorkbookBuffer(allRows, "Turnos RRHH");
+  const buf = buildRrhhWorkbookBufferSheets([...rowsByMonth.entries()].map(([name, rows]) => ({ name, rows })));
   const fileName = safeFileName(`turnos_rrhh_seleccion_${now.toISOString().slice(0, 10)}`) + ".xlsx";
 
   return new NextResponse(buf as unknown as BodyInit, {
