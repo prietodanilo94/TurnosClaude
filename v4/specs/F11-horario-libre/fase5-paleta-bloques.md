@@ -72,3 +72,32 @@ trabajador), para luego tomarlos y **arrastrarlos** a donde quiera.
 - Arrastrar semana a otro trabajador y a la misma fila en otra semana.
 - Guardar y verificar diff en F10 + export RRHH.
 - Confirmar que el drag interno (mover turno entre días) sigue funcionando.
+
+
+## PRIORIDAD 1 (antes de la paleta): visualizacion de dias fronterizos
+
+Pedido 2026-07-07 con caso real (Veronica Jaimes, Citroen-Opel Movicenter):
+la validacion dice 44h en la semana frontera (correcto, usa junio REAL via
+prevMonthShifts) pero la grilla de julio muestra el Mar 30 como "libre"
+(copia local vacia) y la columna Hrs Sem suma 35h. Afecta ~28 casos de
+semana frontera.
+
+**Diseno:**
+1. CalendarView ya recibe `prevMonthShifts` (workerId -> dateStr -> shift).
+   Pasarlo a WeekBlock como prop nueva.
+2. En WeekBlock, para celdas cuyo dateStr < inicio del mes actual
+   (fuera de mes): si el slot tiene worker asignado y prevMonthShifts trae
+   ese dia, renderizar ESE turno real (estilo atenuado actual, solo
+   lectura, sin handlers de click/drag) en vez de la copia local. Si no hay
+   dato real, mantener comportamiento actual.
+3. La columna Hrs Sem de cada fila debe sumar la semana con la misma
+   sustitucion (mismo criterio que effectiveDays en validation.ts) para que
+   coincida con el aviso de validacion.
+4. Analogo para los dias del mes SIGUIENTE que se asoman (usa
+   nextAssignments hoy, mapeo por numero de slot roto — filas fantasma):
+   idealmente construir nextMonthShifts igual que prevMonthShifts (por
+   trabajador) en ambas pages y renderizar por workerId. Si alarga mucho,
+   fase separada: primero prev (lo que valida), luego next (solo estetico).
+5. Tests: no hay tests de WeekBlock — verificar manualmente con el caso
+   Veronica (Mar 30 debe mostrar 10:00-20:00 palido y Hrs Sem 44h) y con
+   una sucursal sin calendario de junio (sin cambios).
