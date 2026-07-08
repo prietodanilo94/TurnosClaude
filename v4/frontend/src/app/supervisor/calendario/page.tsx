@@ -343,6 +343,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
           rotativo={
             <SupervisorCalendarView
               hideExcelExport={session?.role !== "admin"}
+              isAdmin={session?.role === "admin"}
               title={block.title}
               areaLabel={block.areaLabel}
               areaNegocio={block.areaNegocio}
