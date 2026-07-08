@@ -644,8 +644,14 @@ export default function CalendarView({
     if (mode === "rrhh") {
       const unassigned = localSlots.filter((s) => !assign[String(s.slotNumber)]);
       if (unassigned.length > 0) {
-        alert(`Hay ${unassigned.length} vendedor(es) sin asignar. Asigna todos los slots antes de exportar el Excel RRHH.`);
-        return;
+        // Las filas sin vendedor no llevan RUT y quedan fuera del Excel de
+        // todas formas — para un admin basta avisar y dejar continuar.
+        if (isAdmin) {
+          if (!confirm(`Hay ${unassigned.length} fila(s) sin vendedor asignar — esas filas NO van en el Excel. ¿Descargar de todos modos?`)) return;
+        } else {
+          alert(`Hay ${unassigned.length} vendedor(es) sin asignar. Asigna todos los slots antes de exportar el Excel RRHH.`);
+          return;
+        }
       }
     }
     const id = await doSave();

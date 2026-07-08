@@ -187,6 +187,12 @@ export default function SupervisorCalendarView({
       prevMonthShifts={prevMonthShifts}
       saveConfirmMessage={saveConfirmMessage}
       isAdmin={isAdmin}
+      onExportCalendar={slices.length > 1 ? async (mode) => {
+        // Grupos: exportar via export-group con TODOS los equipos — el export
+        // interno de CalendarView usa solo el primer teamId y dejaba fuera al
+        // resto de las sucursales del grupo.
+        window.open(`/api/calendars/export-group?teamIds=${slices.map((s) => s.teamId).join(",")}&year=${year}&month=${month}&mode=${mode}&scopeLabel=${encodeURIComponent(title)}`, "_blank");
+      } : undefined}
       patternRotation={patternOverride?.rotationWeeks}
       changeRemindMessage="Cuidado: estás haciendo cambios en un calendario ya constituido. Los cambios serán informados a RRHH. Para que queden aplicados debes presionar Guardar al terminar. ¿Continuar?"
       prevMonthLabel={!hasCalendar ? prevMonthLabel : undefined}
