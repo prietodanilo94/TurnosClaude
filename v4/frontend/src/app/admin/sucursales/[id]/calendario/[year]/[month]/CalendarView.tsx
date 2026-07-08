@@ -272,7 +272,7 @@ export default function CalendarView({
   const operatingWindow = useMemo(() => getOperatingWindow(categoria, patternOverride), [categoria, patternOverride]);
   const blockMap = useMemo(() => buildWorkerBlockDateMap(workerBlocks), [workerBlocks]);
   const todayStr = fmt(new Date());
-  const validation = useMemo(
+  const validationRaw = useMemo(
     () => validateCalendarForPublish({
       year,
       month,
@@ -316,6 +316,29 @@ export default function CalendarView({
     sortedSlots.forEach((s, i) => { map[s.slotNumber] = i + 1; });
     return map;
   }, [sortedSlots]);
+
+  // Los mensajes de validacion nombran los slots sin asignar por su numero
+  // INTERNO, pero la tabla renumera las filas segun el orden visual
+  // (slotDisplayNum). Remapear "Vendedor N" al numero que se ve en pantalla
+  // para que el aviso apunte a la fila correcta.
+  const validation = useMemo(() => {
+    const remap = (issue: (typeof validationRaw.issues)[number]) => {
+      if (!issue.slotNumber) return issue;
+      const disp = slotDisplayNum[issue.slotNumber];
+      if (!disp || disp === issue.slotNumber) return issue;
+      const from = `Vendedor ${issue.slotNumber}`;
+      const to = `Vendedor ${disp}`;
+      if (!issue.title.includes(from) && !issue.detail.includes(from)) return issue;
+      return { ...issue, title: issue.title.split(from).join(to), detail: issue.detail.split(from).join(to) };
+    };
+    const issues = validationRaw.issues.map(remap);
+    return {
+      ...validationRaw,
+      issues,
+      errors: issues.filter((i) => i.severity === "error"),
+      warnings: issues.filter((i) => i.severity === "warning"),
+    };
+  }, [validationRaw, slotDisplayNum]);
 
   const workerRutMap = useMemo(
     () => Object.fromEntries(workers.map((w) => [w.id, w.rut])),
