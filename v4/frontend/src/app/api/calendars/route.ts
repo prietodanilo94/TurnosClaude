@@ -1,6 +1,64 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { logAction } from "@/lib/audit/log";
+import { extractNextMonthSpillover, overlayDaysByWorker } from "@/lib/calendar/spillover";
+import type { CalendarSlot } from "@/types";
+
+// Decision del usuario (2026-07-10): los dias remanentes de la ultima
+// semana son reales — se propagan hacia el mes siguiente al guardar, y un
+// mes recien creado hereda el remanente que su antecesor ya decidio.
+async function propagateSpilloverForward(
+  branchTeamId: string,
+  year: number,
+  month: number,
+  slots: CalendarSlot[],
+  assignments: Record<string, string | null>,
+) {
+  const spill = extractNextMonthSpillover(slots, assignments, year, month);
+  if (spill.length === 0) return;
+  const nextYear = month === 12 ? year + 1 : year;
+  const nextMonth = month === 12 ? 1 : month + 1;
+  const nextCal = await prisma.calendar.findUnique({
+    where: { branchTeamId_year_month: { branchTeamId, year: nextYear, month: nextMonth } },
+  });
+  if (!nextCal) return; // el vecino aun no existe: heredara al crearse
+  try {
+    const nSlots: CalendarSlot[] = JSON.parse(nextCal.slotsData);
+    const nAsg: Record<string, string | null> = JSON.parse(nextCal.assignments);
+    const { slots: merged, changed } = overlayDaysByWorker(nSlots, nAsg, spill);
+    if (changed) {
+      await prisma.calendar.update({ where: { id: nextCal.id }, data: { slotsData: JSON.stringify(merged) } });
+    }
+  } catch {
+    // slotsData ilegible en el vecino: no propagar antes que corromper
+  }
+}
+
+// Al crear un mes: sembrar sus primeros dias desde el remanente REAL que el
+// mes anterior ya tiene guardado (esa semana ya fue planificada alla).
+async function seedFromPreviousMonth(
+  branchTeamId: string,
+  year: number,
+  month: number,
+  slots: CalendarSlot[],
+  assignments: Record<string, string | null>,
+): Promise<CalendarSlot[]> {
+  const prevYear = month === 1 ? year - 1 : year;
+  const prevMonth = month === 1 ? 12 : month - 1;
+  const prevCal = await prisma.calendar.findUnique({
+    where: { branchTeamId_year_month: { branchTeamId, year: prevYear, month: prevMonth } },
+  });
+  if (!prevCal) return slots;
+  try {
+    const pSlots: CalendarSlot[] = JSON.parse(prevCal.slotsData);
+    const pAsg: Record<string, string | null> = JSON.parse(prevCal.assignments);
+    const spill = extractNextMonthSpillover(pSlots, pAsg, prevYear, prevMonth);
+    if (spill.length === 0) return slots;
+    return overlayDaysByWorker(slots, assignments, spill).slots;
+  } catch {
+    return slots;
+  }
+}
 
 export async function POST(req: NextRequest) {
   const { teamId, year, month, slotsData, assignments, validationSummary, scopeLabel, scopeType, origen } = await req.json();
@@ -25,24 +83,33 @@ export async function POST(req: NextRequest) {
 
   const assignedCount = Object.values(assignments ?? {}).filter(Boolean).length;
 
+  // Mes nuevo: heredar como reales los dias que el mes anterior ya decidio
+  // para la semana compartida.
+  const finalSlots: CalendarSlot[] = existing
+    ? slotsData
+    : await seedFromPreviousMonth(teamId, year, month, slotsData, assignments ?? {});
+
   const calendar = await prisma.calendar.upsert({
     where: { branchTeamId_year_month: { branchTeamId: teamId, year, month } },
     create: {
       branchTeamId: teamId,
       year,
       month,
-      slotsData: JSON.stringify(slotsData),
+      slotsData: JSON.stringify(finalSlots),
       assignments: JSON.stringify(assignments),
       assignedCount,
       origen: origenValue,
     },
     update: {
-      slotsData: JSON.stringify(slotsData),
+      slotsData: JSON.stringify(finalSlots),
       assignments: JSON.stringify(assignments),
       assignedCount,
       origen: origenValue,
     },
   });
+
+  // Propagar el remanente hacia el mes siguiente si ya existe.
+  await propagateSpilloverForward(teamId, year, month, finalSlots, assignments ?? {});
 
   await logAction({
     action: "calendar.generate",
@@ -86,6 +153,8 @@ export async function PUT(req: NextRequest) {
       assignedCount: Object.values(assignments ?? {}).filter(Boolean).length,
     },
   });
+
+  await propagateSpilloverForward(current.branchTeamId, current.year, current.month, slotsData, assignments ?? {});
 
   await logAction({
     action: "calendar.assign",
