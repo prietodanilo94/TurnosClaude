@@ -16,7 +16,6 @@ export interface CalendarValidationIssue {
     | "day_without_coverage"
     | "consecutive_days_exceeded"
     | "sundays_off_insufficient"
-    | "sundays_off_consecutive"
     | "shift_too_long"
     | "shift_out_of_window";
   title: string;
@@ -361,7 +360,6 @@ export function validateCalendarForPublish({
     }
 
     const offSundays = sundaysInMonth.filter((s) => !days[s]);
-    const worksAnySunday = sundaysInMonth.some((s) => !!days[s]);
 
     if (offSundays.length < 2) {
       issues.push({
@@ -371,24 +369,6 @@ export function validateCalendarForPublish({
         detail: `Se requieren al menos 2 domingos libres en el mes. Libera ${2 - offSundays.length} domingo${2 - offSundays.length !== 1 ? "s" : ""} más.`,
         slotNumber: slot.slotNumber,
       });
-    } else if (worksAnySunday) {
-      // Solo verificar consecutivos si el trabajador trabaja algún domingo
-      for (let i = 0; i < offSundays.length - 1; i++) {
-        const gap = Math.round(
-          (new Date(offSundays[i + 1] + "T12:00:00").getTime() - new Date(offSundays[i] + "T12:00:00").getTime()) / 86400000,
-        );
-        if (gap === 7) {
-          issues.push({
-            severity: "error",
-            code: "sundays_off_consecutive",
-            title: `${slotLabel(slot)}: domingos libres en semanas seguidas`,
-            detail: `Los domingos ${dateLabel(offSundays[i])} y ${dateLabel(offSundays[i + 1])} son consecutivos. Al menos un domingo entre ellos debe ser trabajado.`,
-            slotNumber: slot.slotNumber,
-            dateStr: offSundays[i],
-          });
-          break;
-        }
-      }
     }
   }
 
