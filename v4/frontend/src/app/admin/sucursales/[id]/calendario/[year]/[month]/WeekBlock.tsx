@@ -22,9 +22,11 @@ export interface WeekBlockProps {
   nextAssignments: Record<string, string | null>;
   workerMap: Record<string, string>;
   blockMap: WorkerBlockDateMap;
-  // Cola real del mes anterior por trabajador: los dias fronterizos se
-  // muestran desde lo realmente guardado ese mes, no desde la copia local.
+  // Cola real del mes anterior y cabeza real del mes siguiente por
+  // trabajador: los dias fronterizos se muestran desde lo realmente
+  // guardado en el mes vecino, no desde la copia local.
   prevMonthShifts?: PrevMonthShiftsMap;
+  nextMonthShifts?: PrevMonthShiftsMap;
   slotDisplayNum: Record<number, number>;
   onSlotClick: (slotNum: number) => void;
   selectedDay: string | null;
@@ -44,7 +46,7 @@ export interface WeekBlockProps {
 }
 
 export function WeekBlock({
-  week, month, slots, assign, prevAssignments, nextAssignments, workerMap, blockMap, prevMonthShifts, slotDisplayNum,
+  week, month, slots, assign, prevAssignments, nextAssignments, workerMap, blockMap, prevMonthShifts, nextMonthShifts, slotDisplayNum,
   onSlotClick, selectedDay, onDayClick, onShiftCellClick, onLibreSwap, onWorkerSwap, lockedBefore, isAdmin = false,
   workerRutMap = {}, attendanceByRut = {},
   patternRotation, localSlots, onSemanaPicker, year, weekIndex: weekIndexProp,
@@ -206,6 +208,7 @@ export function WeekBlock({
 
               let totalHours = 0;
               const realTail = workerId ? prevMonthShifts?.[workerId] : undefined;
+              const realHead = workerId ? nextMonthShifts?.[workerId] : undefined;
               const cells = week.map((d, ci) => {
                 const dateStr = fmt(d);
                 const inMonth = d.getMonth() + 1 === month;
@@ -221,6 +224,11 @@ export function WeekBlock({
                 // Hrs Sem coincide con el panel de validacion.
                 if (isPrevMonthDay && realTail && dateStr in realTail) {
                   shift = realTail[dateStr];
+                  dayWorkerId = workerId;
+                }
+                const isNextMonthDay = !inMonth && (dm === month + 1 || (month === 12 && dm === 1));
+                if (isNextMonthDay && realHead && dateStr in realHead) {
+                  shift = realHead[dateStr];
                   dayWorkerId = workerId;
                 }
                 const feriado = isFeriadoIrrenunciable(d);

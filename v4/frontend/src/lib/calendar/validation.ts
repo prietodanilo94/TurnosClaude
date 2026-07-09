@@ -41,6 +41,9 @@ interface ValidateCalendarInput {
   // de contra la grilla extendida (que asume el patron y puede no coincidir
   // con calendarios editados a mano). F11 Fase 0.
   prevMonthShifts?: PrevMonthShiftsMap;
+  // Cabeza REAL del mes siguiente (extractNextMonthHead): los dias
+  // posteriores al mes se validan contra lo realmente guardado alla.
+  nextMonthShifts?: PrevMonthShiftsMap;
   // Fecha de hoy (YYYY-MM-DD). Si se entrega, una semana >42h que ya
   // termino por completo en el pasado sigue reportandose como error pero
   // NO activa el bloqueo duro de guardado (exceeds42hLimit): ya no es
@@ -101,16 +104,24 @@ function effectiveDays(
   slot: CalendarSlot,
   workerId: string | null,
   monthStartStr: string,
+  nextMonthStartStr: string,
   prevMonthShifts?: PrevMonthShiftsMap,
+  nextMonthShifts?: PrevMonthShiftsMap,
 ): Record<string, DayShift | null> {
   const tail = workerId ? prevMonthShifts?.[workerId] : undefined;
-  if (!tail) return slot.days as Record<string, DayShift | null>;
+  const head = workerId ? nextMonthShifts?.[workerId] : undefined;
+  if (!tail && !head) return slot.days as Record<string, DayShift | null>;
   const merged: Record<string, DayShift | null> = {};
   for (const [dateStr, shift] of Object.entries(slot.days)) {
-    if (dateStr >= monthStartStr) merged[dateStr] = shift as DayShift | null;
+    if (tail && dateStr < monthStartStr) continue;
+    if (head && dateStr >= nextMonthStartStr) continue;
+    merged[dateStr] = shift as DayShift | null;
   }
-  for (const [dateStr, shift] of Object.entries(tail)) {
+  for (const [dateStr, shift] of Object.entries(tail ?? {})) {
     if (dateStr < monthStartStr) merged[dateStr] = shift;
+  }
+  for (const [dateStr, shift] of Object.entries(head ?? {})) {
+    if (dateStr >= nextMonthStartStr) merged[dateStr] = shift;
   }
   return merged;
 }
@@ -174,10 +185,12 @@ export function validateCalendarForPublish({
   workerMap,
   blockMap = {},
   prevMonthShifts,
+  nextMonthShifts,
   todayStr,
 }: ValidateCalendarInput): CalendarValidationResult {
   const issues: CalendarValidationIssue[] = [];
   const monthStartStr = `${year}-${String(month).padStart(2, "0")}-01`;
+  const nextMonthStartStr = month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, "0")}-01`;
 
   if (slots.length === 0) {
     issues.push({
@@ -279,7 +292,7 @@ export function validateCalendarForPublish({
     // sus 7 días. Los días previos al mes se reemplazan por la cola REAL
     // del mes anterior si está disponible (effectiveDays) — la grilla
     // asume el patrón y puede no coincidir con lo realmente publicado.
-    const days = effectiveDays(slot, workerId, monthStartStr, prevMonthShifts);
+    const days = effectiveDays(slot, workerId, monthStartStr, nextMonthStartStr, prevMonthShifts, nextMonthShifts);
     const weekHours: Record<string, number> = {};
     const weekSunday: Record<string, string> = {};
     for (const [dateStr, shift] of Object.entries(days)) {
@@ -346,7 +359,7 @@ export function validateCalendarForPublish({
     if (!hasShiftInMonth(slot, year, month)) continue;
 
     const workerId = assignments[String(slot.slotNumber)] ?? null;
-    const days = effectiveDays(slot, workerId, monthStartStr, prevMonthShifts);
+    const days = effectiveDays(slot, workerId, monthStartStr, nextMonthStartStr, prevMonthShifts, nextMonthShifts);
 
     const maxRun = maxConsecutiveWorkRun(days);
     if (maxRun > 6) {

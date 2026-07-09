@@ -35,6 +35,7 @@ interface Props {
   scopeLabel: string;
   scopeType: "branch" | "group";
   prevMonthShifts?: PrevMonthShiftsMap;
+  nextMonthShifts?: PrevMonthShiftsMap;
   isAdmin: boolean;
   backHref?: string;
   backLabel?: string;
@@ -67,7 +68,7 @@ export default function FreeCalendarView({
   title, areaNegocio, year, month,
   slots, assignments, slices, workers, blocks,
   savedOrigen, hasCalendar, scopeLabel, scopeType,
-  prevMonthShifts, isAdmin, backHref, backLabel,
+  prevMonthShifts, nextMonthShifts, isAdmin, backHref, backLabel,
 }: Props) {
   const workerMap = Object.fromEntries(workers.map((w) => [w.id, w.nombre]));
 
@@ -156,6 +157,7 @@ export default function FreeCalendarView({
       calendarScopeLabel={scopeLabel}
       calendarScopeType={scopeType}
       prevMonthShifts={prevMonthShifts}
+      nextMonthShifts={nextMonthShifts}
       isAdmin={isAdmin}
       saveConfirmMessage={hasCalendar && savedOrigen !== "libre"
         ? `Ya tienes un horario ROTATIVO guardado para este mes. Si guardas, este horario libre pasará a ser el horario oficial y lo reemplazará. ¿Continuar?`

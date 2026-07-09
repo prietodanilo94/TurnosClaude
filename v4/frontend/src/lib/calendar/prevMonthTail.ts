@@ -52,6 +52,45 @@ export function extractPrevMonthTail(
   return tail;
 }
 
+// Cabeza del mes SIGUIENTE (primeros `headDays` dias) por trabajador — el
+// espejo de extractPrevMonthTail, para que la ultima semana del mes muestre
+// y valide los dias del mes siguiente con datos reales.
+export function extractNextMonthHead(
+  nextCal: PrevCalendarRow | null | undefined,
+  nextYear: number,
+  nextMonth: number,
+  headDays = 7,
+): PrevMonthShiftsMap {
+  if (!nextCal) return {};
+
+  let slots: CalendarSlot[];
+  let assignments: Record<string, string | null>;
+  try {
+    slots = JSON.parse(nextCal.slotsData);
+    assignments = JSON.parse(nextCal.assignments);
+  } catch {
+    return {};
+  }
+  if (!Array.isArray(slots)) return {};
+
+  const dates: string[] = [];
+  for (let d = 1; d <= headDays; d++) {
+    dates.push(`${nextYear}-${String(nextMonth).padStart(2, "0")}-${String(d).padStart(2, "0")}`);
+  }
+
+  const head: PrevMonthShiftsMap = {};
+  for (const slot of slots) {
+    const workerId = assignments[String(slot.slotNumber)] ?? null;
+    if (!workerId || head[workerId]) continue;
+    const perDate: Record<string, DayShift | null> = {};
+    for (const dateStr of dates) {
+      perDate[dateStr] = (slot.days as Record<string, DayShift | null>)[dateStr] ?? null;
+    }
+    head[workerId] = perDate;
+  }
+  return head;
+}
+
 // Une las colas de varios calendarios (grupos: un calendario por equipo).
 // Los workerId no se repiten entre equipos, asi que no hay colisiones reales.
 export function mergePrevMonthTails(tails: PrevMonthShiftsMap[]): PrevMonthShiftsMap {

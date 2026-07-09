@@ -5,7 +5,7 @@ import { getSession } from "@/lib/auth/session";
 import { generateCalendar } from "@/lib/calendar/generator";
 import { ensureRotationAnchors } from "@/lib/calendar/rotationAnchor";
 import { combineGroupTeams } from "@/lib/calendar/combineGroupTeams";
-import { extractPrevMonthTail, mergePrevMonthTails } from "@/lib/calendar/prevMonthTail";
+import { extractNextMonthHead, extractPrevMonthTail, mergePrevMonthTails } from "@/lib/calendar/prevMonthTail";
 import { blankCombinedCalendar } from "@/lib/calendar/freeSchedule";
 import { buildIsoWeeks, fmt } from "@/app/admin/sucursales/[id]/calendario/[year]/[month]/calendar-utils";
 import type { PrevMonthShiftsMap } from "@/lib/calendar/validation";
@@ -128,6 +128,16 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
     : [];
   const prevCalMap = new Map(prevCalendars.map((c) => [c.branchTeamId, c]));
 
+  const nextYear  = month === 12 ? year + 1 : year;
+  const nextMonth = month === 12 ? 1 : month + 1;
+  const nextCalendars = teamIds.length > 0
+    ? await prisma.calendar.findMany({
+        where: { branchTeamId: { in: teamIds }, year: nextYear, month: nextMonth },
+        select: { branchTeamId: true, assignments: true, slotsData: true },
+      })
+    : [];
+  const nextCalMap = new Map(nextCalendars.map((c) => [c.branchTeamId, c]));
+
   const supervisorId = session?.supervisorId ?? null;
   const allDbPatterns = await prisma.shiftPattern.findMany({
     where: supervisorId
@@ -157,6 +167,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
     prevAssignments?: Record<string, string | null>;
     prevMonthLabel?: string;
     prevMonthShifts?: PrevMonthShiftsMap;
+    nextMonthShifts?: PrevMonthShiftsMap;
     supervisorNames?: string[];
     // F11 — modo Horario libre (seed para FreeCalendarView)
     savedOrigen: "libre" | null;
@@ -195,6 +206,9 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
       const prevMonthShifts = mergePrevMonthTails(
         areaTeams.map((t) => extractPrevMonthTail(prevCalMap.get(t.id), prevYear, prevMonth)),
       );
+      const nextMonthShifts = mergePrevMonthTails(
+        areaTeams.map((t) => extractNextMonthHead(nextCalMap.get(t.id), nextYear, nextMonth)),
+      );
       const savedOrigen: "libre" | null = areaTeams.some((t) => t.calendars[0]?.origen === "libre") ? "libre" : null;
       // Seed del modo libre: lo guardado (tabla combinada) si el mes ya es
       // libre; grilla en blanco un-slot-por-trabajador si no.
@@ -224,6 +238,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
         hasCalendar: combined.hasCalendar,
         patternOverride: definedCat ? patternMap[definedCat] : undefined,
         prevMonthShifts,
+        nextMonthShifts,
         supervisorNames: [...new Set(areaTeams.flatMap((t) => supervisorsByBranch.get(t.branchId) ?? []))],
         savedOrigen,
         libreSlots: savedOrigen === "libre" ? combined.slots : blank.slots,
@@ -280,6 +295,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
       prevAssignments: !cal && Object.keys(teamPrevAssignments).length > 0 ? teamPrevAssignments : undefined,
       prevMonthLabel: !cal && Object.keys(teamPrevAssignments).length > 0 ? prevMonthLabel : undefined,
       prevMonthShifts: extractPrevMonthTail(prevCal, prevYear, prevMonth),
+      nextMonthShifts: extractNextMonthHead(nextCalMap.get(team.id), nextYear, nextMonth),
       supervisorNames: supervisorsByBranch.get(team.branchId) ?? [],
       savedOrigen: cal?.origen === "libre" ? "libre" : null,
       ...(() => {
@@ -363,6 +379,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
               prevMonthLabel={block.prevMonthLabel}
               prevAssignments={block.prevAssignments}
               prevMonthShifts={block.prevMonthShifts}
+              nextMonthShifts={block.nextMonthShifts}
               supervisorNames={block.supervisorNames}
               saveConfirmMessage={block.savedOrigen === "libre"
                 ? `Ya tienes un horario LIBRE guardado para este mes. Si guardas desde la vista rotativa, el rotativo pasará a ser el horario oficial y lo reemplazará. ¿Continuar?`
@@ -385,6 +402,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
               scopeLabel={block.title}
               scopeType={block.teamIds.length > 1 ? "group" : "branch"}
               prevMonthShifts={block.prevMonthShifts}
+              nextMonthShifts={block.nextMonthShifts}
               isAdmin={session?.role === "admin"}
               backHref="/supervisor"
               backLabel="Volver"

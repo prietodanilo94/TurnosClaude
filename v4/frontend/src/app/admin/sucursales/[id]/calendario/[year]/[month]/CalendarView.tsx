@@ -40,6 +40,7 @@ interface Props {
   // Cola real del mes anterior por trabajador (extractPrevMonthTail) — la
   // validacion la usa para rachas y horas de la semana frontera (F11 Fase 0).
   prevMonthShifts?: PrevMonthShiftsMap;
+  nextMonthShifts?: PrevMonthShiftsMap;
   nextAssignments?: Record<string, string | null>;
   currentYear?: number;
   currentMonth?: number;
@@ -90,7 +91,7 @@ interface Props {
 export default function CalendarView({
   branchId, branchName, branchCodigo, teamId, areaNegocio, categoria, patternOverride,
   year, month, slots, assignments, workers, workerMap, calendarId, generateAlert,
-  workerBlocks = [], prevMonthLabel, prevAssignments = {}, prevMonthShifts, nextAssignments = {}, currentYear, currentMonth,
+  workerBlocks = [], prevMonthLabel, prevAssignments = {}, prevMonthShifts, nextMonthShifts, nextAssignments = {}, currentYear, currentMonth,
   backHref = "/admin/sucursales",
   backLabel = "Sucursales",
   onNavigate,
@@ -281,9 +282,10 @@ export default function CalendarView({
       workerMap,
       blockMap,
       prevMonthShifts,
+      nextMonthShifts,
       todayStr,
     }),
-    [year, month, localSlots, assign, workerMap, blockMap, prevMonthShifts, todayStr],
+    [year, month, localSlots, assign, workerMap, blockMap, prevMonthShifts, nextMonthShifts, todayStr],
   );
 
   // Rotativos: orden por semana de inicio (S1 arriba). Fijos: por horario de inicio dominante.
@@ -909,6 +911,7 @@ export default function CalendarView({
               workerMap={workerMap}
               blockMap={blockMap}
               prevMonthShifts={prevMonthShifts}
+              nextMonthShifts={nextMonthShifts}
               slotDisplayNum={slotDisplayNum}
               onSlotClick={(n) => setDialogSlot(n)}
               selectedDay={selectedDay}

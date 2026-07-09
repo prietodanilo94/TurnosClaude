@@ -35,6 +35,7 @@ interface Props {
   prevMonthLabel?: string;
   prevAssignments?: Record<string, string | null>;
   prevMonthShifts?: PrevMonthShiftsMap;
+  nextMonthShifts?: PrevMonthShiftsMap;
   supervisorNames?: string[];
   /** Export RRHH (Excel) visible solo para admins */
   hideExcelExport?: boolean;
@@ -125,6 +126,7 @@ export default function SupervisorCalendarView({
   queryBase,
   prevMonthLabel,
   prevMonthShifts,
+  nextMonthShifts,
   supervisorNames,
   hideExcelExport = true,
   saveConfirmMessage,
@@ -185,6 +187,7 @@ export default function SupervisorCalendarView({
       calendarScopeType={slices.length > 1 ? "group" : "branch"}
       supervisorNames={supervisorNames}
       prevMonthShifts={prevMonthShifts}
+      nextMonthShifts={nextMonthShifts}
       saveConfirmMessage={saveConfirmMessage}
       isAdmin={isAdmin}
       patternRotation={patternOverride?.rotationWeeks}

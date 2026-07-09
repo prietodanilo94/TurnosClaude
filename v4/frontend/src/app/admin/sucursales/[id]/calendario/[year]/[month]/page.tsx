@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { generateCalendar } from "@/lib/calendar/generator";
 import { ensureRotationAnchors } from "@/lib/calendar/rotationAnchor";
 import { resolveCalendarDisplayCategory, type CalendarCategoryTeam } from "@/lib/calendar/categoryFallback";
-import { extractPrevMonthTail } from "@/lib/calendar/prevMonthTail";
+import { extractNextMonthHead, extractPrevMonthTail } from "@/lib/calendar/prevMonthTail";
 import { blankCombinedCalendar } from "@/lib/calendar/freeSchedule";
 import { buildIsoWeeks, fmt } from "./calendar-utils";
 import { getSession } from "@/lib/auth/session";
@@ -87,6 +87,9 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
   // Cola real del mes anterior: la validacion la usa para que rachas y
   // horas de la semana frontera se calculen contra lo realmente guardado.
   const prevMonthShifts = extractPrevMonthTail(prevCal, prevYear, prevMonth);
+  // Cabeza real del mes siguiente: la ultima semana muestra/valida los dias
+  // que se asoman con lo realmente guardado alla.
+  const nextMonthShifts = extractNextMonthHead(nextCal, nextYear, nextMonth);
 
   const workerMap = Object.fromEntries(filteredWorkers.map((worker) => [worker.id, worker.nombre]));
   const workerBlocks: WorkerBlockInfo[] = filteredWorkers.flatMap((worker) =>
@@ -216,6 +219,7 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
         prevMonthLabel={prevMonthLabel}
         prevAssignments={prevAssignments}
         prevMonthShifts={prevMonthShifts}
+        nextMonthShifts={nextMonthShifts}
         nextAssignments={nextAssignments}
         currentYear={year}
         currentMonth={month}
@@ -250,6 +254,7 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
       scopeLabel={team.branch.nombre}
       scopeType="branch"
       prevMonthShifts={prevMonthShifts}
+      nextMonthShifts={nextMonthShifts}
       isAdmin={session?.role === "admin"}
     />
   );
