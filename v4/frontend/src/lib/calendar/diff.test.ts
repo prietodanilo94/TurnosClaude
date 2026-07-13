@@ -54,6 +54,17 @@ describe("computeCalendarDiff", () => {
     expect(changes[0]).toMatchObject({ workerId: "w1", from: "10:00-19:00", to: null });
   });
 
+  it("BUG REAL (2026-07-13): un slot totalmente nuevo (trabajador recien contratado) debe generar cambios", () => {
+    const changes = computeCalendarDiff(
+      [slot(1, "2026-07-15", S)],           // el slot 2 no existia antes
+      [slot(1, "2026-07-15", S), slot(2, "2026-07-15", S)],
+      { "1": "w1" }, { "1": "w1", "2": "w2" },
+      { w1: "Ana", w2: "Nueva" }, 2026, 7,
+    );
+    expect(changes).toHaveLength(1);
+    expect(changes[0]).toMatchObject({ workerId: "w2", workerName: "Nueva", from: null, to: "10:00-19:00" });
+  });
+
   it("no genera cambios cuando un slot vacio sigue vacio", () => {
     const changes = computeCalendarDiff(
       [slot(1, "2026-07-15", null)],

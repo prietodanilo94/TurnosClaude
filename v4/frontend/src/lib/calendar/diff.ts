@@ -42,9 +42,12 @@ export function computeCalendarDiff(
   for (const slotNum of allSlotNums) {
     const oldWorker = oldAssignments[String(slotNum)] ?? null;
     const newWorker = newAssignments[String(slotNum)] ?? null;
-    const oldSlot = oldSlotMap[slotNum];
-    const newSlot = newSlotMap[slotNum];
-    if (!oldSlot || !newSlot) continue;
+    // Slot nuevo (aun no existia) o eliminado: se trata como dias vacios en
+    // el lado que falta, en vez de saltarse la comparacion completa (bug
+    // real, reportado 2026-07-13: un slot recien creado para un trabajador
+    // nuevo desaparecia del historial de cambios).
+    const oldSlot = oldSlotMap[slotNum] ?? { slotNumber: slotNum, days: {} };
+    const newSlot = newSlotMap[slotNum] ?? { slotNumber: slotNum, days: {} };
 
     if (oldWorker && newWorker && oldWorker === newWorker) {
       // Mismo trabajador en el slot: diff dia a dia como siempre.
