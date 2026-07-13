@@ -40,6 +40,38 @@ export function extractNextMonthSpillover(
   return out;
 }
 
+// Solo los dias de spillover que REALMENTE cambiaron entre el estado previo
+// y el nuevo de (year, month). Sin esto, cualquier guardado del mes —
+// incluso editar un dia que no tiene nada que ver con el remanente — vuelve
+// a extraer y reempujar TODO el remanente sobre el mes siguiente, pisando
+// datos reales que ya divergieron alla (bug real, reportado 2026-07-13).
+// oldSlots/oldAssignments null = primer guardado del mes (no habia estado
+// previo): todo el remanente cuenta como cambio real, igual que antes.
+export function diffSpilloverChanges(
+  oldSlots: CalendarSlot[] | null,
+  oldAssignments: Record<string, string | null> | null,
+  newSlots: CalendarSlot[],
+  newAssignments: Record<string, string | null>,
+  year: number,
+  month: number,
+): SpillDay[] {
+  const newSpill = extractNextMonthSpillover(newSlots, newAssignments, year, month);
+  const oldSpill = oldSlots && oldAssignments ? extractNextMonthSpillover(oldSlots, oldAssignments, year, month) : [];
+  const oldMap = new Map(oldSpill.map((s) => [`${s.workerId}|${s.dateStr}`, s.shift]));
+  const newMap = new Map(newSpill.map((s) => [`${s.workerId}|${s.dateStr}`, s.shift]));
+  const keys = new Set([...oldMap.keys(), ...newMap.keys()]);
+  const changed: SpillDay[] = [];
+  for (const key of keys) {
+    const [workerId, dateStr] = key.split("|");
+    const prev = oldMap.get(key) ?? null;
+    const cur = newMap.has(key) ? newMap.get(key) ?? null : null;
+    const prevStr = prev ? `${prev.start}-${prev.end}` : null;
+    const curStr = cur ? `${cur.start}-${cur.end}` : null;
+    if (!oldSlots || prevStr !== curStr) changed.push({ workerId, dateStr, shift: cur });
+  }
+  return changed;
+}
+
 // Aplica dias (por trabajador) sobre una copia de slots/assignments de otro
 // calendario. Solo toca fechas que su grilla ya contiene y trabajadores que
 // tiene asignados; devuelve si hubo cambios reales.
