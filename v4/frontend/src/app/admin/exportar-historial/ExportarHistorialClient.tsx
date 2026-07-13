@@ -19,8 +19,6 @@ import DateColumnFilter from "./DateColumnFilter";
 
 interface Props {
   rows: CambioRow[];
-  windowFrom: string;
-  windowDays: number;
 }
 
 function fmtDateTime(iso: string | null): string {
@@ -55,7 +53,7 @@ const COLUMNS: { id: SortColumn; label: string; categorical?: CategoricalColumn 
   { id: "descargadoPor", label: "Descargado por", categorical: "descargadoPor" },
 ];
 
-export default function ExportarHistorialClient({ rows, windowFrom, windowDays }: Props) {
+export default function ExportarHistorialClient({ rows }: Props) {
   const router = useRouter();
   const [filters, setFilters] = useState<TableFilters>(emptyFilters());
   const [sort, setSort] = useState<SortState>(DEFAULT_SORT);
@@ -63,7 +61,6 @@ export default function ExportarHistorialClient({ rows, windowFrom, windowDays }
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [fromInput, setFromInput] = useState(windowFrom);
 
   const filteredRows = useMemo(() => applyFilters(rows, filters), [rows, filters]);
   const sortedRows = useMemo(() => sortRows(filteredRows, sort), [filteredRows, sort]);
@@ -146,29 +143,6 @@ export default function ExportarHistorialClient({ rows, windowFrom, windowDays }
         <p className="text-xs text-gray-400 mt-0.5">
           Un trabajador aparece una sola vez, con su cambio más reciente y su estado de descarga RRHH. Para ver todos sus cambios anteriores, entra a Trabajadores → Historial.
         </p>
-      </div>
-
-      <div className="bg-white border border-gray-200 rounded-lg p-3 flex items-center gap-3 flex-wrap text-sm">
-        <span className="text-gray-500">Ventana: últimos {windowDays} días</span>
-        <span className="text-gray-300">·</span>
-        <label className="flex items-center gap-2 text-gray-600">
-          Desde
-          <input
-            type="date"
-            value={fromInput}
-            onChange={(e) => setFromInput(e.target.value)}
-            className="px-2 py-1 border border-gray-300 rounded text-sm"
-          />
-        </label>
-        <button
-          type="button"
-          onClick={() => router.push(`/admin/exportar-historial?from=${fromInput}`)}
-          className="px-3 py-1.5 text-xs border border-gray-300 rounded hover:bg-gray-50"
-        >
-          Ampliar ventana
-        </button>
-        <span className="text-gray-300">·</span>
-        <span className="text-gray-500">{rows.length} evento{rows.length !== 1 ? "s" : ""} cargado{rows.length !== 1 ? "s" : ""}</span>
       </div>
 
       <div className="flex items-center justify-between flex-wrap gap-2">

@@ -5,21 +5,11 @@ import ExportarHistorialClient from "./ExportarHistorialClient";
 
 export const dynamic = "force-dynamic";
 
-const DEFAULT_WINDOW_DAYS = 90;
-
-interface Props {
-  searchParams: { from?: string };
-}
-
-export default async function ExportarHistorialPage({ searchParams }: Props) {
+export default async function ExportarHistorialPage() {
   await getSession();
 
-  const windowStart = searchParams.from
-    ? new Date(`${searchParams.from}T00:00:00`)
-    : new Date(Date.now() - DEFAULT_WINDOW_DAYS * 24 * 60 * 60 * 1000);
-
   const logs = await prisma.auditLog.findMany({
-    where: { action: "calendar.save", createdAt: { gte: windowStart } },
+    where: { action: "calendar.save" },
     select: { id: true, createdAt: true, userEmail: true, metadata: true },
     orderBy: { createdAt: "desc" },
   });
@@ -61,11 +51,5 @@ export default async function ExportarHistorialPage({ searchParams }: Props) {
   // completo de cada uno se ve desde /admin/trabajadores -> Historial.
   const rows = keepLatestPerWorker(buildCambioRows(logs, workerInfoMap, exportRecords));
 
-  return (
-    <ExportarHistorialClient
-      rows={rows}
-      windowFrom={windowStart.toISOString().slice(0, 10)}
-      windowDays={DEFAULT_WINDOW_DAYS}
-    />
-  );
+  return <ExportarHistorialClient rows={rows} />;
 }
