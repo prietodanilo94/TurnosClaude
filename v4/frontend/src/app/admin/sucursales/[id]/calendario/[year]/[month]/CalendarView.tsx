@@ -260,7 +260,11 @@ export default function CalendarView({
   }
 
   function requestSave(onComplete?: (id: string | null) => void) {
-    if (validation.exceeds42hLimit) {
+    // El bloqueo duro por >42h es para supervisores: un admin tiene que poder
+    // guardar igual (ej. para liberar a alguien de un turno mientras se
+    // corrige la semana con otra persona) — sigue viendose como error en el
+    // panel de validacion, pero ya no impide el guardado.
+    if (validation.exceeds42hLimit && !isAdmin) {
       setSaveFeedback({ tone: "error", text: "No se puede guardar: hay un slot con más de 42 horas en una semana. Ajusta los turnos antes de guardar." });
       onComplete?.(null);
       return;
