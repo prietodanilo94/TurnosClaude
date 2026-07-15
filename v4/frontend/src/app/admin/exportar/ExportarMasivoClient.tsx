@@ -16,7 +16,7 @@ export interface MasivoRow {
 
 const MESES = ["", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
-type ColId = "area" | "sucursal" | "codigo" | "trabajador";
+type ColId = "area" | "sucursal" | "codigo" | "trabajador" | "rut";
 type Filters = Record<ColId, Set<string> | null>;
 
 const COLS: { id: ColId; label: string }[] = [
@@ -24,20 +24,30 @@ const COLS: { id: ColId; label: string }[] = [
   { id: "sucursal", label: "Sucursal" },
   { id: "codigo", label: "Cód." },
   { id: "trabajador", label: "Trabajador" },
+  { id: "rut", label: "RUT" },
 ];
 
 export default function ExportarMasivoClient({ rows, year, month }: { rows: MasivoRow[]; year: number; month: number }) {
   const router = useRouter();
   // Filtros estilo Excel (mismo componente de Exportar Historial): checklist
   // en cascada — los valores de cada columna reflejan los filtros de las demas.
-  const [filters, setFilters] = useState<Filters>({ area: null, sucursal: null, codigo: null, trabajador: null });
+  const [filters, setFilters] = useState<Filters>({ area: null, sucursal: null, codigo: null, trabajador: null, rut: null });
+  const [sort, setSort] = useState<{ col: ColId; dir: 1 | -1 } | null>(null);
 
   function matches(r: MasivoRow, f: Filters, skip?: ColId) {
     return COLS.every(({ id }) => id === skip || f[id] === null || f[id]!.has(r[id]));
   }
-  const filtered = useMemo(() => rows.filter((r) => matches(r, filters)), [rows, filters]);
+  const filteredUnsorted = useMemo(() => rows.filter((r) => matches(r, filters)), [rows, filters]);
+  const filtered = useMemo(() => {
+    if (!sort) return filteredUnsorted;
+    return [...filteredUnsorted].sort((a, b) => sort.dir * a[sort.col].localeCompare(b[sort.col], "es"));
+  }, [filteredUnsorted, sort]);
   const valuesFor = (col: ColId) =>
     [...new Set(rows.filter((r) => matches(r, filters, col)).map((r) => r[col]))].sort((a, b) => a.localeCompare(b, "es"));
+
+  function toggleSort(col: ColId) {
+    setSort((prev) => (prev?.col === col ? (prev.dir === 1 ? { col, dir: -1 } : null) : { col, dir: 1 }));
+  }
 
   const lastDay = new Date(year, month, 0).getDate();
 
@@ -101,7 +111,16 @@ export default function ExportarMasivoClient({ rows, year, month }: { rows: Masi
               <tr className="border-b border-gray-200">
                 {COLS.map(({ id, label }) => (
                   <th key={id} className="text-left px-2 py-2 font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
-                    {label}
+                    <span
+                      onClick={() => toggleSort(id)}
+                      title="Click para ordenar"
+                      className="cursor-pointer select-none hover:text-gray-700 transition-colors"
+                    >
+                      {label}{" "}
+                      <span className={sort?.col === id ? "text-blue-600" : "text-gray-300"}>
+                        {sort?.col === id ? (sort.dir === 1 ? "▲" : "▼") : "↕"}
+                      </span>
+                    </span>
                     <ExcelColumnFilter
                       values={valuesFor(id)}
                       selected={filters[id]}
@@ -109,7 +128,6 @@ export default function ExportarMasivoClient({ rows, year, month }: { rows: Masi
                     />
                   </th>
                 ))}
-                <th className="text-left px-2 py-2 font-medium text-gray-500 uppercase tracking-wider bg-gray-50">RUT</th>
                 {Array.from({ length: lastDay }, (_, i) => (
                   <th key={i} className="px-1.5 py-2 font-medium text-gray-400 text-center bg-gray-50">{i + 1}</th>
                 ))}
