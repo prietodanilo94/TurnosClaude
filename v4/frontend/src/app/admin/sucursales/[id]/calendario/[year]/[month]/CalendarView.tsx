@@ -88,6 +88,32 @@ interface Props {
   isAdmin?: boolean;
 }
 
+// Semilla el estado local con el remanente REAL del mes vecino (por
+// trabajador) antes de que el usuario toque nada — asi los dias frontera
+// (ultima semana con dias del mes siguiente, primera semana con dias del
+// mes anterior) arrancan mostrando lo que de verdad hay alla, no la copia
+// local (posiblemente vieja) de la grilla extendida. Una vez sembrado, esos
+// dias son estado local normal: se pueden editar y el guardado los propaga
+// como cualquier otro cambio (ver diffSpilloverChanges en spillover.ts).
+function seedBoundaryFromReal(
+  baseSlots: CalendarSlot[],
+  assignments: Record<string, string | null>,
+  prevShifts?: PrevMonthShiftsMap,
+  nextShifts?: PrevMonthShiftsMap,
+): CalendarSlot[] {
+  return baseSlots.map((s) => {
+    const days = { ...s.days };
+    const workerId = assignments[String(s.slotNumber)] ?? null;
+    if (workerId) {
+      const tail = prevShifts?.[workerId];
+      const head = nextShifts?.[workerId];
+      if (tail) for (const [d, sh] of Object.entries(tail)) if (d in days) days[d] = sh;
+      if (head) for (const [d, sh] of Object.entries(head)) if (d in days) days[d] = sh;
+    }
+    return { ...s, days };
+  });
+}
+
 export default function CalendarView({
   branchId, branchName, branchCodigo, teamId, areaNegocio, categoria, patternOverride,
   year, month, slots, assignments, workers, workerMap, calendarId, generateAlert,
@@ -114,10 +140,12 @@ export default function CalendarView({
 }: Props) {
   const router = useRouter();
   const [localSlots, setLocalSlots] = useState<CalendarSlot[]>(() =>
-    slots.map(s => ({ ...s, days: { ...s.days } }))
+    seedBoundaryFromReal(slots, assignments, prevMonthShifts, nextMonthShifts)
   );
   const [assign, setAssign] = useState<Record<string, string | null>>(assignments);
-  const initialSlots = useRef<CalendarSlot[]>(slots);
+  const initialSlots = useRef<CalendarSlot[]>(
+    seedBoundaryFromReal(slots, assignments, prevMonthShifts, nextMonthShifts),
+  );
   const initialAssignments = useRef<Record<string, string | null>>(assignments);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -709,7 +737,7 @@ export default function CalendarView({
     ? (localSlots.find(s => s.slotNumber === shiftEditDialog.slotNum)?.days[shiftEditDialog.dateStr] ?? null)
     : null;
   const originalShiftForEdit = shiftEditDialog
-    ? (slots.find(s => s.slotNumber === shiftEditDialog.slotNum)?.days[shiftEditDialog.dateStr] ?? null)
+    ? (initialSlots.current.find(s => s.slotNumber === shiftEditDialog.slotNum)?.days[shiftEditDialog.dateStr] ?? null)
     : null;
   const weekForEdit = shiftEditDialog
     ? (weeks.find(w => w.some(d => fmt(d) === shiftEditDialog.dateStr)) ?? null)

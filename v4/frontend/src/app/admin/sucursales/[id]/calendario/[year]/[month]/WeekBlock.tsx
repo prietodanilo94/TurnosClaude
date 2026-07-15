@@ -214,21 +214,19 @@ export function WeekBlock({
                 const inMonth = d.getMonth() + 1 === month;
                 const dm = d.getMonth() + 1;
                 const isPrevMonthDay = !inMonth && (dm === month - 1 || (month === 1 && dm === 12));
-                let shift = slot.days[dateStr] ?? null;
+                // El valor real de los dias frontera ya viene sembrado en
+                // slot.days desde el mes vecino (ver seedBoundaryFromReal en
+                // CalendarView) — de ahi en adelante son estado local normal,
+                // editable como cualquier otro dia. Aqui solo se resuelve de
+                // quien es el nombre a mostrar en la celda.
+                const shift = slot.days[dateStr] ?? null;
                 const dayAssign = assignForDay(d);
                 let dayWorkerId = dayAssign[String(slot.slotNumber)] ?? null;
-                // Dias del mes ANTERIOR: mostrar lo realmente guardado ese mes
-                // para el trabajador de la fila, no la copia local de esta
-                // grilla (que puede estar vacia o desactualizada). Mismo
-                // criterio que effectiveDays en validation.ts — asi la columna
-                // Hrs Sem coincide con el panel de validacion.
                 if (isPrevMonthDay && realTail && dateStr in realTail) {
-                  shift = realTail[dateStr];
                   dayWorkerId = workerId;
                 }
                 const isNextMonthDay = !inMonth && (dm === month + 1 || (month === 12 && dm === 1));
                 if (isNextMonthDay && realHead && dateStr in realHead) {
-                  shift = realHead[dateStr];
                   dayWorkerId = workerId;
                 }
                 const feriado = isFeriadoIrrenunciable(d);
@@ -272,13 +270,16 @@ export function WeekBlock({
                   )}
                   {cells.map(({ dateStr, shift, inMonth, ci, feriado, dayWorkerId, dayWorkerName, blockReason }) => {
                     const isPast = !isAdmin && (lockedBefore ? dateStr < lockedBefore : false);
-                    const canDrag = inMonth && !feriado && !isPast;
+                    // Los dias frontera (semana compartida con el mes vecino)
+                    // son editables igual que cualquier otro dia — ya vienen
+                    // sembrados con el dato real (ver CalendarView).
+                    const canDrag = !feriado && !isPast;
                     const isBeingDragged = dragSource?.slotNum === slot.slotNumber && dragSource?.dateStr === dateStr;
                     const isDropTarget = dragOver?.slotNum === slot.slotNumber && dragOver?.dateStr === dateStr;
                     return (
                       <td
                         key={ci}
-                        className={`px-1 py-1.5 text-center text-xs border-l border-gray-100 ${inMonth ? "" : "opacity-50"} ${feriado ? "bg-red-50/60" : ""} ${isDropTarget ? "bg-blue-100 rounded" : ""}`}
+                        className={`px-1 py-1.5 text-center text-xs border-l border-gray-100 ${feriado ? "bg-red-50/60" : ""} ${isDropTarget ? "bg-blue-100 rounded" : ""}`}
                       >
                         {feriado ? (
                           <span className="text-[10px] font-medium text-red-400 italic">Feriado</span>
@@ -297,7 +298,7 @@ export function WeekBlock({
                         ) : shift ? (
                           <div
                             draggable={canDrag}
-                            onClick={inMonth && !isPast ? () => onShiftCellClick(slot.slotNumber, dateStr) : undefined}
+                            onClick={!isPast ? () => onShiftCellClick(slot.slotNumber, dateStr) : undefined}
                             onDragStart={canDrag ? () => handleDragStart(slot.slotNumber, dateStr) : undefined}
                             onDragEnd={handleDragEnd}
                             onDragOver={canDrag ? (e) => handleDragOver(e, slot.slotNumber, dateStr) : undefined}
@@ -305,7 +306,7 @@ export function WeekBlock({
                             className={`px-1 py-1 rounded border text-xs select-none transition-opacity ${
                               isBeingDragged ? "opacity-30" : ""
                             } ${
-                              inMonth && !isPast ? "cursor-pointer hover:brightness-95 active:scale-95" : isPast ? "opacity-60 cursor-default" : ""
+                              !isPast ? "cursor-pointer hover:brightness-95 active:scale-95" : "opacity-60 cursor-default"
                             } ${
                               `${color.bg} ${color.text} ${color.border}`
                             }`}
@@ -323,7 +324,7 @@ export function WeekBlock({
                         ) : (
                           <div
                             draggable={canDrag}
-                            onClick={inMonth && !isPast ? () => onShiftCellClick(slot.slotNumber, dateStr) : undefined}
+                            onClick={!isPast ? () => onShiftCellClick(slot.slotNumber, dateStr) : undefined}
                             onDragStart={canDrag ? () => handleDragStart(slot.slotNumber, dateStr) : undefined}
                             onDragEnd={handleDragEnd}
                             onDragOver={canDrag ? (e) => handleDragOver(e, slot.slotNumber, dateStr) : undefined}
@@ -332,7 +333,7 @@ export function WeekBlock({
                               isBeingDragged ? "opacity-30" : ""
                             } ${
                               isDropTarget ? "text-blue-500 font-medium" : "text-gray-300"
-                            } ${inMonth && !isPast ? "cursor-pointer hover:text-blue-400" : canDrag ? "cursor-grab" : ""}`}
+                            } ${!isPast ? "cursor-pointer hover:text-blue-400" : canDrag ? "cursor-grab" : ""}`}
                           >
                             libre
                           </div>
