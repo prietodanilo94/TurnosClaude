@@ -1,11 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { workerColor } from "@/components/calendar/worker-colors";
 import type { DayShift, WorkerInfo } from "@/types";
 import {
   DOW_LABELS, addMinutesToTime, dowIndex, fmtHours, minutesFromTime, shiftDuration,
 } from "./calendar-utils";
+
+function useEscapeToClose(onClose: () => void) {
+  useEffect(() => {
+    function handler(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
+}
 
 // Plural para "A todos los [dia] del mes" (Lun=0 .. Dom=6)
 const DOW_PLURAL = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábados", "Domingos"];
@@ -20,6 +30,7 @@ export interface AssignDialogProps {
 }
 
 export function AssignDialog({ slotNumber, currentWorkerId, workers, occupied, onClose, onAssign }: AssignDialogProps) {
+  useEscapeToClose(onClose);
   const color = workerColor(slotNumber);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
@@ -90,6 +101,7 @@ export interface ShiftEditDialogProps {
 export function ShiftEditDialog({
   slotNumber, dateStr, workerName, currentShift, originalShift, redistributeDays, operatingWindow, onSave, onClose, onSetLibre,
 }: ShiftEditDialogProps) {
+  useEscapeToClose(onClose);
   const color = workerColor(slotNumber);
   const [start, setStart] = useState(currentShift?.start ?? operatingWindow.start);
   const [end, setEnd] = useState(currentShift?.end ?? operatingWindow.end);
