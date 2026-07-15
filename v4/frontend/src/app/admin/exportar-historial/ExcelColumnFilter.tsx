@@ -42,6 +42,15 @@ export default function ExcelColumnFilter({ values, selected, onChange, emptyLab
     onChange(new Set());
   }
 
+  // Aplica el filtro directamente a lo que dejo la busqueda (sin tener que
+  // marcar "Ninguno" y despues tildar uno por uno). Si la busqueda cubre
+  // todos los valores conocidos, equivale a "sin filtro" (null).
+  function acceptSearch() {
+    if (!term) return;
+    onChange(visibleValues.length >= values.length ? null : new Set(visibleValues));
+    setSearch("");
+  }
+
   return (
     <span className="relative inline-block">
       <button
@@ -58,13 +67,26 @@ export default function ExcelColumnFilter({ values, selected, onChange, emptyLab
         ▼
       </button>
       <FloatingPanel anchorRef={buttonRef} open={open} onClose={() => setOpen(false)} width={224}>
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar..."
-          className="w-full px-2 py-1 mb-2 border border-gray-300 rounded text-xs"
-        />
+        <div className="flex items-center gap-1 mb-2">
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && acceptSearch()}
+            placeholder="Buscar..."
+            className="flex-1 min-w-0 px-2 py-1 border border-gray-300 rounded text-xs"
+          />
+          {term && (
+            <button
+              type="button"
+              onClick={acceptSearch}
+              title="Filtrar solo por lo que coincide con la busqueda"
+              className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 shrink-0"
+            >
+              Aceptar
+            </button>
+          )}
+        </div>
         <div className="flex items-center gap-2 mb-2 text-[11px]">
           <button type="button" onClick={selectAll} className="text-blue-600 hover:underline">Todos</button>
           <span className="text-gray-300">·</span>

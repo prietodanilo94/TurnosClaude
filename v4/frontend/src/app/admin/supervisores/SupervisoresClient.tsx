@@ -3,6 +3,45 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { BranchInfo, SupervisorWithBranches } from "./page";
+import ExcelColumnFilter from "@/app/admin/exportar-historial/ExcelColumnFilter";
+
+type ColId = "nombre" | "email" | "sucursales" | "preparacion" | "login" | "estado";
+
+const COLUMNS: { id: ColId; label: string }[] = [
+  { id: "nombre", label: "Nombre" },
+  { id: "email", label: "Email" },
+  { id: "sucursales", label: "Sucursales" },
+  { id: "preparacion", label: "Preparacion" },
+  { id: "login", label: "Login" },
+  { id: "estado", label: "Estado" },
+];
+
+// Valores por columna para orden/filtro estilo Excel (mismo componente que
+// Exportar Historial/Masivo). Sucursales es multivaluada: una fila matchea
+// si ALGUNA de sus sucursales esta en el set seleccionado (OR).
+function colValues(s: SupervisorWithBranches, col: ColId): string[] {
+  switch (col) {
+    case "nombre": return [s.nombre];
+    case "email": return [s.email || "(sin email)"];
+    case "sucursales": return s.branches.length > 0 ? s.branches.map((b) => b.branch.nombre) : ["(sin sucursales)"];
+    case "preparacion": return [getSetupIssues(s).length === 0 ? "Listo" : "Requiere datos"];
+    case "login": return [s.email && s.passwordHash ? "Habilitado" : "Pendiente"];
+    case "estado": return [s.activo ? "Activo" : "Inactivo"];
+  }
+}
+
+function matchesColFilters(
+  s: SupervisorWithBranches,
+  filters: Record<ColId, Set<string> | null>,
+  skip?: ColId,
+): boolean {
+  return COLUMNS.every(({ id }) => {
+    if (id === skip) return true;
+    const set = filters[id];
+    if (set === null) return true;
+    return colValues(s, id).some((v) => set.has(v));
+  });
+}
 
 interface Props {
   initialSupervisors: SupervisorWithBranches[];
@@ -27,13 +66,17 @@ export default function SupervisoresClient({ initialSupervisors, branches, year,
   const calMonth = month ?? (now.getMonth() + 1);
   const [supervisors, setSupervisors] = useState(initialSupervisors);
   const [search, setSearch] = useState("");
+  const [colFilters, setColFilters] = useState<Record<ColId, Set<string> | null>>({
+    nombre: null, email: null, sucursales: null, preparacion: null, login: null, estado: null,
+  });
+  const [sort, setSort] = useState<{ col: ColId; dir: 1 | -1 } | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<SupervisorWithBranches | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const q = search.toLowerCase();
-  const visible = q
+  const bySearch = q
     ? supervisors.filter(
         (s) =>
           s.nombre.toLowerCase().includes(q) ||
@@ -45,6 +88,22 @@ export default function SupervisoresClient({ initialSupervisors, branches, year,
           ),
       )
     : supervisors;
+  const byCols = bySearch.filter((s) => matchesColFilters(s, colFilters));
+  const visible = sort
+    ? [...byCols].sort((a, b) => sort.dir * colValues(a, sort.col).join(", ").localeCompare(colValues(b, sort.col).join(", "), "es"))
+    : byCols;
+
+  function toggleSort(col: ColId) {
+    setSort((prev) => (prev?.col === col ? (prev.dir === 1 ? { col, dir: -1 } : null) : { col, dir: 1 }));
+  }
+
+  function availableValues(col: ColId): string[] {
+    const survivors = bySearch.filter((s) => matchesColFilters(s, colFilters, col));
+    const values = new Set<string>();
+    survivors.forEach((s) => colValues(s, col).forEach((v) => values.add(v)));
+    return [...values].sort((a, b) => a.localeCompare(b, "es"));
+  }
+
   const readyCount = supervisors.filter((supervisor) => isReadyForProduction(supervisor)).length;
   const missingEmailCount = supervisors.filter((supervisor) => !supervisor.email).length;
   const missingPasswordCount = supervisors.filter((supervisor) => !supervisor.passwordHash).length;
@@ -202,14 +261,29 @@ export default function SupervisoresClient({ initialSupervisors, branches, year,
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                {["Nombre", "Email", "Sucursales", "Preparacion", "Login", "Estado", ""].map((header) => (
+                {COLUMNS.map((col) => (
                   <th
-                    key={header}
-                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    key={col.id}
+                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap"
                   >
-                    {header}
+                    <span
+                      onClick={() => toggleSort(col.id)}
+                      title="Click para ordenar"
+                      className="cursor-pointer select-none hover:text-gray-700 transition-colors"
+                    >
+                      {col.label}{" "}
+                      <span className={sort?.col === col.id ? "text-blue-600" : "text-gray-300"}>
+                        {sort?.col === col.id ? (sort.dir === 1 ? "▲" : "▼") : "↕"}
+                      </span>
+                    </span>
+                    <ExcelColumnFilter
+                      values={availableValues(col.id)}
+                      selected={colFilters[col.id]}
+                      onChange={(next) => setColFilters((p) => ({ ...p, [col.id]: next }))}
+                    />
                   </th>
                 ))}
+                <th className="px-4 py-3" />
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-100">
@@ -319,7 +393,7 @@ export default function SupervisoresClient({ initialSupervisors, branches, year,
               {visible.length === 0 && (
                 <tr>
                   <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-400">
-                    Sin resultados para &ldquo;{search}&rdquo;
+                    {search ? <>Sin resultados para &ldquo;{search}&rdquo;</> : "Sin resultados para los filtros aplicados."}
                   </td>
                 </tr>
               )}

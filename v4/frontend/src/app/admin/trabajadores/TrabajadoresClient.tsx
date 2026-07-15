@@ -4,6 +4,46 @@ import { useState, useMemo } from "react";
 import Link from "next/link";
 import type { BranchTeamInfo, WorkerWithTeam } from "./page";
 import WorkerHistoryModal from "./WorkerHistoryModal";
+import ExcelColumnFilter from "@/app/admin/exportar-historial/ExcelColumnFilter";
+
+type ColId = "rut" | "nombre" | "sucursal" | "jefe" | "area" | "estado";
+
+const COLUMNS: { id: ColId; label: string }[] = [
+  { id: "rut", label: "RUT" },
+  { id: "nombre", label: "Nombre" },
+  { id: "sucursal", label: "Sucursal" },
+  { id: "jefe", label: "Jefe de Sucursal" },
+  { id: "area", label: "Area" },
+  { id: "estado", label: "Estado" },
+];
+
+// Jefe de Sucursal es multivaluado (una sucursal puede tener varios
+// supervisores): una fila matchea si ALGUNO esta en el set seleccionado (OR).
+function colValues(w: WorkerWithTeam, col: ColId): string[] {
+  switch (col) {
+    case "rut": return [w.rut];
+    case "nombre": return [w.nombre];
+    case "sucursal": return [w.branchTeam.branch.nombre];
+    case "jefe": return w.branchTeam.branch.supervisors.length > 0
+      ? w.branchTeam.branch.supervisors.map((s) => s.supervisor.nombre)
+      : ["(sin asignar)"];
+    case "area": return [w.branchTeam.areaNegocio === "ventas" ? "Ventas" : "Postventa"];
+    case "estado": return [w.activo ? "Activo" : "Inactivo"];
+  }
+}
+
+function matchesColFilters(
+  w: WorkerWithTeam,
+  filters: Record<ColId, Set<string> | null>,
+  skip?: ColId,
+): boolean {
+  return COLUMNS.every(({ id }) => {
+    if (id === skip) return true;
+    const set = filters[id];
+    if (set === null) return true;
+    return colValues(w, id).some((v) => set.has(v));
+  });
+}
 
 interface Props {
   initialWorkers: WorkerWithTeam[];
@@ -16,6 +56,10 @@ const EMPTY_FORM = { rut: "", nombre: "", branchTeamId: "", activo: true };
 export default function TrabajadoresClient({ initialWorkers, branchTeams, supervisorLabel }: Props) {
   const [workers, setWorkers] = useState(initialWorkers);
   const [search, setSearch] = useState("");
+  const [colFilters, setColFilters] = useState<Record<ColId, Set<string> | null>>({
+    rut: null, nombre: null, sucursal: null, jefe: null, area: null, estado: null,
+  });
+  const [sort, setSort] = useState<{ col: ColId; dir: 1 | -1 } | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<WorkerWithTeam | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -23,7 +67,7 @@ export default function TrabajadoresClient({ initialWorkers, branchTeams, superv
   const [error, setError] = useState("");
   const [historyWorker, setHistoryWorker] = useState<WorkerWithTeam | null>(null);
 
-  const filtered = useMemo(() => {
+  const bySearch = useMemo(() => {
     if (!search.trim()) return workers;
     const q = search.toLowerCase();
     return workers.filter(
@@ -34,6 +78,26 @@ export default function TrabajadoresClient({ initialWorkers, branchTeams, superv
         w.branchTeam.branch.codigo.includes(q),
     );
   }, [workers, search]);
+
+  const byCols = useMemo(() => bySearch.filter((w) => matchesColFilters(w, colFilters)), [bySearch, colFilters]);
+
+  const filtered = useMemo(() => {
+    if (!sort) return byCols;
+    return [...byCols].sort(
+      (a, b) => sort.dir * colValues(a, sort.col).join(", ").localeCompare(colValues(b, sort.col).join(", "), "es"),
+    );
+  }, [byCols, sort]);
+
+  function toggleSort(col: ColId) {
+    setSort((prev) => (prev?.col === col ? (prev.dir === 1 ? { col, dir: -1 } : null) : { col, dir: 1 }));
+  }
+
+  function availableValues(col: ColId): string[] {
+    const survivors = bySearch.filter((w) => matchesColFilters(w, colFilters, col));
+    const values = new Set<string>();
+    survivors.forEach((w) => colValues(w, col).forEach((v) => values.add(v)));
+    return [...values].sort((a, b) => a.localeCompare(b, "es"));
+  }
 
   const activeCount = workers.filter((w) => w.activo && !w.esVirtual).length;
   const now = new Date();
@@ -154,11 +218,26 @@ export default function TrabajadoresClient({ initialWorkers, branchTeams, superv
           <table className="min-w-full divide-y divide-gray-200 text-sm">
             <thead className="bg-gray-50">
               <tr>
-                {["RUT", "Nombre", "Sucursal", "Jefe de Sucursal", "Area", "Estado", ""].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {h}
+                {COLUMNS.map((col) => (
+                  <th key={col.id} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                    <span
+                      onClick={() => toggleSort(col.id)}
+                      title="Click para ordenar"
+                      className="cursor-pointer select-none hover:text-gray-700 transition-colors"
+                    >
+                      {col.label}{" "}
+                      <span className={sort?.col === col.id ? "text-blue-600" : "text-gray-300"}>
+                        {sort?.col === col.id ? (sort.dir === 1 ? "▲" : "▼") : "↕"}
+                      </span>
+                    </span>
+                    <ExcelColumnFilter
+                      values={availableValues(col.id)}
+                      selected={colFilters[col.id]}
+                      onChange={(next) => setColFilters((p) => ({ ...p, [col.id]: next }))}
+                    />
                   </th>
                 ))}
+                <th className="px-4 py-3" />
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -224,7 +303,7 @@ export default function TrabajadoresClient({ initialWorkers, branchTeams, superv
               {filtered.length === 0 && (
                 <tr>
                   <td colSpan={7} className="px-4 py-6 text-center text-sm text-gray-400">
-                    Sin resultados para &quot;{search}&quot;
+                    {search ? <>Sin resultados para &quot;{search}&quot;</> : "Sin resultados para los filtros aplicados."}
                   </td>
                 </tr>
               )}
