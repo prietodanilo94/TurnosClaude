@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import CategorySelector from "./[id]/CategorySelector";
+import ExcelColumnFilter from "@/app/admin/exportar-historial/ExcelColumnFilter";
 
 export type TeamData = {
   id: string;
@@ -37,6 +38,7 @@ const MONTHS_ES = ["enero","febrero","marzo","abril","mayo","junio","julio","ago
 type EstadoKey = "listo" | "vacio" | "none";
 type SortKey = "sucursal" | "area" | "categoria" | "vendedores" | "estado";
 const ESTADO_RANK: Record<EstadoKey, number> = { listo: 0, vacio: 1, none: 2 };
+const ESTADO_LABEL: Record<EstadoKey, string> = { listo: "Listo", vacio: "Sin asignar", none: "Sin calendario" };
 
 type DisplayRow = {
   type: "group" | "team";
@@ -50,6 +52,28 @@ type DisplayRow = {
   branch?: BranchData;
   team?: TeamData;
 };
+
+// Mismos valores mostrados en la tabla (no las claves internas), para que el
+// checklist del filtro coincida con lo que el usuario ve.
+function colValue(r: DisplayRow, col: SortKey): string {
+  switch (col) {
+    case "sucursal": return r.sucursal;
+    case "area": return r.area === "grupo" ? "Grupo" : r.area === "ventas" ? "Ventas" : "Postventa";
+    case "categoria": return r.categoriaLabel || "(sin categoría)";
+    case "vendedores": return String(r.vendedores);
+    case "estado": return ESTADO_LABEL[r.estado];
+  }
+}
+
+const FILTER_COLS: SortKey[] = ["sucursal", "area", "categoria", "vendedores", "estado"];
+
+function matchesColFilters(
+  r: DisplayRow,
+  filters: Record<SortKey, Set<string> | null>,
+  skip?: SortKey,
+): boolean {
+  return FILTER_COLS.every((col) => col === skip || filters[col] === null || filters[col]!.has(colValue(r, col)));
+}
 
 interface Props {
   branches: BranchData[];
@@ -66,6 +90,9 @@ export default function SucursalesClient({ branches, groups, allPatterns, year, 
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 } | null>(null);
+  const [colFilters, setColFilters] = useState<Record<SortKey, Set<string> | null>>({
+    sucursal: null, area: null, categoria: null, vendedores: null, estado: null,
+  });
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState(EMPTY_BRANCH_FORM);
   const [saving, setSaving] = useState(false);
@@ -177,7 +204,8 @@ export default function SucursalesClient({ branches, groups, allPatterns, year, 
     })),
   );
 
-  let rows: DisplayRow[] = [...groupRows, ...teamRows];
+  const allRows: DisplayRow[] = [...groupRows, ...teamRows];
+  let rows: DisplayRow[] = allRows.filter((r) => matchesColFilters(r, colFilters));
   if (sort) {
     const { key, dir } = sort;
     const val = (r: DisplayRow): string | number => {
@@ -201,20 +229,30 @@ export default function SucursalesClient({ branches, groups, allPatterns, year, 
     setSort((prev) => (prev?.key === k ? (prev.dir === 1 ? { key: k, dir: -1 } : null) : { key: k, dir: 1 }));
   }
 
+  function availableValues(col: SortKey): string[] {
+    const survivors = allRows.filter((r) => matchesColFilters(r, colFilters, col));
+    return [...new Set(survivors.map((r) => colValue(r, col)))].sort((a, b) => a.localeCompare(b, "es"));
+  }
+
   function SortTH({ label, k }: { label: string; k: SortKey }) {
     const active = sort?.key === k;
     return (
-      <th
-        onClick={() => toggleSort(k)}
-        title="Click para ordenar"
-        className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none hover:text-gray-700 transition-colors"
-      >
-        <span className="inline-flex items-center gap-1">
-          {label}
+      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+        <span
+          onClick={() => toggleSort(k)}
+          title="Click para ordenar"
+          className="cursor-pointer select-none hover:text-gray-700 transition-colors"
+        >
+          {label}{" "}
           <span className={active ? "text-blue-600" : "text-gray-300"}>
             {active ? (sort?.dir === 1 ? "▲" : "▼") : "↕"}
           </span>
         </span>
+        <ExcelColumnFilter
+          values={availableValues(k)}
+          selected={colFilters[k]}
+          onChange={(next) => setColFilters((p) => ({ ...p, [k]: next }))}
+        />
       </th>
     );
   }
@@ -470,7 +508,7 @@ export default function SucursalesClient({ branches, groups, allPatterns, year, 
             {rows.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-400">
-                  Sin resultados para &ldquo;{search}&rdquo;
+                  {search ? <>Sin resultados para &ldquo;{search}&rdquo;</> : "Sin resultados para los filtros aplicados."}
                 </td>
               </tr>
             )}
