@@ -78,6 +78,7 @@ export default function SupervisoresClient({ initialSupervisors, branches, year,
     nombre: null, email: null, sucursales: null, area: null, preparacion: null, login: null, estado: null,
   });
   const [sort, setSort] = useState<{ col: ColId; dir: 1 | -1 } | null>(null);
+  const [expandedBranches, setExpandedBranches] = useState<Set<string>>(new Set());
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<SupervisorWithBranches | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -310,28 +311,60 @@ export default function SupervisoresClient({ initialSupervisors, branches, year,
                     <td className="px-4 py-3 text-sm text-gray-600">
                       {supervisor.email || <span className="text-gray-400 italic">Sin email</span>}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
+                    <td className="px-4 py-3 text-sm text-gray-600 max-w-xs">
                       {supervisor.branches.length === 0 ? (
                         <span className="text-gray-400 italic">Sin sucursales</span>
                       ) : (
-                        <div className="flex flex-wrap gap-1">
-                          {supervisor.branches.map((b) => {
-                            const href = b.branch.groupId
-                              ? `/supervisor/calendario?groupId=${b.branch.groupId}&year=${calYear}&month=${calMonth}`
-                              : b.branch.teamId
-                              ? `/admin/sucursales/${b.branch.id}/calendario/${calYear}/${calMonth}?team=${b.branch.teamId}`
-                              : `/admin/sucursales/${b.branch.id}`;
-                            return (
-                              <Link
-                                key={b.branch.id}
-                                href={href}
-                                className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-blue-50 text-blue-700 border border-blue-100 hover:bg-blue-100 transition-colors"
-                              >
-                                {b.branch.nombre}
-                              </Link>
-                            );
-                          })}
-                        </div>
+                        (() => {
+                          const expanded = expandedBranches.has(supervisor.id);
+                          const LIMIT = 4;
+                          const shown = expanded ? supervisor.branches : supervisor.branches.slice(0, LIMIT);
+                          const hiddenCount = supervisor.branches.length - shown.length;
+                          return (
+                            <div className="flex flex-wrap gap-1">
+                              {shown.map((b) => {
+                                const href = b.branch.groupId
+                                  ? `/supervisor/calendario?groupId=${b.branch.groupId}&year=${calYear}&month=${calMonth}`
+                                  : b.branch.teamId
+                                  ? `/admin/sucursales/${b.branch.id}/calendario/${calYear}/${calMonth}?team=${b.branch.teamId}`
+                                  : `/admin/sucursales/${b.branch.id}`;
+                                return (
+                                  <Link
+                                    key={b.branch.id}
+                                    href={href}
+                                    className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-blue-50 text-blue-700 border border-blue-100 hover:bg-blue-100 transition-colors"
+                                  >
+                                    {b.branch.nombre}
+                                  </Link>
+                                );
+                              })}
+                              {hiddenCount > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => setExpandedBranches((prev) => new Set(prev).add(supervisor.id))}
+                                  className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200 transition-colors"
+                                >
+                                  +{hiddenCount} más
+                                </button>
+                              )}
+                              {expanded && supervisor.branches.length > LIMIT && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setExpandedBranches((prev) => {
+                                      const next = new Set(prev);
+                                      next.delete(supervisor.id);
+                                      return next;
+                                    })
+                                  }
+                                  className="inline-flex items-center px-1.5 py-0.5 rounded text-xs text-gray-400 hover:text-gray-600 underline"
+                                >
+                                  ver menos
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })()
                       )}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600">
