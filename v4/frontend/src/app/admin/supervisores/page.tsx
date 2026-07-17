@@ -9,6 +9,7 @@ export interface BranchInfo {
   codigo: string;
   groupId?: string | null;
   teamId?: string | null;
+  areas?: ("ventas" | "postventa")[];
 }
 
 export interface SupervisorWithBranches {
@@ -32,7 +33,7 @@ export default async function SupervisoresPage() {
             branch: {
               select: {
                 id: true, nombre: true, codigo: true, groupId: true,
-                teams: { select: { id: true }, take: 1 },
+                teams: { select: { id: true, areaNegocio: true } },
               }
             },
           },
@@ -61,6 +62,7 @@ export default async function SupervisoresPage() {
         codigo: sb.branch.codigo,
         groupId: sb.branch.groupId,
         teamId: sb.branch.teams[0]?.id ?? null,
+        areas: [...new Set(sb.branch.teams.map((t) => t.areaNegocio as "ventas" | "postventa"))],
       },
     })),
   }));

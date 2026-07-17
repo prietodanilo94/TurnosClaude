@@ -5,25 +5,33 @@ import Link from "next/link";
 import type { BranchInfo, SupervisorWithBranches } from "./page";
 import ExcelColumnFilter from "@/app/admin/exportar-historial/ExcelColumnFilter";
 
-type ColId = "nombre" | "email" | "sucursales" | "preparacion" | "login" | "estado";
+type ColId = "nombre" | "email" | "sucursales" | "area" | "preparacion" | "login" | "estado";
 
 const COLUMNS: { id: ColId; label: string }[] = [
   { id: "nombre", label: "Nombre" },
   { id: "email", label: "Email" },
   { id: "sucursales", label: "Sucursales" },
+  { id: "area", label: "Area" },
   { id: "preparacion", label: "Preparacion" },
   { id: "login", label: "Login" },
   { id: "estado", label: "Estado" },
 ];
 
+const AREA_LABEL: Record<"ventas" | "postventa", string> = { ventas: "Ventas", postventa: "Postventa" };
+
 // Valores por columna para orden/filtro estilo Excel (mismo componente que
-// Exportar Historial/Masivo). Sucursales es multivaluada: una fila matchea
-// si ALGUNA de sus sucursales esta en el set seleccionado (OR).
+// Exportar Historial/Masivo). Sucursales y Area son multivaluadas: una fila
+// matchea si ALGUN valor esta en el set seleccionado (OR). El supervisor no
+// tiene un atributo "area" propio — se deriva de las areas de sus sucursales.
 function colValues(s: SupervisorWithBranches, col: ColId): string[] {
   switch (col) {
     case "nombre": return [s.nombre];
     case "email": return [s.email || "(sin email)"];
     case "sucursales": return s.branches.length > 0 ? s.branches.map((b) => b.branch.nombre) : ["(sin sucursales)"];
+    case "area": {
+      const areas = [...new Set(s.branches.flatMap((b) => b.branch.areas ?? []))];
+      return areas.length > 0 ? areas.map((a) => AREA_LABEL[a]) : ["(sin sucursales)"];
+    }
     case "preparacion": return [getSetupIssues(s).length === 0 ? "Listo" : "Requiere datos"];
     case "login": return [s.email && s.passwordHash ? "Habilitado" : "Pendiente"];
     case "estado": return [s.activo ? "Activo" : "Inactivo"];
@@ -67,7 +75,7 @@ export default function SupervisoresClient({ initialSupervisors, branches, year,
   const [supervisors, setSupervisors] = useState(initialSupervisors);
   const [search, setSearch] = useState("");
   const [colFilters, setColFilters] = useState<Record<ColId, Set<string> | null>>({
-    nombre: null, email: null, sucursales: null, preparacion: null, login: null, estado: null,
+    nombre: null, email: null, sucursales: null, area: null, preparacion: null, login: null, estado: null,
   });
   const [sort, setSort] = useState<{ col: ColId; dir: 1 | -1 } | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -327,6 +335,27 @@ export default function SupervisoresClient({ initialSupervisors, branches, year,
                       )}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600">
+                      {(() => {
+                        const areas = [...new Set(supervisor.branches.flatMap((b) => b.branch.areas ?? []))];
+                        return areas.length === 0 ? (
+                          <span className="text-gray-400 italic">—</span>
+                        ) : (
+                          <div className="flex flex-wrap gap-1">
+                            {areas.map((a) => (
+                              <span
+                                key={a}
+                                className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${
+                                  a === "ventas" ? "bg-blue-100 text-blue-800" : "bg-violet-100 text-violet-800"
+                                }`}
+                              >
+                                {AREA_LABEL[a]}
+                              </span>
+                            ))}
+                          </div>
+                        );
+                      })()}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
                       {setupIssues.length === 0 ? (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
                           Listo
@@ -392,7 +421,7 @@ export default function SupervisoresClient({ initialSupervisors, branches, year,
               })}
               {visible.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-400">
+                  <td colSpan={8} className="px-4 py-8 text-center text-sm text-gray-400">
                     {search ? <>Sin resultados para &ldquo;{search}&rdquo;</> : "Sin resultados para los filtros aplicados."}
                   </td>
                 </tr>
