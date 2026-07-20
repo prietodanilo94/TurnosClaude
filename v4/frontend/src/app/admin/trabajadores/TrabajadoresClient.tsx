@@ -215,6 +215,7 @@ export default function TrabajadoresClient({ initialWorkers, branchTeams, superv
         </div>
       ) : (
         <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+          <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200 text-sm">
             <thead className="bg-gray-50">
               <tr>
@@ -309,6 +310,7 @@ export default function TrabajadoresClient({ initialWorkers, branchTeams, superv
               )}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 

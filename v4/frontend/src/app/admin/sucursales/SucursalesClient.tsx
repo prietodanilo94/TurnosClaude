@@ -386,6 +386,7 @@ export default function SucursalesClient({ branches, groups, allPatterns, year, 
       )}
 
       <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+        <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           {tableHead}
           <tbody className="bg-white divide-y divide-gray-100">
@@ -514,6 +515,7 @@ export default function SucursalesClient({ branches, groups, allPatterns, year, 
             )}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );
