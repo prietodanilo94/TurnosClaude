@@ -287,7 +287,7 @@ export default function SucursalesClient({ branches, groups, allPatterns, year, 
         <SortTH label="Categoría" k="categoria" />
         <SortTH label="Vendedores" k="vendedores" />
         <SortTH label="Estado" k="estado" />
-        <th className="px-4 py-3" />
+        <th className="px-4 py-3 sticky right-0 bg-gray-50" />
       </tr>
     </thead>
   );
@@ -423,7 +423,7 @@ export default function SucursalesClient({ branches, groups, allPatterns, year, 
                     <td className="px-4 py-3">
                       <EstadoBadge estado={row.estado} />
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 py-3 text-right sticky right-0 border-l border-gray-100 bg-blue-50 shadow-[-4px_0_6px_-6px_rgba(0,0,0,0.15)]">
                       <div className="flex items-center justify-end gap-3">
                         <Link href="/admin/grupos" className="text-xs text-gray-400 hover:text-gray-600">
                           Gestionar
@@ -480,7 +480,7 @@ export default function SucursalesClient({ branches, groups, allPatterns, year, 
                   <td className="px-4 py-3">
                     <EstadoBadge estado={row.estado} />
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-right sticky right-0 border-l border-gray-100 bg-white shadow-[-4px_0_6px_-6px_rgba(0,0,0,0.15)]">
                     <div className="flex items-center justify-end gap-3">
                       <Link href={`/admin/sucursales/${branch.id}`} className="text-xs text-gray-400 hover:text-gray-600">
                         Accesos

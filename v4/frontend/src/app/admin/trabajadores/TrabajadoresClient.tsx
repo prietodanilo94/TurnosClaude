@@ -238,7 +238,7 @@ export default function TrabajadoresClient({ initialWorkers, branchTeams, superv
                     />
                   </th>
                 ))}
-                <th className="px-4 py-3" />
+                <th className="px-4 py-3 sticky right-0 bg-gray-50" />
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -288,7 +288,7 @@ export default function TrabajadoresClient({ initialWorkers, branchTeams, superv
                       {worker.activo ? "Activo" : "Inactivo"}
                     </button>
                   </td>
-                  <td className="px-4 py-3 text-right space-x-3">
+                  <td className="px-4 py-3 text-right space-x-3 sticky right-0 border-l border-gray-100 bg-white shadow-[-4px_0_6px_-6px_rgba(0,0,0,0.15)]">
                     <button onClick={() => setHistoryWorker(worker)} className="text-gray-500 hover:text-gray-700">
                       Historial
                     </button>

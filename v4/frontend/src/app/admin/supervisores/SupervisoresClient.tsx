@@ -293,7 +293,7 @@ export default function SupervisoresClient({ initialSupervisors, branches, year,
                     />
                   </th>
                 ))}
-                <th className="px-4 py-3" />
+                <th className="px-4 py-3 sticky right-0 bg-gray-50" />
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-100">
@@ -423,7 +423,11 @@ export default function SupervisoresClient({ initialSupervisors, branches, year,
                         {supervisor.activo ? "Activo" : "Inactivo"}
                       </button>
                     </td>
-                    <td className="px-4 py-3 text-right space-x-3">
+                    <td
+                      className={`px-4 py-3 text-right space-x-3 sticky right-0 border-l border-gray-100 shadow-[-4px_0_6px_-6px_rgba(0,0,0,0.15)] ${
+                        setupIssues.length > 0 ? "bg-amber-50" : "bg-white"
+                      }`}
+                    >
                       <a
                         href={`/admin/trabajadores?supervisorId=${supervisor.id}`}
                         className="text-sm text-gray-500 hover:text-gray-700"
