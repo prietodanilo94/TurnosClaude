@@ -147,6 +147,43 @@ export default function CalendarView({
     seedBoundaryFromReal(slots, assignments, prevMonthShifts, nextMonthShifts),
   );
   const initialAssignments = useRef<Record<string, string | null>>(assignments);
+
+  // Re-sincroniza los dias frontera si prevMonthShifts/nextMonthShifts llegan
+  // mas nuevos que el seed inicial (Next.js reutiliza esta instancia de
+  // CalendarView en navegaciones suaves sin remontarla; el useState de
+  // localSlots solo se siembra una vez al montar). Sin esto, la grilla puede
+  // quedar mostrando el patron viejo mientras la validacion (que siempre lee
+  // prevMonthShifts/nextMonthShifts en vivo, no lo sembrado) ya usa los datos
+  // reales nuevos, y el total en pantalla deja de coincidir con el del panel
+  // de validacion (bug reportado 2026-07-27, semana frontera Geely Irarrazaval).
+  useEffect(() => {
+    setLocalSlots((prev) => {
+      let changed = false;
+      const next = prev.map((s) => {
+        const workerId = assign[String(s.slotNumber)] ?? null;
+        if (!workerId) return s;
+        const tail = prevMonthShifts?.[workerId];
+        const head = nextMonthShifts?.[workerId];
+        if (!tail && !head) return s;
+        let days = s.days;
+        const apply = (source: Record<string, DayShift | null>) => {
+          for (const [d, sh] of Object.entries(source)) {
+            if (!(d in days)) continue;
+            if (JSON.stringify(days[d] ?? null) === JSON.stringify(sh ?? null)) continue;
+            if (days === s.days) days = { ...days };
+            days[d] = sh;
+            changed = true;
+          }
+        };
+        if (tail) apply(tail);
+        if (head) apply(head);
+        return days === s.days ? s : { ...s, days };
+      });
+      return changed ? next : prev;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prevMonthShifts, nextMonthShifts]);
+
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [calId, setCalId] = useState(calendarId);
