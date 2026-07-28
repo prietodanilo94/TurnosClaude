@@ -276,6 +276,13 @@ export function WeekBlock({
                     const canDrag = !feriado && !isPast;
                     const isBeingDragged = dragSource?.slotNum === slot.slotNumber && dragSource?.dateStr === dateStr;
                     const isDropTarget = dragOver?.slotNum === slot.slotNumber && dragOver?.dateStr === dateStr;
+                    // Mientras hay un arrastre activo, el :hover del navegador
+                    // sigue aplicandose a las celdas por las que pasa el mouse,
+                    // dando la sensacion de que toda la fila "se mueve" aunque
+                    // solo cambian de verdad la celda origen y el destino
+                    // (reportado 2026-07-28). Se desactiva el hover mientras
+                    // dragSource este activo.
+                    const isDragging = dragSource !== null;
                     return (
                       <td
                         key={ci}
@@ -306,7 +313,7 @@ export function WeekBlock({
                             className={`px-1 py-1 rounded border text-xs select-none transition-opacity ${
                               isBeingDragged ? "opacity-30" : ""
                             } ${
-                              !isPast ? "cursor-pointer hover:brightness-95 active:scale-95" : "opacity-60 cursor-default"
+                              !isPast ? `cursor-pointer${isDragging ? "" : " hover:brightness-95 active:scale-95"}` : "opacity-60 cursor-default"
                             } ${
                               `${color.bg} ${color.text} ${color.border}`
                             }`}
@@ -333,7 +340,7 @@ export function WeekBlock({
                               isBeingDragged ? "opacity-30" : ""
                             } ${
                               isDropTarget ? "text-blue-500 font-medium" : "text-gray-300"
-                            } ${!isPast ? "cursor-pointer hover:text-blue-400" : canDrag ? "cursor-grab" : ""}`}
+                            } ${!isPast ? `cursor-pointer${isDragging ? "" : " hover:text-blue-400"}` : canDrag ? "cursor-grab" : ""}`}
                           >
                             libre
                           </div>
