@@ -262,9 +262,14 @@ export default function CalendarView({
         setCalId(d.id);
         setDirty(false);
         setSaveFeedback(buildSaveSuccessFeedback(validation, calendarScopeLabel ?? branchName));
+        // Primer guardado (calId aun no existia): no hay "antes" real con que
+        // comparar, pero se calcula igual el diff contra un estado vacio para
+        // que la creacion completa del calendario quede visible en Exportar/
+        // Historial (antes quedaba "changes: null" y esa fila desaparecia
+        // por completo de la tabla — bug reportado 2026-07-28).
         const changes = calId
           ? computeCalendarDiff(initialSlots.current, localSlots, initialAssignments.current, assign, workerMap, year, month)
-          : undefined;
+          : computeCalendarDiff([], localSlots, {}, assign, workerMap, year, month);
         // Actualizar la base de comparacion al estado recien guardado: sin esto,
         // guardar dos veces en la misma sesion (ej. click doble, o guardar de
         // nuevo sin cambios nuevos) recalcula el diff contra el estado con el

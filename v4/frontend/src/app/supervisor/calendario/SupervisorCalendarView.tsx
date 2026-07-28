@@ -195,9 +195,14 @@ export default function SupervisorCalendarView({
       prevMonthLabel={!hasCalendar ? prevMonthLabel : undefined}
       onNavigate={(newYear, newMonth) => `/supervisor/calendario?${navigationQueryPrefix}year=${newYear}&month=${newMonth}`}
       onSaveCalendar={async ({ slotsData, assignments: nextAssignments, validationSummary, scopeLabel, scopeType }) => {
+        // Primer guardado (aun no hay calendario): se calcula el diff contra
+        // un estado vacio en vez de omitirlo, para que la creacion completa
+        // quede visible en Exportar/Historial (antes quedaba "changes: null"
+        // y esa fila desaparecia por completo de la tabla — bug reportado
+        // 2026-07-28).
         const changes = hasCalendar
           ? computeCalendarDiff(lastSavedSlots.current, slotsData, lastSavedAssignments.current, nextAssignments, workerMap, year, month)
-          : undefined;
+          : computeCalendarDiff([], slotsData, {}, nextAssignments, workerMap, year, month);
         await saveTeamCalendars({
           year,
           month,
