@@ -306,32 +306,34 @@ export default function SucursalesClient({ branches, groups, allPatterns, year, 
           placeholder="Buscar sucursal..."
           className="w-full max-w-sm px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
-        <div className="flex items-center gap-2 shrink-0">
-          <select
-            value={month}
-            onChange={(e) => navigateToMonth(year, Number(e.target.value))}
-            className="px-2 py-2 border border-gray-300 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+        <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-2">
+            <select
+              value={month}
+              onChange={(e) => navigateToMonth(year, Number(e.target.value))}
+              className="px-2 py-2 border border-gray-300 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {MONTHS_ES.map((m, i) => (
+                <option key={i + 1} value={i + 1}>{m[0].toUpperCase()}{m.slice(1)}</option>
+              ))}
+            </select>
+            <select
+              value={year}
+              onChange={(e) => navigateToMonth(Number(e.target.value), month)}
+              className="px-2 py-2 border border-gray-300 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {[year - 1, year, year + 1].map((y) => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+          </div>
+          <button
+            onClick={() => { setShowCreate(true); setCreateError(""); }}
+            className="px-3 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors whitespace-nowrap"
           >
-            {MONTHS_ES.map((m, i) => (
-              <option key={i + 1} value={i + 1}>{m[0].toUpperCase()}{m.slice(1)}</option>
-            ))}
-          </select>
-          <select
-            value={year}
-            onChange={(e) => navigateToMonth(Number(e.target.value), month)}
-            className="px-2 py-2 border border-gray-300 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            {[year - 1, year, year + 1].map((y) => (
-              <option key={y} value={y}>{y}</option>
-            ))}
-          </select>
+            + Nueva sucursal
+          </button>
         </div>
-        <button
-          onClick={() => { setShowCreate(true); setCreateError(""); }}
-          className="px-3 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors whitespace-nowrap"
-        >
-          + Nueva sucursal
-        </button>
       </div>
 
       {showCreate && (
