@@ -36,7 +36,7 @@ export type PatternOption = {
 const MONTHS_ES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
 
 type EstadoKey = "listo" | "vacio" | "none";
-type SortKey = "sucursal" | "area" | "categoria" | "vendedores" | "estado";
+type SortKey = "sucursal" | "area" | "categoria" | "vendedores" | "mes" | "estado";
 const ESTADO_RANK: Record<EstadoKey, number> = { listo: 0, vacio: 1, none: 2 };
 const ESTADO_LABEL: Record<EstadoKey, string> = { listo: "Listo", vacio: "Sin asignar", none: "Sin calendario" };
 
@@ -47,6 +47,7 @@ type DisplayRow = {
   area: string; // "grupo" | "ventas" | "postventa"
   categoriaLabel: string;
   vendedores: number;
+  mes: string;
   estado: EstadoKey;
   group?: GroupData & { supervisorsUnique: { id: string; nombre: string }[] };
   branch?: BranchData;
@@ -61,11 +62,12 @@ function colValue(r: DisplayRow, col: SortKey): string {
     case "area": return r.area === "grupo" ? "Grupo" : r.area === "ventas" ? "Ventas" : "Postventa";
     case "categoria": return r.categoriaLabel || "(sin categoría)";
     case "vendedores": return String(r.vendedores);
+    case "mes": return r.mes;
     case "estado": return ESTADO_LABEL[r.estado];
   }
 }
 
-const FILTER_COLS: SortKey[] = ["sucursal", "area", "categoria", "vendedores", "estado"];
+const FILTER_COLS: SortKey[] = ["sucursal", "area", "categoria", "vendedores", "mes", "estado"];
 
 function matchesColFilters(
   r: DisplayRow,
@@ -91,12 +93,16 @@ export default function SucursalesClient({ branches, groups, allPatterns, year, 
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 } | null>(null);
   const [colFilters, setColFilters] = useState<Record<SortKey, Set<string> | null>>({
-    sucursal: null, area: null, categoria: null, vendedores: null, estado: null,
+    sucursal: null, area: null, categoria: null, vendedores: null, mes: null, estado: null,
   });
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState(EMPTY_BRANCH_FORM);
   const [saving, setSaving] = useState(false);
   const [createError, setCreateError] = useState("");
+
+  function navigateToMonth(newYear: number, newMonth: number) {
+    router.push(`/admin/sucursales?year=${newYear}&month=${newMonth}`);
+  }
 
   async function handleCreateBranch() {
     if (!form.nombre.trim() || !form.codigo.trim()) {
@@ -157,6 +163,7 @@ export default function SucursalesClient({ branches, groups, allPatterns, year, 
     });
 
   const labelById = new Map(allPatterns.map((p) => [p.id, p.label]));
+  const mesLabel = `${MONTHS_ES[month - 1][0].toUpperCase()}${MONTHS_ES[month - 1].slice(1)} ${year}`;
 
   // Filas unificadas (grupos + sucursales sueltas) con campos comparables para ordenar
   const groupRows: DisplayRow[] = visibleGroups.map((group) => {
@@ -185,6 +192,7 @@ export default function SucursalesClient({ branches, groups, allPatterns, year, 
       area: "grupo",
       categoriaLabel: catLabels.join(" · "),
       vendedores,
+      mes: mesLabel,
       estado,
       group: { ...group, supervisorsUnique },
     };
@@ -198,6 +206,7 @@ export default function SucursalesClient({ branches, groups, allPatterns, year, 
       area: team.areaNegocio,
       categoriaLabel: team.categoria ? (labelById.get(team.categoria) ?? team.categoria) : "",
       vendedores: team.workerCount,
+      mes: mesLabel,
       estado: (calendarStatus[team.id] ?? "none") as EstadoKey,
       branch,
       team,
@@ -214,6 +223,7 @@ export default function SucursalesClient({ branches, groups, allPatterns, year, 
         case "area": return r.area;
         case "categoria": return r.categoriaLabel ? r.categoriaLabel.toLowerCase() : "￿"; // sin categoría al final
         case "vendedores": return r.vendedores;
+        case "mes": return r.mes;
         case "estado": return ESTADO_RANK[r.estado];
       }
     };
@@ -261,7 +271,7 @@ export default function SucursalesClient({ branches, groups, allPatterns, year, 
     if (estado === "listo") {
       return (
         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 whitespace-nowrap">
-          Listo · {MONTHS_ES[month - 1]}
+          Listo
         </span>
       );
     }
@@ -286,6 +296,7 @@ export default function SucursalesClient({ branches, groups, allPatterns, year, 
         <SortTH label="Área" k="area" />
         <SortTH label="Categoría" k="categoria" />
         <SortTH label="Vendedores" k="vendedores" />
+        <SortTH label="Mes" k="mes" />
         <SortTH label="Estado" k="estado" />
         <th className="px-4 py-3 sticky right-0 bg-gray-50" />
       </tr>
@@ -302,6 +313,26 @@ export default function SucursalesClient({ branches, groups, allPatterns, year, 
           placeholder="Buscar sucursal..."
           className="w-full max-w-sm px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
+        <div className="flex items-center gap-2 shrink-0">
+          <select
+            value={month}
+            onChange={(e) => navigateToMonth(year, Number(e.target.value))}
+            className="px-2 py-2 border border-gray-300 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            {MONTHS_ES.map((m, i) => (
+              <option key={i + 1} value={i + 1}>{m[0].toUpperCase()}{m.slice(1)}</option>
+            ))}
+          </select>
+          <select
+            value={year}
+            onChange={(e) => navigateToMonth(Number(e.target.value), month)}
+            className="px-2 py-2 border border-gray-300 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            {[year - 1, year, year + 1].map((y) => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+        </div>
         <button
           onClick={() => { setShowCreate(true); setCreateError(""); }}
           className="px-3 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors whitespace-nowrap"
@@ -420,6 +451,7 @@ export default function SucursalesClient({ branches, groups, allPatterns, year, 
                       {row.categoriaLabel || <span className="text-gray-300">—</span>}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600">{row.vendedores}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{row.mes}</td>
                     <td className="px-4 py-3">
                       <EstadoBadge estado={row.estado} />
                     </td>
@@ -477,6 +509,7 @@ export default function SucursalesClient({ branches, groups, allPatterns, year, 
                     />
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600">{team.workerCount}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{row.mes}</td>
                   <td className="px-4 py-3">
                     <EstadoBadge estado={row.estado} />
                   </td>
@@ -508,7 +541,7 @@ export default function SucursalesClient({ branches, groups, allPatterns, year, 
 
             {rows.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-400">
+                <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-400">
                   {search ? <>Sin resultados para &ldquo;{search}&rdquo;</> : "Sin resultados para los filtros aplicados."}
                 </td>
               </tr>

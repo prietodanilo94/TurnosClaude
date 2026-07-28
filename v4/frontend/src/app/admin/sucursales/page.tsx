@@ -5,7 +5,11 @@ import SucursalesClient from "./SucursalesClient";
 
 export const dynamic = "force-dynamic";
 
-export default async function SucursalesPage() {
+interface SucursalesPageProps {
+  searchParams: { year?: string; month?: string };
+}
+
+export default async function SucursalesPage({ searchParams }: SucursalesPageProps) {
   await getSession();
 
   const [branches, groups] = await Promise.all([
@@ -36,8 +40,8 @@ export default async function SucursalesPage() {
 
   const dbPatterns = await prisma.shiftPattern.findMany({ orderBy: { createdAt: "asc" } });
   const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
+  const year = Number(searchParams.year) || now.getFullYear();
+  const month = Number(searchParams.month) || now.getMonth() + 1;
 
   const savedCalendars = await prisma.calendar.findMany({
     where: { year, month },
