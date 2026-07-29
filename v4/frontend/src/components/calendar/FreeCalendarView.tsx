@@ -86,9 +86,14 @@ export default function FreeCalendarView({
     assignments: Record<string, string | null>;
     validationSummary?: { errorCount: number; warningCount: number; warningCodes: string[] };
   }) {
-    const changes: ChangeItem[] | undefined = hasCalendar || savedOrigenRef.current === "libre"
+    // Primer guardado (aun no hay horario libre guardado): se calcula el
+    // diff contra un estado vacio en vez de omitirlo, para que la creacion
+    // completa quede visible en Exportar/Historial (antes quedaba
+    // "changes: null" y esa fila desaparecia por completo de la tabla —
+    // mismo bug reportado 2026-07-28 en CalendarView.tsx/SupervisorCalendarView.tsx).
+    const changes: ChangeItem[] = hasCalendar || savedOrigenRef.current === "libre"
       ? computeCalendarDiff(lastSavedSlots.current, slotsData, lastSavedAssignments.current, nextAssignments, workerMap, year, month)
-      : undefined;
+      : computeCalendarDiff([], slotsData, {}, nextAssignments, workerMap, year, month);
 
     for (const teamData of splitCalendarByTeam(slotsData, nextAssignments, slices)) {
       const res = await fetch("/api/calendars", {

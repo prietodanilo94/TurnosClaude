@@ -182,6 +182,7 @@ export default function SupervisorCalendarView({
       backLabel="Volver"
       showExportButtons
       hideExcelExport={hideExcelExport}
+      showValidationPanel
       enforceValidationBeforeSave
       calendarScopeLabel={title}
       calendarScopeType={slices.length > 1 ? "group" : "branch"}

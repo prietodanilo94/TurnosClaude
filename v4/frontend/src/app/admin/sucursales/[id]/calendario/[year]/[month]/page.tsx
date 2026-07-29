@@ -225,6 +225,7 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
         currentMonth={month}
         supervisorNames={branchSupervisors.filter((sb) => !sb.supervisor.invisible).map((sb) => sb.supervisor.nombre)}
         patternRotation={patternOverride?.rotationWeeks}
+        showValidationPanel
         isAdmin={true}
         saveConfirmMessage={savedOrigen === "libre"
           ? "El horario oficial de este mes fue creado en modo LIBRE. Tus cambios se guardarán sobre él. ¿Continuar?"

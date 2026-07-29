@@ -307,7 +307,17 @@ export default function CalendarView({
     // corrige la semana con otra persona) — sigue viendose como error en el
     // panel de validacion, pero ya no impide el guardado.
     if (validation.exceeds42hLimit && !isAdmin) {
-      setSaveFeedback({ tone: "error", text: "No se puede guardar: hay un slot con más de 42 horas en una semana. Ajusta los turnos antes de guardar." });
+      // El mensaje generico no decia cual vendedor/semana era el problema,
+      // dejando al supervisor sin forma de saber que corregir (reportado
+      // 2026-07-28, Jonathan Saavedra / DFSK Mall Plaza Oeste). Se agrega
+      // el detalle real de la(s) semana(s) con exceso, igual que ya hace
+      // el dialogo de "guardar incompleto" un poco mas abajo.
+      const hourIssues = validation.errors.filter((issue) => issue.code === "weekly_hours_high");
+      setSaveFeedback({
+        tone: "error",
+        text: "No se puede guardar: hay un slot con más de 42 horas en una semana. Ajusta los turnos antes de guardar.",
+        details: hourIssues.map((issue) => `${issue.title}: ${issue.detail}`),
+      });
       onComplete?.(null);
       return;
     }
