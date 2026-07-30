@@ -184,6 +184,22 @@ export default function CalendarView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prevMonthShifts, nextMonthShifts]);
 
+  // Refresca los props del servidor (incluye prevMonthShifts/nextMonthShifts)
+  // al volver a esta pestaña. Sin esto, una pestaña dejada abierta mientras
+  // se corrige el mes vecino en OTRA pestaña/sesion nunca se entera del
+  // cambio — sus props quedaron congelados en el render inicial y el
+  // useEffect de arriba solo reacciona si esos props realmente cambian.
+  // No toca localSlots/assign (estado del cliente): un router.refresh() solo
+  // re-renderiza el Server Component con datos frescos, no reinicia el
+  // formulario en edicion.
+  useEffect(() => {
+    function onVisible() {
+      if (document.visibilityState === "visible") router.refresh();
+    }
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [router]);
+
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [calId, setCalId] = useState(calendarId);

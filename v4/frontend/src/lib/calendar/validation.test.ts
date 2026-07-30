@@ -11,7 +11,7 @@ const baseSlot: CalendarSlot = {
 };
 
 describe("validateCalendarForPublish", () => {
-  it("blocks saving when a slot with shifts has no assigned worker", () => {
+  it("warns but allows saving when a slot with shifts has no assigned worker", () => {
     const result = validateCalendarForPublish({
       year: 2026,
       month: 5,
@@ -20,8 +20,8 @@ describe("validateCalendarForPublish", () => {
       workerMap: {},
     });
 
-    expect(result.canSave).toBe(false);
-    expect(result.errors.some((issue) => issue.code === "unassigned_slot")).toBe(true);
+    expect(result.canSave).toBe(true);
+    expect(result.warnings.some((issue) => issue.code === "unassigned_slot")).toBe(true);
   });
 
   it("blocks saving when an assigned worker is blocked on a shift date", () => {

@@ -218,7 +218,7 @@ export function validateCalendarForPublish({
 
     if (slotHasShift && !workerId) {
       issues.push({
-        severity: "error",
+        severity: "warning",
         code: "unassigned_slot",
         title: `Vendedor ${slot.slotNumber} sin asignar`,
         detail: "Este slot tiene turnos en el mes, pero no tiene vendedor asignado.",
