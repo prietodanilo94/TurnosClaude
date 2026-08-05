@@ -517,7 +517,10 @@ export default function CalendarView({
           setSelectedSlots(new Set(newSlots.map((s) => s.slotNumber)));
           if (result.assignments) setAssign(result.assignments);
           if (result.calendarId !== undefined) setCalId(result.calendarId);
-          setDirty(wasNoCalendar);
+          // Ambos casos (generar por primera vez o reiniciar uno existente)
+          // dejan un estado local pendiente de guardar — "dirty" debe ser
+          // true siempre aqui, no solo cuando no habia calendario antes.
+          setDirty(true);
           setSaveFeedback({
             tone: "success",
             text: wasNoCalendar

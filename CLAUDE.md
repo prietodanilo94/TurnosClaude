@@ -42,6 +42,15 @@
 - **Estilo respuestas**: cortas, densas, sin intro ni resumen final. Tablas/bullets solo si aportan.
 - **Dudas**: preguntar antes de asumir.
 
+## Principios de diseño (evitar bugs recurrentes)
+
+Checklist para revisar antes de dar por lista una feature nueva o un cambio en calendario/trabajadores/turnos. Nace de una sesión (2026-08) donde 3 tickets de bugs distintos resultaron ser el mismo patrón estructural repetido.
+
+1. **Fuente única de verdad — no recalcules para mostrar lo que ya guardaste.** Si un campo (`semanaOffset`, `rotationAnchor`, etc.) ya está persistido, la UI debe leerlo directo. Un heurístico de "detectar" ese mismo valor comparando datos reales (útil solo como fallback cuando no hay valor guardado) diverge tarde o temprano — especialmente en semanas frontera o transiciones de categoría, donde los datos reales mezclan el patrón viejo y el nuevo.
+2. **Fricción proporcional al daño.** Ninguna acción debería romper el contrato implícito "nada se persiste hasta Guardar" sin que sea obvio. Si un botón (ej. "Recalcular") escribe en la base de inmediato, o el nombre no lo dice claramente, o requiere una confirmación imposible de pasar por alto sin leer.
+3. **Ninguna mutación automática de datos guardados debe ser muda.** Cualquier función que modifique un Calendar/Worker por un efecto colateral (desactivación, cambio de equipo, limpieza de asignaciones) debe dejar rastro en AuditLog siempre, no solo cuando alguien se acuerda de agregarlo.
+4. **Los invariantes que cruzan varios archivos deben ser explícitos, no asumidos.** Ej.: "los slotNumber van 1..N sin huecos" era un supuesto implícito que otra parte del código (limpieza de slots fantasma) rompía sin avisar. Si un invariante no se puede garantizar en todos los puntos que lo tocan, el código que depende de él debe calcularse de forma robusta a la excepción (ej. desde el máximo real, no desde el conteo del array).
+
 ## Infraestructura
 
 - GitHub: `github.com/prietodanilo94/TurnosClaude`.

@@ -53,17 +53,18 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   });
 
   // Si se desactivo, o si cambio de equipo, no debe seguir apareciendo
-  // asignado en calendarios del mes actual o futuros de su equipo anterior.
+  // asignado en calendarios futuros de su equipo anterior (el mes actual
+  // se deja intacto — ver cleanupStaleAssignments.ts).
   const leftOldTeam = branchTeamId !== undefined && before && before.branchTeamId !== branchTeamId;
   const wasDeactivated = activo === false;
   if ((leftOldTeam || wasDeactivated) && before) {
-    await clearWorkerFromFutureCalendars([params.id], before.branchTeamId);
+    await clearWorkerFromFutureCalendars([params.id], before.branchTeamId, req);
   }
 
   return NextResponse.json(worker);
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   if (!(await requireAdmin())) {
     return NextResponse.json({ error: "Sin acceso" }, { status: 403 });
   }
@@ -71,7 +72,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
   // Limpiar antes de eliminar: una vez borrado el Worker, su id ya no se
   // puede resolver a un nombre y queda como referencia huerfana ("?") en
   // cualquier calendario donde siga asignado.
-  await clearWorkerFromFutureCalendars([params.id]);
+  await clearWorkerFromFutureCalendars([params.id], undefined, req);
   await prisma.worker.delete({ where: { id: params.id } });
   return NextResponse.json({ ok: true });
 }

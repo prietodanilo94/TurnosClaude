@@ -78,17 +78,22 @@ export function WeekBlock({
   const hasRotation = patternRotation && patternRotation.length > 1;
   const displaySlots = useMemo(() => {
     if (!sortBySemana || !hasRotation) return slots;
+    const N = patternRotation!.length;
+    const semanaOf = (s: CalendarSlot) =>
+      weekIndex === 0 && s.semanaOffset !== undefined
+        ? ((s.semanaOffset % N) + N) % N
+        : detectSemanaForWeek(s, patternRotation!, weekDateStrs);
     return [...slots].sort((a, b) => {
       const activeA = localSlots?.find(s => s.slotNumber === a.slotNumber) ?? a;
       const activeB = localSlots?.find(s => s.slotNumber === b.slotNumber) ?? b;
-      const semA = detectSemanaForWeek(activeA, patternRotation!, weekDateStrs);
-      const semB = detectSemanaForWeek(activeB, patternRotation!, weekDateStrs);
+      const semA = semanaOf(activeA);
+      const semB = semanaOf(activeB);
       if (semA === null && semB === null) return 0;
       if (semA === null) return 1;
       if (semB === null) return -1;
       return semA - semB;
     });
-  }, [slots, sortBySemana, hasRotation, patternRotation, weekDateStrs, localSlots]);
+  }, [slots, sortBySemana, hasRotation, patternRotation, weekDateStrs, localSlots, weekIndex]);
 
   function handleDragStart(slotNum: number, dateStr: string) {
     setDragSource({ slotNum, dateStr });
@@ -196,11 +201,21 @@ export function WeekBlock({
               const workerId = assign[String(slot.slotNumber)] ?? null;
               const workerName = workerId ? (workerMap[workerId] ?? "?") : `Vendedor ${slotDisplayNum[slot.slotNumber] ?? slot.slotNumber}`;
               const activeSlot = localSlots?.find(s => s.slotNumber === slot.slotNumber) ?? slot;
-              // Semana activa de ESTE bloque: se detecta contra los turnos reales de la semana,
-              // así soporta cambios parciales ("desde esta semana") y ediciones manuales.
-              const semanaOff = patternRotation && patternRotation.length > 1
-                ? detectSemanaForWeek(activeSlot, patternRotation, weekDateStrs)
-                : null;
+              // Semana activa de ESTE bloque. La semana 1 del mes es exactamente
+              // lo que semanaOffset describe por definicion — usarlo directo ahi
+              // evita "adivinar" comparando dias reales, que falla justo en la
+              // semana frontera: sus dias de julio siguen reflejando la
+              // categoria VIEJA (si hubo un cambio de categoria a mitad de mes),
+              // y pueden calzar por coincidencia con un patron distinto al
+              // realmente guardado (bug real 2026-08, MG Movicenter — ver
+              // CLAUDE.md, Principios de diseno #1). Semanas siguientes SI
+              // necesitan la deteccion, porque un cambio parcial ("desde esta
+              // semana") puede dejarlas en una semana distinta a semanaOffset.
+              const semanaOff = !hasRotation
+                ? null
+                : weekIndex === 0 && activeSlot.semanaOffset !== undefined
+                  ? ((activeSlot.semanaOffset % patternRotation!.length) + patternRotation!.length) % patternRotation!.length
+                  : detectSemanaForWeek(activeSlot, patternRotation!, weekDateStrs);
               const color = semanaOff !== null
                 ? SEMANA_COLORS[semanaOff % SEMANA_COLORS.length]
                 : workerColor(slot.slotNumber);

@@ -196,7 +196,7 @@ export async function POST(req: NextRequest) {
             where: { id: { in: toDeactivate.map((w) => w.id) } },
             data: { activo: false },
           });
-          await clearWorkerFromFutureCalendars(toDeactivate.map((w) => w.id), team.id);
+          await clearWorkerFromFutureCalendars(toDeactivate.map((w) => w.id), team.id, req);
           workersDeactivated += toDeactivate.length;
         }
       }

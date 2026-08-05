@@ -221,19 +221,17 @@ export default function SupervisorCalendarView({
       }}
       onRecalculateCalendar={async ({ currentSlots }) => {
         if (hasCalendar) {
-          // Reiniciar: conserva los turnos, borra solo asignaciones
+          // Reiniciar: conserva los turnos, borra solo asignaciones. Esto
+          // NO se guarda de inmediato — queda en estado local, igual que
+          // cualquier otra edicion, para que "Recalcular" no rompa el
+          // contrato del resto de la app ("nada se persiste hasta
+          // Guardar"). Antes esto guardaba en el mismo clic del dialogo de
+          // confirmacion, dejando equipos completos sin nadie asignado en
+          // produccion si el usuario no volvia a reasignar y guardar
+          // (bug real detectado 2026-08, Opel Movicenter — ver CLAUDE.md,
+          // Principios de diseno #2).
           const emptyAssignments: Record<string, string | null> = {};
           currentSlots.forEach((s) => { emptyAssignments[String(s.slotNumber)] = null; });
-
-          await saveTeamCalendars({
-            year,
-            month,
-            slots: currentSlots,
-            assignments: emptyAssignments,
-            slices,
-            scopeLabel: title,
-            scopeType: slices.length > 1 ? "group" : "branch",
-          });
 
           return {
             slots: currentSlots,
