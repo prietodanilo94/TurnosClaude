@@ -173,10 +173,19 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
       if (categoryResolution.source === "group") {
         alert = `Este equipo no tiene categoria propia. Se muestra usando la categoria del grupo${categoryResolution.sourceBranchName ? ` desde ${categoryResolution.sourceBranchName}` : ""}.`;
       }
-      // Auto-agregar slots para trabajadores nuevos
+      // Auto-agregar slots para trabajadores nuevos. Los slotNumber existentes
+      // pueden tener huecos (ej. un slot fantasma eliminado antes) — usar
+      // slots.length para numerar los nuevos choca con un slotNumber real ya
+      // en uso, dejando el slot duplicado inutilizable (bug real 2026-08,
+      // Geely Irarrazaval: 2 vendedoras nuevas, solo quedo 1 cupo asignable).
+      // Se sigue tomando la misma cola de `full.slots` (mismo criterio de
+      // cuantos y cuales patrones usar), pero renumerada desde el maximo
+      // slotNumber real.
       if (filteredWorkers.length > slots.length) {
         const full = generateCalendar(catId, year, month, slotAnchors, patternOverride);
-        slots = [...slots, ...full.slots.slice(slots.length)];
+        const maxSlotNumber = slots.reduce((max, s) => Math.max(max, s.slotNumber), 0);
+        const newSlots = full.slots.slice(slots.length).map((s, i) => ({ ...s, slotNumber: maxSlotNumber + 1 + i }));
+        slots = [...slots, ...newSlots];
       }
     } else {
       const result = generateCalendar(catId, year, month, slotAnchors, patternOverride);

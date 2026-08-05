@@ -58,10 +58,14 @@ export async function combineGroupTeams(
       hasCalendar = true;
       teamSlots = JSON.parse(team.calendar.slotsData) as CalendarSlot[];
       teamAssign = JSON.parse(team.calendar.assignments) as Record<string, string | null>;
-      // Auto-agregar slots para trabajadores nuevos
+      // Auto-agregar slots para trabajadores nuevos. Renumerar desde el
+      // maximo slotNumber real (no desde teamSlots.length): un hueco por un
+      // slot fantasma eliminado antes haria chocar el nuevo con uno real.
       if (N > teamSlots.length && definedCat) {
         const full = generateCalendar(definedCat, year, month, slotAnchors, patternOverride);
-        teamSlots = [...teamSlots, ...full.slots.slice(teamSlots.length)];
+        const maxSlotNumber = teamSlots.reduce((max, s) => Math.max(max, s.slotNumber), 0);
+        const newSlots = full.slots.slice(teamSlots.length).map((s, i) => ({ ...s, slotNumber: maxSlotNumber + 1 + i }));
+        teamSlots = [...teamSlots, ...newSlots];
       }
     } else if (definedCat) {
       teamSlots = generateCalendar(definedCat, year, month, slotAnchors, patternOverride).slots;

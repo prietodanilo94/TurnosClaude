@@ -263,10 +263,15 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
     if (cal) {
       slots       = JSON.parse(cal.slotsData) as CalendarSlot[];
       assignments = JSON.parse(cal.assignments) as Record<string, string | null>;
-      // Auto-agregar slots para trabajadores nuevos
+      // Auto-agregar slots para trabajadores nuevos. Renumerar desde el
+      // maximo slotNumber real (no desde slots.length): si hay un hueco por
+      // un slot fantasma eliminado antes, slots.length no coincide con el
+      // maximo en uso y el slot nuevo puede chocar con uno real existente.
       if (N > slots.length && team.categoria) {
         const full = generateCalendar(team.categoria, year, month, slotAnchors, patternMap[team.categoria]);
-        slots = [...slots, ...full.slots.slice(slots.length)];
+        const maxSlotNumber = slots.reduce((max, s) => Math.max(max, s.slotNumber), 0);
+        const newSlots = full.slots.slice(slots.length).map((s, i) => ({ ...s, slotNumber: maxSlotNumber + 1 + i }));
+        slots = [...slots, ...newSlots];
       }
     } else if (team.categoria) {
       slots = generateCalendar(team.categoria, year, month, slotAnchors, patternMap[team.categoria]).slots;

@@ -38,7 +38,12 @@ const MONTHS_ES = ["enero","febrero","marzo","abril","mayo","junio","julio","ago
 type EstadoKey = "listo" | "vacio" | "none";
 type SortKey = "sucursal" | "area" | "categoria" | "vendedores" | "estado";
 const ESTADO_RANK: Record<EstadoKey, number> = { listo: 0, vacio: 1, none: 2 };
-const ESTADO_LABEL: Record<EstadoKey, string> = { listo: "Listo", vacio: "Sin asignar", none: "Sin calendario" };
+// "vacio" (calendario guardado, faltan vendedores) y "none" (aun no
+// guardado — puede haber una vista previa con gente ya calculada, ver F11)
+// se muestran ambos como "Incompleto": la distincion tecnica no le importa
+// a quien revisa la lista, y "Sin calendario" generaba confusion cuando
+// al entrar SI se ve gente asignada (solo que no esta guardado todavia).
+const ESTADO_LABEL: Record<EstadoKey, string> = { listo: "Completo", vacio: "Incompleto", none: "Incompleto" };
 
 type DisplayRow = {
   type: "group" | "team";
@@ -265,20 +270,20 @@ export default function SucursalesClient({ branches, groups, allPatterns, year, 
     if (estado === "listo") {
       return (
         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 whitespace-nowrap">
-          Listo · {MONTHS_ES[month - 1]}
+          Completo · {MONTHS_ES[month - 1]}
         </span>
       );
     }
     if (estado === "vacio") {
       return (
         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700 whitespace-nowrap">
-          Sin asignar
+          Incompleto
         </span>
       );
     }
     return (
       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-400 whitespace-nowrap">
-        Sin calendario
+        Incompleto
       </span>
     );
   }
