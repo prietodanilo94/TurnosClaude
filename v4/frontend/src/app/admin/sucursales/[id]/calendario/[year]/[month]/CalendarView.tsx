@@ -192,9 +192,19 @@ export default function CalendarView({
   // No toca localSlots/assign (estado del cliente): un router.refresh() solo
   // re-renderiza el Server Component con datos frescos, no reinicia el
   // formulario en edicion.
+  // Limitado a como maximo 1 vez por minuto: sin esto, cada cambio de
+  // pestana/ventana (revisar WhatsApp, Alt+Tab, etc.) recalculaba y
+  // re-renderizaba todo el calendario de nuevo, sintiendose como lentitud
+  // en un uso normal con muchas pestanas (reportado 2026-08-06).
   useEffect(() => {
+    let lastRefresh = Date.now();
+    const MIN_INTERVAL_MS = 60_000;
     function onVisible() {
-      if (document.visibilityState === "visible") router.refresh();
+      if (document.visibilityState !== "visible") return;
+      const now = Date.now();
+      if (now - lastRefresh < MIN_INTERVAL_MS) return;
+      lastRefresh = now;
+      router.refresh();
     }
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
