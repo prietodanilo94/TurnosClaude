@@ -64,7 +64,12 @@ model BranchTeam {
   workers        Worker[]
   calendars      Calendar[]
 
-  @@unique([branchId, areaNegocio])
+  // Antes: unico por (branchId, areaNegocio) — una sucursal solo podia tener
+  // UN equipo por area de negocio. Se quita para permitir varios equipos
+  // dentro de la misma area (ej. postventa separado por cargo/patron real:
+  // "Desabolladores", "Administrativo", etc.), cada uno con su propia
+  // categoria. Ver plan "Otros Cargos" (2026-08).
+  @@index([branchId, areaNegocio])
 }
 
 model Worker {

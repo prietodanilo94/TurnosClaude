@@ -159,11 +159,19 @@ export async function POST(req: NextRequest) {
       }
 
       for (const [areaNegocio, areaRows] of byArea) {
-        const team = await prisma.branchTeam.upsert({
-          where: { branchId_areaNegocio: { branchId: branch.id, areaNegocio } },
-          create: { branchId: branch.id, areaNegocio },
-          update: {},
+        // Una sucursal ya puede tener varios equipos para la misma area
+        // (separados por cargo/patron real, ver plan "Otros Cargos" 2026-08)
+        // — ya no hay una clave unica (branchId, areaNegocio) para upsert.
+        // Esta sincronizacion no distingue cargo (no se usa activamente hoy),
+        // asi que toma el primer equipo existente de esa area si hay varios;
+        // solo crea uno nuevo si de verdad no existe ninguno todavia.
+        let team = await prisma.branchTeam.findFirst({
+          where: { branchId: branch.id, areaNegocio },
+          orderBy: { createdAt: "asc" },
         });
+        if (!team) {
+          team = await prisma.branchTeam.create({ data: { branchId: branch.id, areaNegocio } });
+        }
 
         const incomingRuts = new Set<string>(areaRows.map((row) => row.rut));
         for (const row of areaRows) {
