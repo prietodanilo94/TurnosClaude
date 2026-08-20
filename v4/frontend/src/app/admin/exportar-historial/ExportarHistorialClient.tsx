@@ -89,17 +89,21 @@ export default function ExportarHistorialClient({ rows }: Props) {
     });
   }
 
-  const allFilteredSelected = sortedRows.length > 0 && sortedRows.every((r) => selected.has(r.key));
+  // Filas huerfanas (trabajador eliminado): no tienen RUT/sucursal que
+  // resolver, asi que no se puede generar un Excel para ellas. Se muestran en
+  // la tabla para que quede trazabilidad, pero no participan de la descarga.
+  const downloadableRows = sortedRows.filter((r) => !r.orphaned);
+  const allFilteredSelected = downloadableRows.length > 0 && downloadableRows.every((r) => selected.has(r.key));
 
   function toggleSelectAllFiltered() {
     setSelected((prev) => {
       if (allFilteredSelected) {
         const next = new Set(prev);
-        sortedRows.forEach((r) => next.delete(r.key));
+        downloadableRows.forEach((r) => next.delete(r.key));
         return next;
       }
       const next = new Set(prev);
-      sortedRows.forEach((r) => next.add(r.key));
+      downloadableRows.forEach((r) => next.add(r.key));
       return next;
     });
   }
@@ -162,12 +166,12 @@ export default function ExportarHistorialClient({ rows }: Props) {
             </button>
             <button
               type="button"
-              disabled={filteredRows.length === 0 || downloading}
-              onClick={() => downloadKeys(filteredRows.map((r) => r.key))}
-              title="Descarga un Excel con TODAS las filas que se ven ahora en la tabla (según los filtros aplicados), sin importar si están marcadas, y las deja registradas como descargadas"
+              disabled={downloadableRows.length === 0 || downloading}
+              onClick={() => downloadKeys(downloadableRows.map((r) => r.key))}
+              title="Descarga un Excel con TODAS las filas que se ven ahora en la tabla (según los filtros aplicados), sin importar si están marcadas, y las deja registradas como descargadas. Las filas de trabajadores eliminados no se incluyen: no tienen datos para generar Excel."
               className="px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
-              Descargar todo lo filtrado ({filteredRows.length})
+              Descargar todo lo filtrado ({downloadableRows.length})
             </button>
           </div>
           <p className="text-[11px] text-gray-400">
@@ -235,13 +239,15 @@ export default function ExportarHistorialClient({ rows }: Props) {
               ) : (
                 sortedRows.map((row) => (
                   <Fragment key={row.key}>
-                    <tr className="hover:bg-gray-50 border-b border-gray-100 cursor-pointer" onClick={() => toggleExpand(row.key)}>
+                    <tr className={`hover:bg-gray-50 border-b border-gray-100 cursor-pointer ${row.orphaned ? "opacity-60" : ""}`} onClick={() => toggleExpand(row.key)}>
                       <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
                           checked={selected.has(row.key)}
                           onChange={() => toggleRow(row.key)}
-                          className="w-3.5 h-3.5 rounded border-gray-300"
+                          disabled={row.orphaned}
+                          title={row.orphaned ? "Trabajador eliminado: no hay datos para generar Excel" : undefined}
+                          className="w-3.5 h-3.5 rounded border-gray-300 disabled:cursor-not-allowed"
                         />
                       </td>
                       <td className="px-3 py-2 text-xs text-gray-600 capitalize whitespace-nowrap">{row.area || "—"}</td>
@@ -249,7 +255,9 @@ export default function ExportarHistorialClient({ rows }: Props) {
                       <td className="px-3 py-2 text-xs text-gray-400 whitespace-nowrap">{row.codigo || "—"}</td>
                       <td className="px-3 py-2 text-xs text-gray-600 whitespace-nowrap">{fmtDateTime(row.fechaMod)}</td>
                       <td className="px-3 py-2 text-xs text-gray-600 whitespace-nowrap">{row.modificadoPor}</td>
-                      <td className="px-3 py-2 text-sm font-medium text-gray-900 whitespace-nowrap">{row.trabajador}</td>
+                      <td className="px-3 py-2 text-sm font-medium text-gray-900 whitespace-nowrap" title={row.orphaned ? "Este trabajador fue eliminado del sistema" : undefined}>
+                        {row.trabajador}
+                      </td>
                       <td className="px-3 py-2 text-xs text-gray-500 text-center">{row.eventos}</td>
                       <td className="px-3 py-2 text-xs text-gray-600 whitespace-nowrap">{fmtDateTime(row.fechaDescarga)}</td>
                       <td className="px-3 py-2 text-xs text-gray-600 whitespace-nowrap">{row.descargadoPor ?? "—"}</td>

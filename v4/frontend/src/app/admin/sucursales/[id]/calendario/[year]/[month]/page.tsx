@@ -91,7 +91,27 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
   // que se asoman con lo realmente guardado alla.
   const nextMonthShifts = extractNextMonthHead(nextCal, nextYear, nextMonth);
 
-  const workerMap = Object.fromEntries(filteredWorkers.map((worker) => [worker.id, worker.nombre]));
+  // Un trabajador puede quedar desactivado (baja, cambio de equipo) mientras
+  // su ULTIMA asignacion guardada todavia lo referencia en este calendario.
+  // Si el guardado siguiente lo saca del slot, computeCalendarDiff necesita
+  // su nombre para armar el historial — sin esto, cae al fallback `?? id` en
+  // diff.ts y el RUT/nombre real queda reemplazado por el id interno para
+  // siempre en el AuditLog (bug real, reportado 2026-08-20 por Isabel: ids
+  // crudos en la columna "Trabajador" de Exportar/Historial).
+  const activeWorkerIds = new Set(filteredWorkers.map((w) => w.id));
+  const staleWorkerIds = existing
+    ? [...new Set(Object.values(JSON.parse(existing.assignments) as Record<string, string | null>).filter(
+        (id): id is string => !!id && !activeWorkerIds.has(id),
+      ))]
+    : [];
+  const staleWorkers = staleWorkerIds.length > 0
+    ? await prisma.worker.findMany({ where: { id: { in: staleWorkerIds } }, select: { id: true, nombre: true } })
+    : [];
+
+  const workerMap = Object.fromEntries([
+    ...filteredWorkers.map((worker) => [worker.id, worker.nombre] as const),
+    ...staleWorkers.map((worker) => [worker.id, worker.nombre] as const),
+  ]);
   const workerBlocks: WorkerBlockInfo[] = filteredWorkers.flatMap((worker) =>
     worker.blocks.map((block) => ({
       id: block.id,

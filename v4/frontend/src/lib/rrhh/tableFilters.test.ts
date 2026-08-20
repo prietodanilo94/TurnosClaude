@@ -12,6 +12,7 @@ function row(overrides: Partial<CambioRow> & { key: string }): CambioRow {
     modificadoPor: "emanuel@pompeyo.cl",
     workerId: "w1",
     trabajador: "Ana",
+    orphaned: false,
     eventos: 1,
     cambios: [],
     fechaDescarga: null,

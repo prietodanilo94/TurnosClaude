@@ -21,6 +21,10 @@ export interface CambioRow {
   modificadoPor: string;
   workerId: string;
   trabajador: string;
+  // true = el Worker ya no existe (eliminado, no solo desactivado). No hay
+  // RUT ni sucursal que resolver para el, asi que no se puede generar Excel
+  // RRHH para esta fila — la UI debe evitar dejarla seleccionar sola.
+  orphaned: boolean;
   eventos: number;
   cambios: CambioDetalle[];
   fechaDescarga: string | null;
@@ -183,6 +187,13 @@ export function buildCambioRows(
       const info = workerInfoMap.get(workerId);
       const key = `${log.id}:${workerId}`;
       const lastExport = latestExportByKey.get(key) ?? null;
+      const rawName = workerChanges[0].workerName;
+      // Si el Worker ya no existe Y el nombre guardado en su momento era en
+      // realidad el id crudo (bug de fuente-de-verdad en diff.ts, corregido
+      // 2026-08-20: un trabajador desactivado antes de un guardado caia al
+      // fallback `?? workerId`), no hay nombre real que mostrar.
+      const orphaned = !info;
+      const trabajador = orphaned && rawName === workerId ? "Trabajador eliminado" : rawName;
 
       rows.push({
         key,
@@ -193,7 +204,8 @@ export function buildCambioRows(
         fechaMod: log.createdAt.toISOString(),
         modificadoPor: log.userEmail ?? "Sistema",
         workerId,
-        trabajador: workerChanges[0].workerName,
+        trabajador,
+        orphaned,
         eventos: workerChanges.length,
         cambios: workerChanges.map(({ date, dayLabel, from, to }) => ({ date, dayLabel, from, to })),
         fechaDescarga: lastExport?.exportedAt.toISOString() ?? null,

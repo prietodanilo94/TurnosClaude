@@ -69,7 +69,10 @@ export async function POST(req: NextRequest) {
   }
 
   if (buckets.size === 0) {
-    return NextResponse.json({ error: "No se pudo resolver ninguno de los cambios seleccionados" }, { status: 404 });
+    return NextResponse.json(
+      { error: "Ninguno de los cambios seleccionados se puede descargar: el trabajador ya fue eliminado del sistema y no queda RUT ni sucursal para generar el Excel." },
+      { status: 404 },
+    );
   }
 
   const calendars = await prisma.calendar.findMany({

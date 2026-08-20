@@ -42,6 +42,41 @@ describe("buildCambioRows", () => {
     expect(ana.descargadoPor).toBeNull();
   });
 
+  it("marks a row as orphaned and shows a friendly label when the worker no longer exists and the saved name was the raw id fallback", () => {
+    const logs = [
+      log({
+        id: "log-1",
+        metadata: JSON.stringify({
+          changes: [{ workerId: "w-deleted", workerName: "w-deleted", date: "2026-08-02", dayLabel: "Dom 02 Ago", from: "10:00-18:00", to: null }],
+        }),
+      }),
+    ];
+
+    const rows = buildCambioRows(logs, new Map(), []);
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0].orphaned).toBe(true);
+    expect(rows[0].trabajador).toBe("Trabajador eliminado");
+    expect(rows[0].area).toBe("");
+    expect(rows[0].sucursal).toBe("");
+  });
+
+  it("keeps the real captured name when the worker no longer exists but was resolved correctly at save time", () => {
+    const logs = [
+      log({
+        id: "log-1",
+        metadata: JSON.stringify({
+          changes: [{ workerId: "w-deleted", workerName: "Ana", date: "2026-08-02", dayLabel: "Dom 02 Ago", from: "10:00-18:00", to: null }],
+        }),
+      }),
+    ];
+
+    const rows = buildCambioRows(logs, new Map(), []);
+
+    expect(rows[0].orphaned).toBe(true);
+    expect(rows[0].trabajador).toBe("Ana");
+  });
+
   it("keeps two saves of the same worker as two independent rows", () => {
     const logs = [
       log({ id: "log-1", metadata: JSON.stringify({ changes: [{ workerId: "w1", workerName: "Ana", date: "2026-07-02", dayLabel: "Jue 02 Jul", from: null, to: "10:00-18:00" }] }) }),
@@ -143,6 +178,7 @@ describe("keepLatestPerWorker", () => {
       codigo: "101",
       modificadoPor: "supervisor@pompeyo.cl",
       trabajador: "Ana",
+      orphaned: false,
       eventos: 1,
       cambios: [],
       fechaDescarga: null,
