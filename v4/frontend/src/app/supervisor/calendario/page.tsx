@@ -101,6 +101,27 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
     orderBy: [{ branch: { nombre: "asc" } }, { areaNegocio: "asc" }],
   });
 
+  // Un trabajador puede quedar desactivado (baja, cambio de equipo) mientras
+  // su ULTIMA asignacion guardada todavia lo referencia en el calendario de
+  // este mes. Si el proximo guardado lo saca del slot, computeCalendarDiff
+  // necesita su nombre para armar el historial — sin esto cae al fallback
+  // `?? id` en diff.ts y el nombre real queda reemplazado por el id interno
+  // para siempre en el AuditLog (mismo bug ya corregido en la vista admin,
+  // ver CalendarView.tsx/page.tsx admin — aqui es la via mas comun por la
+  // que ocurre, ya que los supervisores editan a diario).
+  const activeWorkerIdsAll = new Set(teams.flatMap((t) => t.workers.map((w) => w.id)));
+  const staleWorkerIdsAll = new Set<string>();
+  for (const t of teams) {
+    const cal = t.calendars[0];
+    if (!cal) continue;
+    for (const id of Object.values(JSON.parse(cal.assignments) as Record<string, string | null>)) {
+      if (id && !activeWorkerIdsAll.has(id)) staleWorkerIdsAll.add(id);
+    }
+  }
+  const staleWorkerNames = staleWorkerIdsAll.size > 0
+    ? await prisma.worker.findMany({ where: { id: { in: [...staleWorkerIdsAll] } }, select: { id: true, nombre: true } })
+    : [];
+
   // Bug 6: excluir supervisores del listado de trabajadores
   const branchSupervisors = await prisma.supervisorBranch.findMany({
     where: { branchId: { in: selectedBranchIds } },
@@ -160,6 +181,10 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
     slots: CalendarSlot[];
     assignments: Record<string, string | null>;
     workers: { id: string; nombre: string }[];
+    // Nombres de trabajadores ya no activos, solo para que el diff de
+    // cambios pueda resolver su nombre real — NUNCA debe usarse como lista
+    // de candidatos asignables a un slot (ver SupervisorCalendarView.tsx).
+    staleWorkerNames: { id: string; nombre: string }[];
     blocks: WorkerBlockInfo[];
     slices: TeamSlice[];
     hasCalendar: boolean;
@@ -233,6 +258,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
         slots: combined.slots,
         assignments: combined.assignments,
         workers: allWorkers,
+        staleWorkerNames,
         blocks: allWorkerBlocks,
         slices: combined.slices,
         hasCalendar: combined.hasCalendar,
@@ -293,6 +319,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
       slots,
       assignments,
       workers,
+      staleWorkerNames,
       blocks: workerBlocks,
       slices: [{ teamId: team.id, workerIds: workers.map((w) => w.id), slotCount: slots.length, rotationAnchors: slotAnchors }],
       hasCalendar: !!cal,
@@ -377,6 +404,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
               slots={block.slots}
               assignments={block.assignments}
               workers={block.workers}
+              staleWorkerNames={block.staleWorkerNames}
               blocks={block.blocks}
               slices={block.slices}
               hasCalendar={block.hasCalendar}
@@ -401,6 +429,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
               assignments={block.libreAssignments}
               slices={block.libreSlices}
               workers={block.workers}
+              staleWorkerNames={block.staleWorkerNames}
               blocks={block.blocks}
               savedOrigen={block.savedOrigen}
               hasCalendar={block.hasCalendar}

@@ -28,6 +28,10 @@ interface Props {
   slots: CalendarSlot[];
   assignments: Record<string, string | null>;
   workers: SimpleWorker[];
+  // Nombres de trabajadores ya no activos, solo para que el diff de cambios
+  // pueda resolver su nombre real — nunca se usa como candidato asignable a
+  // un slot (eso lo sigue decidiendo unicamente `workers`/`fullWorkers`).
+  staleWorkerNames?: SimpleWorker[];
   blocks: WorkerBlockInfo[];
   slices: TeamSlice[];
   hasCalendar: boolean;
@@ -120,6 +124,7 @@ export default function SupervisorCalendarView({
   slots,
   assignments,
   workers,
+  staleWorkerNames,
   blocks,
   slices,
   hasCalendar,
@@ -150,7 +155,10 @@ export default function SupervisorCalendarView({
   const lastSavedSlots = useRef<CalendarSlot[]>(slots);
   const lastSavedAssignments = useRef<Record<string, string | null>>(assignments);
 
-  const workerMap = Object.fromEntries(workers.map((worker) => [worker.id, worker.nombre]));
+  const workerMap = Object.fromEntries([
+    ...workers.map((worker) => [worker.id, worker.nombre] as const),
+    ...(staleWorkerNames ?? []).map((worker) => [worker.id, worker.nombre] as const),
+  ]);
   const fullWorkers: WorkerInfo[] = workers.map((worker) => ({
     id: worker.id,
     nombre: worker.nombre,

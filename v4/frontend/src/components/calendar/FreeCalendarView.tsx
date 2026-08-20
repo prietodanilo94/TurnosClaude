@@ -29,6 +29,9 @@ interface Props {
   assignments: Record<string, string | null>;
   slices: TeamSlice[];
   workers: SimpleWorker[];
+  // Nombres de trabajadores ya no activos, solo para que el diff de cambios
+  // pueda resolver su nombre real — nunca se usa como candidato asignable.
+  staleWorkerNames?: SimpleWorker[];
   blocks: WorkerBlockInfo[];
   savedOrigen: "libre" | null;
   hasCalendar: boolean;
@@ -66,11 +69,14 @@ function blankSlots(template: CalendarSlot[]): CalendarSlot[] {
 
 export default function FreeCalendarView({
   title, areaNegocio, year, month,
-  slots, assignments, slices, workers, blocks,
+  slots, assignments, slices, workers, staleWorkerNames, blocks,
   savedOrigen, hasCalendar, scopeLabel, scopeType,
   prevMonthShifts, nextMonthShifts, isAdmin, backHref, backLabel,
 }: Props) {
-  const workerMap = Object.fromEntries(workers.map((w) => [w.id, w.nombre]));
+  const workerMap = Object.fromEntries([
+    ...workers.map((w) => [w.id, w.nombre] as const),
+    ...(staleWorkerNames ?? []).map((w) => [w.id, w.nombre] as const),
+  ]);
 
   // Base de comparacion para el diff de cambios hacia RRHH: lo guardado
   // actual (cualquier origen). Se actualiza tras cada guardado exitoso
