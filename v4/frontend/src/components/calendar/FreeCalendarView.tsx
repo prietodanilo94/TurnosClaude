@@ -42,11 +42,18 @@ interface Props {
   isAdmin: boolean;
   backHref?: string;
   backLabel?: string;
+  // Ingredientes PLANOS (no una funcion) para construir la URL de las
+  // flechas de mes aqui adentro, en el cliente. Este componente lo llama
+  // un Server Component (page.tsx) — Next.js no permite pasar funciones
+  // como props de Server a Client Component ("Event handlers cannot be
+  // passed to Client Component props", 500 real reportado 2026-08-21).
   // Sin esto, CalendarView cae a su fallback interno usando el
   // branchId="horario-libre" de mas abajo (un placeholder, no una sucursal
-  // real) y las flechas de mes construyen una URL invalida — 404 real
+  // real) y las flechas de mes construian una URL invalida — 404 real
   // reportado 2026-08-20.
-  onNavigate?: (year: number, month: number) => string;
+  navigateTarget?:
+    | { kind: "admin"; branchId: string; teamId: string }
+    | { kind: "supervisor"; queryBase: string };
 }
 
 // Patron sintetico: define la ventana horaria del editor (los dialogos de
@@ -77,12 +84,19 @@ export default function FreeCalendarView({
   slots, assignments, slices, workers, staleWorkerNames, blocks,
   savedOrigen, hasCalendar, scopeLabel, scopeType,
   prevMonthShifts, nextMonthShifts, isAdmin, backHref, backLabel,
-  onNavigate,
+  navigateTarget,
 }: Props) {
   const workerMap = Object.fromEntries([
     ...workers.map((w) => [w.id, w.nombre] as const),
     ...(staleWorkerNames ?? []).map((w) => [w.id, w.nombre] as const),
   ]);
+
+  const onNavigate = navigateTarget
+    ? (newYear: number, newMonth: number) =>
+        navigateTarget.kind === "admin"
+          ? `/admin/sucursales/${navigateTarget.branchId}/calendario/${newYear}/${newMonth}?team=${navigateTarget.teamId}`
+          : `/supervisor/calendario?${navigateTarget.queryBase ? `${navigateTarget.queryBase}&` : ""}year=${newYear}&month=${newMonth}`
+    : undefined;
 
   // Base de comparacion para el diff de cambios hacia RRHH: lo guardado
   // actual (cualquier origen). Se actualiza tras cada guardado exitoso
