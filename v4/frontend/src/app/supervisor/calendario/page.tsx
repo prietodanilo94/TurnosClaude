@@ -440,6 +440,7 @@ export default async function SupervisorCalendarPage({ searchParams }: Props) {
               isAdmin={session?.role === "admin"}
               backHref="/supervisor"
               backLabel="Volver"
+              onNavigate={(newYear, newMonth) => `/supervisor/calendario?${queryBase ? `${queryBase}&` : ""}year=${newYear}&month=${newMonth}`}
             />
           }
         />

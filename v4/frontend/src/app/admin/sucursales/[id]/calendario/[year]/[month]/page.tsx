@@ -286,6 +286,7 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
       prevMonthShifts={prevMonthShifts}
       nextMonthShifts={nextMonthShifts}
       isAdmin={session?.role === "admin"}
+      onNavigate={(newYear, newMonth) => `/admin/sucursales/${params.id}/calendario/${newYear}/${newMonth}?team=${team.id}`}
     />
   );
 

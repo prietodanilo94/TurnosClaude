@@ -42,6 +42,11 @@ interface Props {
   isAdmin: boolean;
   backHref?: string;
   backLabel?: string;
+  // Sin esto, CalendarView cae a su fallback interno usando el
+  // branchId="horario-libre" de mas abajo (un placeholder, no una sucursal
+  // real) y las flechas de mes construyen una URL invalida — 404 real
+  // reportado 2026-08-20.
+  onNavigate?: (year: number, month: number) => string;
 }
 
 // Patron sintetico: define la ventana horaria del editor (los dialogos de
@@ -72,6 +77,7 @@ export default function FreeCalendarView({
   slots, assignments, slices, workers, staleWorkerNames, blocks,
   savedOrigen, hasCalendar, scopeLabel, scopeType,
   prevMonthShifts, nextMonthShifts, isAdmin, backHref, backLabel,
+  onNavigate,
 }: Props) {
   const workerMap = Object.fromEntries([
     ...workers.map((w) => [w.id, w.nombre] as const),
@@ -170,6 +176,7 @@ export default function FreeCalendarView({
       prevMonthShifts={prevMonthShifts}
       nextMonthShifts={nextMonthShifts}
       isAdmin={isAdmin}
+      onNavigate={onNavigate}
       saveConfirmMessage={hasCalendar && savedOrigen !== "libre"
         ? `Ya tienes un horario ROTATIVO guardado para este mes. Si guardas, este horario libre pasará a ser el horario oficial y lo reemplazará. ¿Continuar?`
         : undefined}
