@@ -850,6 +850,15 @@ export default function CalendarView({
         ? "Guardar"
         : calId ? "Guardado" : "Sin guardar";
 
+  // Mes sin guardar (calId undefined) donde nadie ha asignado a nadie
+  // todavia: los avisos "Vendedor N sin asignar" son ruido puro (nada se
+  // decidio, no hay nada que revisar) — mismo criterio ya aplicado a
+  // "empty_calendar". Si el mes YA esta guardado y quedan huecos reales,
+  // el aviso si importa y se sigue mostrando de inmediato.
+  const noisyIssueCodesBeforeDirty = new Set<string>(
+    calId ? ["empty_calendar"] : ["empty_calendar", "unassigned_slot"],
+  );
+
   return (
     <div className="p-6">
       <div className="mb-1">
@@ -1003,10 +1012,11 @@ export default function CalendarView({
         </div>
       )}
 
-      {/* Panel oculto mientras el calendario esta intacto y su unico problema
-          es estar vacio (horario libre recien abierto): mostrar un error rojo
-          antes de que el usuario haga nada es ruido. */}
-      {showValidationPanel && (dirty || validation.issues.some((i) => i.code !== "empty_calendar")) && (
+      {/* Panel oculto mientras el calendario esta intacto y sus unicos
+          problemas son estar vacio o (si nunca se guardo) no tener a nadie
+          asignado todavia: mostrar avisos antes de que el usuario haga nada
+          es ruido. */}
+      {showValidationPanel && (dirty || validation.issues.some((i) => !noisyIssueCodesBeforeDirty.has(i.code))) && (
         <CalendarValidationPanel validation={validation} />
       )}
 
