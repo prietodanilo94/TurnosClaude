@@ -179,9 +179,11 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
     let assignments: Record<string, string | null> = {};
     let calendarId: string | undefined;
     let alert: string | undefined;
-    let prevMonthLabel: string | undefined;
+    // Ya no se auto-continua desde el mes anterior (ver comentario mas
+    // abajo) — queda declarado en undefined solo para mantener el tipo del
+    // prop que usa CalendarView para el texto del boton "Generar".
+    const prevMonthLabel: string | undefined = undefined;
 
-    const MONTHS_ES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
     const catId = categoryResolution.categoria;
     const patternRow = catId ? await prisma.shiftPattern.findUnique({ where: { id: catId } }) : null;
     const patternOverride = patternRow ? patternFromRow(patternRow) : undefined;
@@ -208,17 +210,19 @@ export default async function CalendarioPage({ params, searchParams }: Props) {
         slots = [...slots, ...newSlots];
       }
     } else {
+      // Mes sin guardar: la vista previa arranca SIN nadie asignado. Antes
+      // se auto-asignaba en orden alfabetico apenas se abria la pagina (sin
+      // que nadie lo pidiera) — eso generaba una semana frontera fantasma:
+      // el 31-ago real (horario libre cargado a mano) se combinaba con el
+      // resto de la semana generada por el patron limpio y podia superar
+      // las 42h para gente que en la realidad nunca trabajo esa semana,
+      // mostrando errores de validacion sobre datos que nadie decidio
+      // (reportado 2026-08-21, Kia Mall Plaza Tobalaba). La semana frontera
+      // sigue mostrando datos reales via prevMonthShifts — esto solo evita
+      // rellenar el resto del mes con una suposicion.
       const result = generateCalendar(catId, year, month, slotAnchors, patternOverride);
       slots = result.slots;
       alert = result.alert;
-      if (Object.keys(prevAssignments).length > 0) {
-        // El ancla de rotacion de cada trabajador (F9) ya garantiza continuidad
-        // con el mes anterior si sigue activo — no se copian asignaciones por
-        // numero de slot (podian corresponder a otra persona si el equipo
-        // cambio en el medio). Solo se asigna en orden alfabetico actual.
-        filteredWorkers.forEach((w, i) => { assignments[String(i + 1)] = w.id; });
-        prevMonthLabel = `${MONTHS_ES[prevMonth - 1]} ${prevYear}`;
-      }
     }
 
     rotativoContent = (
